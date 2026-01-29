@@ -3,7 +3,7 @@ project: "gloss"
 title: "Gloss — Distraction-free markdown reading"
 status: "active"
 phase: "Phase 4 - Released"
-progress: 90
+progress: 100
 stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
 next_steps:
   - "Integration tests"
