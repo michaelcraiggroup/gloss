@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+extension/out/
+extension/dist/
+extension/*.vsix
+
+# macOS
+.DS_Store
+macos/.build/
+macos/DerivedData/
+*.xcuserstate
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Test coverage
+coverage/
+
+# Temporary
+tmp/
+temp/

@@ -1,0 +1,149 @@
+{
+  "name": "gloss",
+  "displayName": "Gloss",
+  "description": "Distraction-free markdown reading — open to read, explicitly switch to edit",
+  "version": "0.1.0",
+  "publisher": "michaelcraig",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michaelcraig/gloss"
+  },
+  "homepage": "https://michaelcraig.group/products/gloss",
+  "bugs": {
+    "url": "https://github.com/michaelcraig/gloss/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "markdown",
+    "preview",
+    "reader",
+    "zen",
+    "documentation",
+    "reading",
+    "distraction-free"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#0d9488",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gloss.editFile",
+        "title": "Edit This File",
+        "category": "Gloss",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "gloss.toggleEnabled",
+        "title": "Toggle Reading Mode",
+        "category": "Gloss"
+      },
+      {
+        "command": "gloss.openInReadingMode",
+        "title": "Open in Reading Mode",
+        "category": "Gloss"
+      }
+    ],
+    "configuration": {
+      "title": "Gloss",
+      "properties": {
+        "gloss.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Gloss reading mode for markdown files"
+        },
+        "gloss.patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.md",
+            "**/*.markdown"
+          ],
+          "description": "Glob patterns for files to open in reading mode"
+        },
+        "gloss.exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Glob patterns to exclude from reading mode (always open in editor)"
+        },
+        "gloss.zenMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically enter Zen Mode when opening markdown in reading mode"
+        },
+        "gloss.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show reading mode indicator in status bar"
+        },
+        "gloss.closeSourceTab": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically close the source editor tab when opening preview"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "gloss.editFile",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "markdownPreviewFocus"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "gloss.editFile",
+          "when": "markdownPreviewFocus"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.56.0",
+    "mocha": "^10.2.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "minimatch": "^9.0.3"
+  }
+}
