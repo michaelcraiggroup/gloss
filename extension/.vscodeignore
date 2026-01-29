@@ -1,0 +1,31 @@
+# Source files (compiled to out/)
+src/**
+
+# TypeScript config
+tsconfig.json
+
+# Development dependencies
+node_modules/highlight.js/**
+node_modules/@types/**
+node_modules/@typescript-eslint/**
+node_modules/@vscode/**
+node_modules/eslint/**
+node_modules/mocha/**
+node_modules/prettier/**
+node_modules/typescript/**
+
+# Test files
+**/*.test.ts
+**/test/**
+
+# Config files
+.eslintrc.json
+.prettierrc
+.vscode/**
+
+# Git
+.git/**
+.gitignore
+
+# Build artifacts
+*.vsix

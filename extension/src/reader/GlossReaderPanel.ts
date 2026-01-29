@@ -134,8 +134,9 @@ export class GlossReaderPanel {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'unsafe-inline';">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com;">
 	<title>${fileName}</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${isDark ? 'github-dark' : 'github'}.min.css">
 	<style>
 		${this._getStyles(isDark)}
 	</style>
@@ -152,12 +153,18 @@ export class GlossReaderPanel {
 	<article class="gloss-content">
 		${htmlContent}
 	</article>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 	<script>
 		const vscode = acquireVsCodeApi();
 		
 		function editFile() {
 			vscode.postMessage({ command: 'edit' });
 		}
+
+		// Apply syntax highlighting
+		document.querySelectorAll('pre code').forEach((block) => {
+			hljs.highlightElement(block);
+		});
 
 		// Add copy buttons to code blocks
 		document.querySelectorAll('pre code').forEach((block) => {
@@ -385,14 +392,10 @@ export class GlossReaderPanel {
 				border-radius: 8px;
 			}
 
-			/* Syntax highlighting - GitHub-like */
-			.hljs-comment, .hljs-quote { color: ${isDark ? '#6a737d' : '#6a737d'}; }
-			.hljs-keyword, .hljs-selector-tag { color: ${isDark ? '#ff7b72' : '#d73a49'}; }
-			.hljs-string, .hljs-addition { color: ${isDark ? '#a5d6ff' : '#032f62'}; }
-			.hljs-number { color: ${isDark ? '#79c0ff' : '#005cc5'}; }
-			.hljs-function, .hljs-title { color: ${isDark ? '#d2a8ff' : '#6f42c1'}; }
-			.hljs-variable, .hljs-attr { color: ${isDark ? '#79c0ff' : '#005cc5'}; }
-			.hljs-built_in { color: ${isDark ? '#ffa657' : '#e36209'}; }
+			/* Override highlight.js background to match our theme */
+			.hljs {
+				background: ${codeBg} !important;
+			}
 		`;
 	}
 

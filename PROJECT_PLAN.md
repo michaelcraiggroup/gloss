@@ -2,14 +2,14 @@
 project: "gloss"
 title: "Gloss — Distraction-free markdown reading"
 status: "active"
-phase: "Phase 1 - Foundation"
-progress: 40
+phase: "Phase 2 - Core Features"
+progress: 75
 stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
 next_steps:
-  - "Test extension in VS Code"
-  - "Polish Merrily tree view icons"
-  - "Add integration tests"
+  - "Integration tests"
   - "Edge cases (remote, WSL, already open)"
+  - "Marketplace submission"
+  - "macOS standalone app"
 last_updated: "2026-01-29"
 ---
 

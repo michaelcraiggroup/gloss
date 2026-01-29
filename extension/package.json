@@ -32,7 +32,6 @@
     "shape-up",
     "operations"
   ],
-  "icon": "images/icon.png",
   "galleryBanner": {
     "color": "#0d9488",
     "theme": "dark"
@@ -239,7 +238,6 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "highlight.js": "^11.11.1",
     "marked": "^17.0.1",
     "minimatch": "^9.0.3"
   }
