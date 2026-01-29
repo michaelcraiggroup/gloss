@@ -32,6 +32,7 @@
     "shape-up",
     "operations"
   ],
+  "icon": "images/icon.png",
   "galleryBanner": {
     "color": "#0d9488",
     "theme": "dark"
