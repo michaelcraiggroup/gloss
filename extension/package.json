@@ -189,7 +189,7 @@
         "gloss.merrily.localFolder": {
           "type": "string",
           "default": "",
-          "description": "Path to your mcg-operations or operational documents folder"
+          "description": "Path to your operational documents folder"
         },
         "gloss.merrily.apiUrl": {
           "type": "string",

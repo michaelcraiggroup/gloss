@@ -50,7 +50,7 @@ npm run package      # Creates .vsix file
 | `Gloss: Edit This File` | Switch from preview to editor |
 | `Gloss: Toggle Reading Mode` | Enable/disable globally |
 | `Gloss: Open in Reading Mode` | Open current file in preview |
-| `Gloss: Merrily: Configure Local Folder` | Set mcg-operations path |
+| `Gloss: Merrily: Configure Local Folder` | Set operations docs path |
 | `Gloss: Merrily: Connect to API` | Connect to Merrily instance |
 | `Gloss: Merrily: Disconnect` | Disconnect from API |
 
@@ -66,7 +66,7 @@ npm run package      # Creates .vsix file
   "gloss.closeSourceTab": true,
   
   // Merrily integration
-  "gloss.merrily.localFolder": "/path/to/mcg-operations",
+  "gloss.merrily.localFolder": "/path/to/operations",
   "gloss.merrily.apiUrl": "http://localhost:3000",
   "gloss.merrily.apiToken": ""
 }
@@ -84,7 +84,7 @@ The extension intercepts markdown file opens and:
 ### Merrily Integration
 
 The sidebar tree view provides:
-- **Local folder browser** — Navigate mcg-operations or any folder
+- **Local folder browser** — Navigate your operations folder or any folder
 - **Document type icons** — Visual indicators (💡 pitch, 📊 retro, etc.)
 - **API connection** — Live pitches, cycles, retrospectives from Merrily
 - **Reading mode** — All documents open distraction-free

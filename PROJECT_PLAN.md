@@ -34,7 +34,7 @@ See [gloss-project-plan.md](gloss-project-plan.md) for full product specificatio
 ### Merrily Integration Features
 
 - [x] Sidebar tree view with folder browser
-- [x] Local folder configuration (mcg-operations)
+- [x] Local folder configuration
 - [x] Document type icons (pitch, retro, strategy, etc.)
 - [x] Merrily API client (pitches, cycles, retrospectives)
 - [x] API connection/disconnection commands

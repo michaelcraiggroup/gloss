@@ -23,7 +23,7 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 - Prevents accidental editing via double-click
 - Quick command to switch to edit mode when needed
 
-📦 [Install from Marketplace](https://marketplace.visualstudio.com/items?itemName=michaelcraig.gloss)
+📦 [Install from Marketplace](https://marketplace.visualstudio.com/items?itemName=michaelcraiggroup.gloss)
 
 ### macOS App ($9.99) — Coming Soon
 

@@ -191,7 +191,7 @@ async function configureMerrilyFolder() {
 		canSelectFolders: true,
 		canSelectMany: false,
 		openLabel: 'Select Operations Folder',
-		title: 'Select your mcg-operations or similar folder'
+		title: 'Select your operations documents folder'
 	};
 
 	const result = await vscode.window.showOpenDialog(options);
