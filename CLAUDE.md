@@ -8,10 +8,16 @@ A distraction-free markdown reader — VS Code extension and macOS app.
 
 ```
 gloss/
-├── extension/          # VS Code extension (TypeScript)
-├── macos/              # macOS app (Swift/SwiftUI) — future
-├── docs/               # Shared documentation
-└── gloss-project-plan.md  # Full product plan
+├── extension/              # VS Code extension (TypeScript)
+│   ├── src/
+│   │   ├── extension.ts    # Main extension entry
+│   │   └── merrily/        # Merrily integration
+│   │       ├── treeProvider.ts   # Sidebar tree view
+│   │       └── apiClient.ts      # Merrily API client
+│   ├── package.json        # Extension manifest
+│   └── tsconfig.json
+├── macos/                  # macOS app (Swift/SwiftUI) — future
+└── gloss-project-plan.md   # Full product plan
 ```
 
 ## Quick Reference
@@ -30,6 +36,7 @@ npm run test         # Run tests
 **Debug in VS Code:**
 - Press F5 to launch Extension Development Host
 - Open any .md file to test
+- Check Gloss sidebar for Merrily integration
 
 **Package for distribution:**
 ```bash
@@ -42,34 +49,53 @@ npm run package      # Creates .vsix file
 |---------|-------------|
 | `Gloss: Edit This File` | Switch from preview to editor |
 | `Gloss: Toggle Reading Mode` | Enable/disable globally |
+| `Gloss: Open in Reading Mode` | Open current file in preview |
+| `Gloss: Merrily: Configure Local Folder` | Set mcg-operations path |
+| `Gloss: Merrily: Connect to API` | Connect to Merrily instance |
+| `Gloss: Merrily: Disconnect` | Disconnect from API |
 
 ### Configuration
 
 ```jsonc
 {
+  // Reading mode
   "gloss.enabled": true,
   "gloss.patterns": ["**/*.md"],
   "gloss.exclude": ["**/CHANGELOG.md"],
-  "gloss.zenMode": false
+  "gloss.zenMode": false,
+  "gloss.closeSourceTab": true,
+  
+  // Merrily integration
+  "gloss.merrily.localFolder": "/path/to/mcg-operations",
+  "gloss.merrily.apiUrl": "http://localhost:3000",
+  "gloss.merrily.apiToken": ""
 }
 ```
 
 ## Architecture
 
+### Reading Mode
+
 The extension intercepts markdown file opens and:
 1. Triggers the built-in markdown preview
 2. Closes the source editor tab
-3. Disables double-click-to-edit in preview
+3. Creates a "read-only by default" experience
 
-This creates a "read-only by default" experience.
+### Merrily Integration
+
+The sidebar tree view provides:
+- **Local folder browser** — Navigate mcg-operations or any folder
+- **Document type icons** — Visual indicators (💡 pitch, 📊 retro, etc.)
+- **API connection** — Live pitches, cycles, retrospectives from Merrily
+- **Reading mode** — All documents open distraction-free
 
 ## Privacy
 
-No telemetry, no analytics, no network requests. Everything runs locally.
+No telemetry, no analytics. Network requests only go to your configured Merrily instance.
 
 ## Conventions
 
-- **Commits:** Conventional commits, no emojis
+- **Commits:** Conventional commits with emojis
 - **TypeScript:** Strict mode, ESLint enforced
 - **Testing:** Integration tests for VS Code API interactions
 

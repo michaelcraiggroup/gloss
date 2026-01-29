@@ -1,17 +1,17 @@
 {
   "name": "gloss",
   "displayName": "Gloss",
-  "description": "Distraction-free markdown reading — open to read, explicitly switch to edit",
+  "description": "Distraction-free markdown reading — open to read, explicitly switch to edit. Includes Merrily integration for operational docs.",
   "version": "0.1.0",
   "publisher": "michaelcraig",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/michaelcraig/gloss"
+    "url": "https://github.com/michaelcraiggroup/gloss"
   },
   "homepage": "https://michaelcraig.group/products/gloss",
   "bugs": {
-    "url": "https://github.com/michaelcraig/gloss/issues"
+    "url": "https://github.com/michaelcraiggroup/gloss/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -27,7 +27,10 @@
     "zen",
     "documentation",
     "reading",
-    "distraction-free"
+    "distraction-free",
+    "merrily",
+    "shape-up",
+    "operations"
   ],
   "icon": "images/icon.png",
   "galleryBanner": {
@@ -35,7 +38,8 @@
     "theme": "dark"
   },
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onView:glossMerrily"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -55,8 +59,92 @@
         "command": "gloss.openInReadingMode",
         "title": "Open in Reading Mode",
         "category": "Gloss"
+      },
+      {
+        "command": "gloss.refreshMerrily",
+        "title": "Refresh",
+        "category": "Gloss",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gloss.configureMerrilyFolder",
+        "title": "Configure Local Folder",
+        "category": "Gloss: Merrily",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "gloss.connectMerrilyApi",
+        "title": "Connect to Merrily API",
+        "category": "Gloss: Merrily",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "gloss.disconnectMerrilyApi",
+        "title": "Disconnect from Merrily API",
+        "category": "Gloss: Merrily",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "gloss.openMerrilyItem",
+        "title": "Open Item",
+        "category": "Gloss: Merrily"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gloss",
+          "title": "Gloss",
+          "icon": "$(book)"
+        }
+      ]
+    },
+    "views": {
+      "gloss": [
+        {
+          "id": "glossMerrily",
+          "name": "Merrily Documents",
+          "contextualTitle": "Operational Documents"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "glossMerrily",
+        "contents": "Browse your operational documents and Merrily pitches.\n\n[Configure Local Folder](command:gloss.configureMerrilyFolder)\n\n[Connect to Merrily API](command:gloss.connectMerrilyApi)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "gloss.refreshMerrily",
+          "when": "view == glossMerrily",
+          "group": "navigation"
+        },
+        {
+          "command": "gloss.configureMerrilyFolder",
+          "when": "view == glossMerrily"
+        },
+        {
+          "command": "gloss.connectMerrilyApi",
+          "when": "view == glossMerrily"
+        },
+        {
+          "command": "gloss.disconnectMerrilyApi",
+          "when": "view == glossMerrily"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "gloss.editFile",
+          "when": "markdownPreviewFocus"
+        },
+        {
+          "command": "gloss.openMerrilyItem",
+          "when": "false"
+        }
+      ]
+    },
     "configuration": {
       "title": "Gloss",
       "properties": {
@@ -98,6 +186,21 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically close the source editor tab when opening preview"
+        },
+        "gloss.merrily.localFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Path to your mcg-operations or operational documents folder"
+        },
+        "gloss.merrily.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "URL of your Merrily API instance (e.g., http://localhost:3000)"
+        },
+        "gloss.merrily.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "API token for Merrily authentication"
         }
       }
     },
@@ -108,15 +211,7 @@
         "mac": "cmd+shift+e",
         "when": "markdownPreviewFocus"
       }
-    ],
-    "menus": {
-      "commandPalette": [
-        {
-          "command": "gloss.editFile",
-          "when": "markdownPreviewFocus"
-        }
-      ]
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

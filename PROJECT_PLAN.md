@@ -3,15 +3,14 @@ project: "gloss"
 title: "Gloss — Distraction-free markdown reading"
 status: "active"
 phase: "Phase 1 - Foundation"
-progress: 0
+progress: 40
 stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
 next_steps:
-  - "Scaffold VS Code extension"
-  - "Implement document open listener"
-  - "Add pattern matching configuration"
-  - "Tab management (close source after preview)"
-  - "Status bar indicator"
-last_updated: "2026-01-28"
+  - "Test extension in VS Code"
+  - "Polish Merrily tree view icons"
+  - "Add integration tests"
+  - "Edge cases (remote, WSL, already open)"
+last_updated: "2026-01-29"
 ---
 
 # Gloss - Project Plan
@@ -26,31 +25,43 @@ See [gloss-project-plan.md](gloss-project-plan.md) for full product specificatio
 
 ### MVP Features (v0.1.0)
 
-- [ ] Auto-preview on open (configurable patterns)
-- [ ] Close source tab automatically
+- [x] Auto-preview on open (configurable patterns)
+- [x] Close source tab automatically
 - [ ] Disable double-click-to-edit
-- [ ] "Edit This File" command
-- [ ] Status bar indicator
+- [x] "Edit This File" command
+- [x] Status bar indicator
+- [x] **Merrily Integration** — Browse operational docs in sidebar
+
+### Merrily Integration Features
+
+- [x] Sidebar tree view with folder browser
+- [x] Local folder configuration (mcg-operations)
+- [x] Document type icons (pitch, retro, strategy, etc.)
+- [x] Merrily API client (pitches, cycles, retrospectives)
+- [x] API connection/disconnection commands
+- [x] Open documents in reading mode
 
 ### Milestones
 
-**Phase 1: Foundation (Week 1)**
-- [ ] Scaffold extension
-- [ ] Document open listener
-- [ ] Configuration schema
-- [ ] Manual preview triggering
+**Phase 1: Foundation (Week 1)** ✅
+- [x] Scaffold extension
+- [x] Document open listener
+- [x] Configuration schema
+- [x] Manual preview triggering
+- [x] Merrily tree provider
 
 **Phase 2: Core Features (Week 2)**
-- [ ] Pattern matching (include/exclude)
-- [ ] Tab closing logic
-- [ ] Edit command
-- [ ] Status bar
+- [x] Pattern matching (include/exclude)
+- [x] Tab closing logic
+- [x] Edit command
+- [x] Status bar
+- [ ] Integration tests
 
 **Phase 3: Polish (Week 3)**
 - [ ] Edge cases (remote, WSL, already open)
-- [ ] Integration tests
 - [ ] README with screenshots
 - [ ] Marketplace assets
+- [ ] Merrily API authentication flow
 
 **Phase 4: Release (Week 4)**
 - [ ] Beta testing
