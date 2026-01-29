@@ -38,8 +38,7 @@
     "theme": "dark"
   },
   "activationEvents": [
-    "onLanguage:markdown",
-    "onView:glossMerrily"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -95,7 +94,7 @@
         {
           "id": "gloss",
           "title": "Gloss",
-          "icon": "$(book)"
+          "icon": "images/gloss-icon.svg"
         }
       ]
     },
@@ -226,6 +225,7 @@
     "publish": "vsce publish"
   },
   "devDependencies": {
+    "@types/marked": "^5.0.2",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
@@ -239,6 +239,8 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "highlight.js": "^11.11.1",
+    "marked": "^17.0.1",
     "minimatch": "^9.0.3"
   }
 }

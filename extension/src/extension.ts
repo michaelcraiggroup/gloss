@@ -2,12 +2,17 @@ import * as vscode from 'vscode';
 import { minimatch } from 'minimatch';
 import { MerrilyTreeProvider } from './merrily/treeProvider';
 import { MerrilyApiClient } from './merrily/apiClient';
+import { GlossReaderPanel } from './reader/GlossReaderPanel';
 
 let statusBarItem: vscode.StatusBarItem;
 let merrilyTreeProvider: MerrilyTreeProvider;
+let extensionUri: vscode.Uri;
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Gloss extension activating...');
+
+	// Store extension URI for webview resources
+	extensionUri = context.extensionUri;
 
 	// Initialize Merrily integration
 	const apiClient = new MerrilyApiClient(context);
@@ -115,8 +120,8 @@ function shouldOpenInReadingMode(uri: vscode.Uri): boolean {
 async function openPreview(uri: vscode.Uri) {
 	const config = vscode.workspace.getConfiguration('gloss');
 	
-	// Open the markdown preview
-	await vscode.commands.executeCommand('markdown.showPreview', uri);
+	// Open in custom Gloss Reader panel
+	GlossReaderPanel.createOrShow(extensionUri, uri);
 
 	// Close source tab if configured
 	if (config.get<boolean>('closeSourceTab', true)) {
@@ -148,17 +153,10 @@ async function closeSourceTab(uri: vscode.Uri) {
 // === Commands ===
 
 async function editCurrentFile() {
-	// Get the active preview's source URI
-	const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
-	
-	if (activeTab?.input instanceof vscode.TabInputWebview) {
-		// Try to find the source file from webview state
-		// The markdown preview stores the source URI
-		const webviewPanel = activeTab.input;
-		
-		// Alternative: use the command to show source
-		await vscode.commands.executeCommand('markdown.showSource');
-	}
+	// The GlossReaderPanel handles its own "Edit" button
+	// This command is kept for keyboard shortcut compatibility
+	// If there's an active Gloss panel, it will handle Cmd+Shift+E internally
+	vscode.window.showInformationMessage('Use the Edit button in the Gloss Reader toolbar');
 }
 
 function toggleEnabled() {
@@ -248,10 +246,11 @@ async function disconnectMerrilyApi() {
 
 async function openMerrilyItem(item: { uri?: vscode.Uri; content?: string; title?: string }) {
 	if (item.uri) {
-		// Local file - open in reading mode
-		await openPreview(item.uri);
+		// Local file - open in Gloss Reader
+		GlossReaderPanel.createOrShow(extensionUri, item.uri);
 	} else if (item.content) {
-		// API content - create a virtual document
+		// API content - create a temp file and open in Gloss Reader
+		// For now, use the built-in preview for virtual content
 		const doc = await vscode.workspace.openTextDocument({
 			content: item.content,
 			language: 'markdown'
