@@ -2,13 +2,12 @@
 project: "gloss"
 title: "Gloss — Distraction-free markdown reading"
 status: "active"
-phase: "Phase 2 - Core Features"
-progress: 75
+phase: "Phase 4 - Released"
+progress: 90
 stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
 next_steps:
   - "Integration tests"
   - "Edge cases (remote, WSL, already open)"
-  - "Marketplace submission"
   - "macOS standalone app"
 last_updated: "2026-01-29"
 ---
@@ -27,7 +26,7 @@ See [gloss-project-plan.md](gloss-project-plan.md) for full product specificatio
 
 - [x] Auto-preview on open (configurable patterns)
 - [x] Close source tab automatically
-- [ ] Disable double-click-to-edit
+- [x] Disable double-click-to-edit (custom webview)
 - [x] "Edit This File" command
 - [x] Status bar indicator
 - [x] **Merrily Integration** — Browse operational docs in sidebar
@@ -63,7 +62,7 @@ See [gloss-project-plan.md](gloss-project-plan.md) for full product specificatio
 - [ ] Marketplace assets
 - [ ] Merrily API authentication flow
 
-**Phase 4: Release (Week 4)**
-- [ ] Beta testing
-- [ ] Marketplace submission
-- [ ] Announce on michaelcraig.group
+**Phase 4: Release (Week 4)** ✅
+- [x] Beta testing
+- [x] Marketplace submission
+- [x] Announce on michaelcraig.group
