@@ -17,7 +17,7 @@ A distraction-free markdown reader for VS Code with Merrily integration for brow
 
 Browse your operational documents and Merrily data directly in VS Code:
 
-- **Local Documents** — Browse your mcg-operations folder (or any folder)
+- **Local Documents** — Browse your operations folder (or any folder)
 - **Pitches** — View pitches from your Merrily instance
 - **Cycles** — View cycles and their status
 - **Retrospectives** — Read cycle retrospectives
@@ -37,7 +37,7 @@ All documents open in Gloss's distraction-free reading mode.
   "gloss.showStatusBar": true,
 
   // Merrily integration
-  "gloss.merrily.localFolder": "/path/to/mcg-operations",
+  "gloss.merrily.localFolder": "/path/to/operations",
   "gloss.merrily.apiUrl": "http://localhost:3000",
   "gloss.merrily.apiToken": "your-jwt-token"
 }

@@ -2,7 +2,7 @@
   "name": "gloss",
   "displayName": "Gloss",
   "description": "Distraction-free markdown reading — open to read, explicitly switch to edit. Includes Merrily integration for operational docs.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "michaelcraiggroup",
   "license": "MIT",
   "repository": {
