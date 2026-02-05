@@ -5,14 +5,24 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-02-05
+
+### Fixed
+
+- Table of contents anchor links now scroll to their target sections
+- Added heading ID generation (required since marked v5+ removed built-in IDs)
+- Anchor click handling for smooth in-page navigation within the webview
+
 ## [0.1.1] - 2026-01-29
 
 ### Changed
+
 - Updated documentation wording for clarity
 
 ## [0.1.0] - 2026-01-29
 
 ### Added
+
 - **Custom Gloss Reader Panel** — True read-only markdown viewing with no double-click-to-edit
 - **Merrily Integration** — Sidebar for browsing operational documents
   - Local folder browser with document type icons
@@ -31,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Copy Buttons** — One-click copy for code blocks
 
 ### Privacy
+
 - Zero telemetry
 - No analytics
 - Network requests only to user-configured Merrily instance
@@ -40,11 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Roadmap
 
 ### [0.2.0] — Planned
+
 - Integration tests
 - Remote workspace support (WSL, SSH)
 - Custom CSS theming
 
 ### [1.0.0] — Future
+
 - macOS standalone app
 - Quick Look integration
 - Multi-folder libraries
