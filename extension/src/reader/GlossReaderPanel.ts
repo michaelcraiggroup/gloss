@@ -3,133 +3,133 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 export class GlossReaderPanel {
-	public static currentPanels: Map<string, GlossReaderPanel> = new Map();
-	public static readonly viewType = 'glossReader';
+  public static currentPanels: Map<string, GlossReaderPanel> = new Map();
+  public static readonly viewType = 'glossReader';
 
-	private readonly _panel: vscode.WebviewPanel;
-	private readonly _uri: vscode.Uri;
-	private readonly _extensionUri: vscode.Uri;
-	private _disposables: vscode.Disposable[] = [];
+  private readonly _panel: vscode.WebviewPanel;
+  private readonly _uri: vscode.Uri;
+  private readonly _extensionUri: vscode.Uri;
+  private _disposables: vscode.Disposable[] = [];
 
-	public static createOrShow(extensionUri: vscode.Uri, uri: vscode.Uri) {
-		const column = vscode.window.activeTextEditor
-			? vscode.window.activeTextEditor.viewColumn
-			: undefined;
+  public static createOrShow(extensionUri: vscode.Uri, uri: vscode.Uri) {
+    const column = vscode.window.activeTextEditor
+      ? vscode.window.activeTextEditor.viewColumn
+      : undefined;
 
-		const uriString = uri.toString();
+    const uriString = uri.toString();
 
-		// If we already have a panel for this file, show it
-		if (GlossReaderPanel.currentPanels.has(uriString)) {
-			GlossReaderPanel.currentPanels.get(uriString)!._panel.reveal(column);
-			return;
-		}
+    // If we already have a panel for this file, show it
+    if (GlossReaderPanel.currentPanels.has(uriString)) {
+      GlossReaderPanel.currentPanels.get(uriString)!._panel.reveal(column);
+      return;
+    }
 
-		// Otherwise, create a new panel
-		const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
-		const panel = vscode.window.createWebviewPanel(
-			GlossReaderPanel.viewType,
-			`📖 ${fileName}`,
-			column || vscode.ViewColumn.One,
-			{
-				enableScripts: true,
-				localResourceRoots: [
-					vscode.Uri.joinPath(extensionUri, 'media'),
-					vscode.Uri.joinPath(extensionUri, 'node_modules')
-				],
-				retainContextWhenHidden: true
-			}
-		);
+    // Otherwise, create a new panel
+    const fileName = path.basename(uri.fsPath, path.extname(uri.fsPath));
+    const panel = vscode.window.createWebviewPanel(
+      GlossReaderPanel.viewType,
+      `📖 ${fileName}`,
+      column || vscode.ViewColumn.One,
+      {
+        enableScripts: true,
+        localResourceRoots: [
+          vscode.Uri.joinPath(extensionUri, 'media'),
+          vscode.Uri.joinPath(extensionUri, 'node_modules')
+        ],
+        retainContextWhenHidden: true
+      }
+    );
 
-		const glossPanel = new GlossReaderPanel(panel, extensionUri, uri);
-		GlossReaderPanel.currentPanels.set(uriString, glossPanel);
-	}
+    const glossPanel = new GlossReaderPanel(panel, extensionUri, uri);
+    GlossReaderPanel.currentPanels.set(uriString, glossPanel);
+  }
 
-	public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, uri: vscode.Uri) {
-		const glossPanel = new GlossReaderPanel(panel, extensionUri, uri);
-		GlossReaderPanel.currentPanels.set(uri.toString(), glossPanel);
-	}
+  public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, uri: vscode.Uri) {
+    const glossPanel = new GlossReaderPanel(panel, extensionUri, uri);
+    GlossReaderPanel.currentPanels.set(uri.toString(), glossPanel);
+  }
 
-	private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, uri: vscode.Uri) {
-		this._panel = panel;
-		this._extensionUri = extensionUri;
-		this._uri = uri;
+  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, uri: vscode.Uri) {
+    this._panel = panel;
+    this._extensionUri = extensionUri;
+    this._uri = uri;
 
-		// Set initial content
-		this._update();
+    // Set initial content
+    this._update();
 
-		// Watch for file changes
-		const watcher = vscode.workspace.createFileSystemWatcher(uri.fsPath);
-		watcher.onDidChange(() => this._update());
-		this._disposables.push(watcher);
+    // Watch for file changes
+    const watcher = vscode.workspace.createFileSystemWatcher(uri.fsPath);
+    watcher.onDidChange(() => this._update());
+    this._disposables.push(watcher);
 
-		// Handle panel disposal
-		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+    // Handle panel disposal
+    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-		// Handle messages from webview
-		this._panel.webview.onDidReceiveMessage(
-			message => {
-				switch (message.command) {
-					case 'edit':
-						this._openInEditor();
-						break;
-					case 'copyCode':
-						vscode.env.clipboard.writeText(message.code);
-						vscode.window.showInformationMessage('Code copied to clipboard');
-						break;
-				}
-			},
-			null,
-			this._disposables
-		);
-	}
+    // Handle messages from webview
+    this._panel.webview.onDidReceiveMessage(
+      (message) => {
+        switch (message.command) {
+          case 'edit':
+            this._openInEditor();
+            break;
+          case 'copyCode':
+            vscode.env.clipboard.writeText(message.code);
+            vscode.window.showInformationMessage('Code copied to clipboard');
+            break;
+        }
+      },
+      null,
+      this._disposables
+    );
+  }
 
-	private async _openInEditor() {
-		// Remove from reading mode tracking
-		GlossReaderPanel.currentPanels.delete(this._uri.toString());
-		this._panel.dispose();
-		
-		// Open in editor
-		const doc = await vscode.workspace.openTextDocument(this._uri);
-		await vscode.window.showTextDocument(doc);
-	}
+  private async _openInEditor() {
+    // Remove from reading mode tracking
+    GlossReaderPanel.currentPanels.delete(this._uri.toString());
+    this._panel.dispose();
 
-	public dispose() {
-		GlossReaderPanel.currentPanels.delete(this._uri.toString());
+    // Open in editor
+    const doc = await vscode.workspace.openTextDocument(this._uri);
+    await vscode.window.showTextDocument(doc);
+  }
 
-		this._panel.dispose();
+  public dispose() {
+    GlossReaderPanel.currentPanels.delete(this._uri.toString());
 
-		while (this._disposables.length) {
-			const disposable = this._disposables.pop();
-			if (disposable) {
-				disposable.dispose();
-			}
-		}
-	}
+    this._panel.dispose();
 
-	private async _update() {
-		const webview = this._panel.webview;
-		
-		try {
-			const content = await fs.promises.readFile(this._uri.fsPath, 'utf8');
-			const html = await this._getHtmlForWebview(webview, content);
-			this._panel.webview.html = html;
-		} catch (error) {
-			this._panel.webview.html = this._getErrorHtml(webview, `Failed to read file: ${error}`);
-		}
-	}
+    while (this._disposables.length) {
+      const disposable = this._disposables.pop();
+      if (disposable) {
+        disposable.dispose();
+      }
+    }
+  }
 
-	private async _getHtmlForWebview(webview: vscode.Webview, markdown: string): Promise<string> {
-		// Dynamic import for ESM module
-		const { marked } = await import('marked');
-		
-		// Simple code block rendering without external highlighter
-		// The webview will handle highlighting via CSS classes
-		const htmlContent = await marked.parse(markdown);
-		const fileName = path.basename(this._uri.fsPath);
-		const config = vscode.workspace.getConfiguration('gloss');
-		const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
+  private async _update() {
+    const webview = this._panel.webview;
 
-		return `<!DOCTYPE html>
+    try {
+      const content = await fs.promises.readFile(this._uri.fsPath, 'utf8');
+      const html = await this._getHtmlForWebview(webview, content);
+      this._panel.webview.html = html;
+    } catch (error) {
+      this._panel.webview.html = this._getErrorHtml(webview, `Failed to read file: ${error}`);
+    }
+  }
+
+  private async _getHtmlForWebview(webview: vscode.Webview, markdown: string): Promise<string> {
+    // Dynamic import for ESM module
+    const { marked } = await import('marked');
+
+    // Simple code block rendering without external highlighter
+    // The webview will handle highlighting via CSS classes
+    const htmlContent = await marked.parse(markdown);
+    const fileName = path.basename(this._uri.fsPath);
+    const config = vscode.workspace.getConfiguration('gloss');
+    const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
+
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
@@ -161,6 +161,18 @@ export class GlossReaderPanel {
 			vscode.postMessage({ command: 'edit' });
 		}
 
+		// Generate heading IDs for anchor navigation (marked v5+ removed built-in IDs)
+		document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
+			if (!heading.id) {
+				const slug = heading.textContent
+					.toLowerCase()
+					.replace(/[^\w\s-]/g, '')
+					.replace(/\s+/g, '-')
+					.replace(/^-+|-+$/g, '');
+				heading.id = slug;
+			}
+		});
+
 		// Apply syntax highlighting
 		document.querySelectorAll('pre code').forEach((block) => {
 			hljs.highlightElement(block);
@@ -181,6 +193,19 @@ export class GlossReaderPanel {
 			pre.appendChild(button);
 		});
 
+		// Handle anchor links (TOC navigation)
+		document.addEventListener('click', (e) => {
+			const target = e.target.closest('a');
+			if (target && target.getAttribute('href')?.startsWith('#')) {
+				e.preventDefault();
+				const id = target.getAttribute('href').slice(1);
+				const el = document.getElementById(id);
+				if (el) {
+					el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}
+			}
+		});
+
 		// Keyboard shortcut for edit
 		document.addEventListener('keydown', (e) => {
 			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'e') {
@@ -191,18 +216,18 @@ export class GlossReaderPanel {
 	</script>
 </body>
 </html>`;
-	}
+  }
 
-	private _getStyles(isDark: boolean): string {
-		const bg = isDark ? '#1e1e1e' : '#ffffff';
-		const fg = isDark ? '#d4d4d4' : '#333333';
-		const accent = '#0d9488'; // Teal - Gloss brand color
-		const accentLight = isDark ? '#14b8a6' : '#0d9488';
-		const codeBg = isDark ? '#2d2d2d' : '#f5f5f5';
-		const borderColor = isDark ? '#404040' : '#e0e0e0';
-		const toolbarBg = isDark ? '#252526' : '#f8f8f8';
+  private _getStyles(isDark: boolean): string {
+    const bg = isDark ? '#1e1e1e' : '#ffffff';
+    const fg = isDark ? '#d4d4d4' : '#333333';
+    const accent = '#0d9488'; // Teal - Gloss brand color
+    const accentLight = isDark ? '#14b8a6' : '#0d9488';
+    const codeBg = isDark ? '#2d2d2d' : '#f5f5f5';
+    const borderColor = isDark ? '#404040' : '#e0e0e0';
+    const toolbarBg = isDark ? '#252526' : '#f8f8f8';
 
-		return `
+    return `
 			* {
 				box-sizing: border-box;
 			}
@@ -397,10 +422,10 @@ export class GlossReaderPanel {
 				background: ${codeBg} !important;
 			}
 		`;
-	}
+  }
 
-	private _getErrorHtml(webview: vscode.Webview, error: string): string {
-		return `<!DOCTYPE html>
+  private _getErrorHtml(webview: vscode.Webview, error: string): string {
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
@@ -430,5 +455,5 @@ export class GlossReaderPanel {
 	</div>
 </body>
 </html>`;
-	}
+  }
 }
