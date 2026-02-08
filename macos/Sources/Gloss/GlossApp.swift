@@ -6,6 +6,13 @@ struct GlossApp: App {
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
 
+    init() {
+        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            NSApplication.shared.applicationIconImage = icon
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
