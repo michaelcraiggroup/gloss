@@ -7,6 +7,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("lastOpenedFile") var lastOpenedFile: String = ""
     @AppStorage("appearance") var appearance: String = Appearance.system.rawValue
 
+    @Published var currentFileURL: URL?
+
     var editor: Editor {
         get { Editor(rawValue: preferredEditor) ?? .cursor }
         set { preferredEditor = newValue.rawValue }

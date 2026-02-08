@@ -4,61 +4,31 @@ import UniformTypeIdentifiers
 /// Main window layout with file import and toolbar.
 struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
-    @State private var fileURL: URL?
-    @State private var isFileImporterPresented = false
 
     var body: some View {
-        DocumentView(fileURL: fileURL)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        openInEditor()
-                    } label: {
-                        Label("Open in Editor", systemImage: "pencil.and.outline")
+        NavigationStack {
+            DocumentView(fileURL: settings.currentFileURL)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            openInEditor()
+                        } label: {
+                            Label("Open in Editor", systemImage: "pencil.and.outline")
+                        }
+                        .help("Open in \(settings.editor.displayName) (⌘E)")
+                        .disabled(settings.currentFileURL == nil)
                     }
-                    .help("Open in \(settings.editor.displayName) (⌘E)")
-                    .disabled(fileURL == nil)
-                    .keyboardShortcut("e", modifiers: .command)
                 }
-            }
-            .navigationTitle(fileURL?.lastPathComponent ?? "Gloss")
-            .navigationSubtitle(fileURL != nil ? "Reading Mode" : "")
-            .fileImporter(
-                isPresented: $isFileImporterPresented,
-                allowedContentTypes: markdownTypes,
-                allowsMultipleSelection: false
-            ) { result in
-                if case .success(let urls) = result, let url = urls.first {
-                    openFile(url)
-                }
-            }
-            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                handleDrop(providers)
-            }
-            .onOpenURL { url in
-                openFile(url)
-            }
-            .focusedSceneValue(\.openFile, FileAction { presentFileImporter() })
-            .focusedSceneValue(\.currentFileURL, fileURL)
-    }
-
-    private var markdownTypes: [UTType] {
-        [UTType(filenameExtension: "md"), UTType(filenameExtension: "markdown"), .plainText]
-            .compactMap { $0 }
-    }
-
-    private func presentFileImporter() {
-        isFileImporterPresented = true
-    }
-
-    private func openFile(_ url: URL) {
-        _ = url.startAccessingSecurityScopedResource()
-        fileURL = url
-        settings.lastOpenedFile = url.path
+                .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
+                .navigationSubtitle(settings.currentFileURL != nil ? "Reading Mode" : "")
+        }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            handleDrop(providers)
+        }
     }
 
     private func openInEditor() {
-        guard let url = fileURL else { return }
+        guard let url = settings.currentFileURL else { return }
         EditorLauncher.open(fileAt: url.path, with: settings.editor)
     }
 
@@ -70,37 +40,11 @@ struct ContentView: View {
                let url = URL(string: path),
                url.pathExtension.lowercased() == "md" || url.pathExtension.lowercased() == "markdown" {
                 DispatchQueue.main.async {
-                    openFile(url)
+                    settings.currentFileURL = url
+                    settings.lastOpenedFile = url.path
                 }
             }
         }
         return true
-    }
-}
-
-/// Action wrapper for focused values.
-struct FileAction {
-    let action: () -> Void
-    func callAsFunction() { action() }
-}
-
-/// Focused value keys for menu commands.
-struct OpenFileKey: FocusedValueKey {
-    typealias Value = FileAction
-}
-
-struct CurrentFileURLKey: FocusedValueKey {
-    typealias Value = URL
-}
-
-extension FocusedValues {
-    var openFile: FileAction? {
-        get { self[OpenFileKey.self] }
-        set { self[OpenFileKey.self] = newValue }
-    }
-
-    var currentFileURL: URL? {
-        get { self[CurrentFileURLKey.self] }
-        set { self[CurrentFileURLKey.self] = newValue }
     }
 }

@@ -3,8 +3,6 @@ import SwiftUI
 @main
 struct GlossApp: App {
     @StateObject private var settings = AppSettings()
-    @FocusedValue(\.openFile) private var openFile
-    @FocusedValue(\.currentFileURL) private var currentFileURL
 
     var body: some Scene {
         WindowGroup {
@@ -17,25 +15,36 @@ struct GlossApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open…") {
-                    openFile?()
+                    openFilePanel()
                 }
                 .keyboardShortcut("o", modifiers: .command)
 
                 Divider()
 
                 Button("Open in Editor") {
-                    if let url = currentFileURL {
+                    if let url = settings.currentFileURL {
                         EditorLauncher.open(fileAt: url.path, with: settings.editor)
                     }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(currentFileURL == nil)
+                .disabled(settings.currentFileURL == nil)
             }
         }
 
         Settings {
             SettingsView()
                 .environmentObject(settings)
+        }
+    }
+
+    private func openFilePanel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.allowsMultipleSelection = false
+        panel.title = "Open Markdown File"
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.currentFileURL = url
+            settings.lastOpenedFile = url.path
         }
     }
 }
