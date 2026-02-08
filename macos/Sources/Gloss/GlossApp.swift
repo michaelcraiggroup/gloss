@@ -6,13 +6,6 @@ struct GlossApp: App {
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
 
-    init() {
-        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
-            NSApplication.shared.applicationIconImage = icon
-        }
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -21,6 +14,7 @@ struct GlossApp: App {
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
+                    setAppIcon()
                     restoreFolder()
                 }
         }
@@ -84,6 +78,13 @@ struct GlossApp: App {
         if panel.runModal() == .OK, let url = panel.url {
             fileTree.openFolder(url)
             settings.rootFolderPath = url.path
+        }
+    }
+
+    private func setAppIcon() {
+        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            NSApplication.shared.applicationIconImage = icon
         }
     }
 
