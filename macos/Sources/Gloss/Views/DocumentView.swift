@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// Loads and renders a markdown file, responding to theme changes.
+/// Loads and renders a markdown file, responding to theme changes and file modifications.
 struct DocumentView: View {
     let fileURL: URL?
     @Environment(\.colorScheme) private var colorScheme
+    @State private var fileContent: String?
+    @State private var fileWatcher = FileWatcher()
 
     var body: some View {
         Group {
             if let url = fileURL {
-                if let content = loadFile(at: url) {
+                if let content = fileContent {
                     let html = MarkdownRenderer.render(content, isDark: colorScheme == .dark)
                     WebView(htmlContent: html)
                 } else {
@@ -17,6 +19,12 @@ struct DocumentView: View {
             } else {
                 emptyState
             }
+        }
+        .onChange(of: fileURL) {
+            loadAndWatch()
+        }
+        .onAppear {
+            loadAndWatch()
         }
     }
 
@@ -48,7 +56,17 @@ struct DocumentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func loadFile(at url: URL) -> String? {
-        try? String(contentsOf: url, encoding: .utf8)
+    private func loadAndWatch() {
+        guard let url = fileURL else {
+            fileContent = nil
+            fileWatcher.stop()
+            return
+        }
+        fileContent = try? String(contentsOf: url, encoding: .utf8)
+        fileWatcher.watch(url: url) {
+            Task { @MainActor [url] in
+                fileContent = try? String(contentsOf: url, encoding: .utf8)
+            }
+        }
     }
 }

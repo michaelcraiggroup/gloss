@@ -24,16 +24,23 @@ gloss/
 │   │   ├── GlossApp.swift          # App entry point
 │   │   ├── Models/
 │   │   │   ├── Editor.swift        # Editor enum (Cursor, VS Code, etc.)
-│   │   │   └── AppSettings.swift   # User preferences
+│   │   │   ├── AppSettings.swift   # User preferences + folder path
+│   │   │   ├── DocumentType.swift  # Document classification (14 types)
+│   │   │   ├── FileTreeNode.swift  # Lazy file tree node (@Observable)
+│   │   │   ├── FileTreeModel.swift # Sidebar state management
+│   │   │   └── RecentDocument.swift # SwiftData recent docs
 │   │   ├── Views/
-│   │   │   ├── ContentView.swift   # Main window + file import
-│   │   │   ├── DocumentView.swift  # File loading + rendering
+│   │   │   ├── ContentView.swift   # NavigationSplitView layout
+│   │   │   ├── DocumentView.swift  # File loading + live reload
+│   │   │   ├── SidebarView.swift   # File tree + recents sidebar
 │   │   │   ├── SettingsView.swift  # Preferences window
 │   │   │   └── Components/
-│   │   │       └── WebView.swift   # WKWebView wrapper
+│   │   │       ├── WebView.swift   # WKWebView wrapper
+│   │   │       └── FileTreeRow.swift # Tree row with icon
 │   │   ├── Services/
 │   │   │   ├── MarkdownRenderer.swift  # Markdown → HTML
-│   │   │   └── EditorLauncher.swift    # External editor launch
+│   │   │   ├── EditorLauncher.swift    # External editor launch
+│   │   │   └── FileWatcher.swift       # DispatchSource file watcher
 │   │   └── Resources/
 │   │       └── gloss-theme.css     # Ported theme from extension
 │   └── Tests/GlossTests/
@@ -47,7 +54,7 @@ gloss/
 ```bash
 cd macos
 swift build              # Build
-swift test               # Run tests (13 tests)
+swift test               # Run tests (34 tests)
 swift run                # Launch the app
 open Package.swift       # Open in Xcode, then Cmd+R
 ```

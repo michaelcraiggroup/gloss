@@ -1,12 +1,16 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Main window layout with file import and toolbar.
+/// Main window layout with sidebar file browser and document detail pane.
 struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
+    @Environment(FileTreeModel.self) private var fileTree
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
-        NavigationStack {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SidebarView()
+        } detail: {
             DocumentView(fileURL: settings.currentFileURL)
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
@@ -15,7 +19,7 @@ struct ContentView: View {
                         } label: {
                             Label("Open in Editor", systemImage: "pencil.and.outline")
                         }
-                        .help("Open in \(settings.editor.displayName) (⌘E)")
+                        .help("Open in \(settings.editor.displayName) (⇧⌘E)")
                         .disabled(settings.currentFileURL == nil)
                     }
                 }

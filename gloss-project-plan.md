@@ -517,18 +517,25 @@ Gloss/
 
 ### macOS App
 
-#### Phase 1: Foundation (Weeks 5-6)
-- [ ] Create Xcode project with SwiftUI
-- [ ] Implement basic markdown rendering (cmark or swift-markdown)
-- [ ] Single-file open and display
-- [ ] "Open in Editor" with Cursor/VS Code URL schemes
-- [ ] Settings view for editor selection
+#### Phase 1: Foundation ✅
+- [x] Create Swift Package with SwiftUI
+- [x] Implement markdown rendering via swift-markdown + WKWebView
+- [x] Single-file open and display
+- [x] "Open in Editor" with Cursor/VS Code URL schemes
+- [x] Settings view for editor selection
+- [x] 13 tests passing
 
-#### Phase 2: File Browser (Weeks 7-8)
-- [ ] Sidebar file tree implementation
-- [ ] Folder selection and persistence
-- [ ] Navigation between files
-- [ ] Recents list with SwiftData
+#### Phase 2: File Browser ✅
+- [x] DocumentType model ported from extension (14 cases, icon detection)
+- [x] FileTreeNode with lazy one-level loading
+- [x] FileTreeModel (@Observable) for sidebar state
+- [x] RecentDocument SwiftData model
+- [x] NavigationSplitView with sidebar + detail pane
+- [x] SidebarView with recursive DisclosureGroup tree
+- [x] FileWatcher (DispatchSource) for live reload
+- [x] Open Folder (⇧⌘O) menu command + toolbar button
+- [x] Folder persistence via @AppStorage
+- [x] 34 tests passing (13 original + 14 DocumentType + 7 FileTreeNode)
 
 #### Phase 3: Quick Look & Polish (Weeks 9-10)
 - [ ] Quick Look extension target
