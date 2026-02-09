@@ -15,6 +15,9 @@ struct WebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        webView.loadHTMLString(htmlContent, baseURL: Bundle.module.resourceURL)
+        webView.loadHTMLString(htmlContent, baseURL: nil)
+        DispatchQueue.main.async {
+            webView.window?.makeFirstResponder(webView)
+        }
     }
 }

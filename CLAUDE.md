@@ -19,31 +19,37 @@ gloss/
 │   ├── package.json        # Extension manifest
 │   └── tsconfig.json
 ├── macos/                  # macOS app (Swift/SwiftUI)
-│   ├── Package.swift       # Swift Package (swift-markdown dep)
+│   ├── Package.swift       # Swift Package (GlossKit + Gloss targets)
+│   ├── Sources/GlossKit/   # Shared library (app + Quick Look extension)
+│   │   ├── MarkdownRenderer.swift  # Markdown → HTML (public API)
+│   │   └── Resources/
+│   │       └── gloss-theme.css     # CSS theme with custom properties
 │   ├── Sources/Gloss/
 │   │   ├── GlossApp.swift          # App entry point
 │   │   ├── Models/
 │   │   │   ├── Editor.swift        # Editor enum (Cursor, VS Code, etc.)
-│   │   │   ├── AppSettings.swift   # User preferences + folder path
+│   │   │   ├── AppSettings.swift   # User preferences + folder path + font size
 │   │   │   ├── DocumentType.swift  # Document classification (14 types)
 │   │   │   ├── FileTreeNode.swift  # Lazy file tree node (@Observable)
-│   │   │   ├── FileTreeModel.swift # Sidebar state management
+│   │   │   ├── FileTreeModel.swift # Sidebar state + search
 │   │   │   └── RecentDocument.swift # SwiftData recent docs
 │   │   ├── Views/
 │   │   │   ├── ContentView.swift   # NavigationSplitView layout
 │   │   │   ├── DocumentView.swift  # File loading + live reload
-│   │   │   ├── SidebarView.swift   # File tree + recents sidebar
-│   │   │   ├── SettingsView.swift  # Preferences window
+│   │   │   ├── SidebarView.swift   # File tree + search + recents
+│   │   │   ├── SettingsView.swift  # Editor/Appearance/Reading sections
 │   │   │   └── Components/
-│   │   │       ├── WebView.swift   # WKWebView wrapper
+│   │   │       ├── WebView.swift   # WKWebView wrapper (first responder)
 │   │   │       └── FileTreeRow.swift # Tree row with icon
 │   │   ├── Services/
-│   │   │   ├── MarkdownRenderer.swift  # Markdown → HTML
 │   │   │   ├── EditorLauncher.swift    # External editor launch
 │   │   │   └── FileWatcher.swift       # DispatchSource file watcher
 │   │   └── Resources/
-│   │       └── gloss-theme.css     # Ported theme from extension
-│   └── Tests/GlossTests/
+│   │       └── AppIcon.icns        # App icon
+│   ├── GlossQLExtension/   # Quick Look extension (needs Xcode project)
+│   │   ├── PreviewProvider.swift
+│   │   └── Info.plist
+│   └── Tests/GlossTests/   # 56 tests in 9 suites
 └── gloss-project-plan.md   # Full product plan
 ```
 
@@ -54,7 +60,7 @@ gloss/
 ```bash
 cd macos
 swift build              # Build
-swift test               # Run tests (34 tests)
+swift test               # Run tests (56 tests)
 swift run                # Launch the app
 open Package.swift       # Open in Xcode, then Cmd+R
 ```
@@ -115,13 +121,13 @@ npm run package      # Creates .vsix file
 
 ### macOS App
 
-The macOS app mirrors the VS Code extension's rendering approach:
+The macOS app uses **GlossKit**, a shared library also used by the Quick Look extension:
 
-1. Parses markdown with `swift-markdown` (`Document(parsing:)`)
-2. Converts to HTML via `HTMLFormatter.format()`
-3. Wraps in full HTML document with ported CSS theme
-4. Renders in `WKWebView` via `NSViewRepresentable`
-5. highlight.js for syntax highlighting (CDN in Phase 1)
+1. `GlossKit.MarkdownRenderer.render()` — parses markdown with `swift-markdown`, converts to HTML via `HTMLFormatter.format()`, wraps in themed document
+2. HTML includes: CSS theme (custom properties), highlight.js, copy buttons (JS), vim-style keyboard navigation (JS)
+3. Renders in `WKWebView` via `NSViewRepresentable` (first responder for keyboard nav)
+4. `isDark: Bool?` — explicit class for app, `nil` for Quick Look (uses `prefers-color-scheme`)
+5. `fontSize: Int` — injectable via CSS variable override (`--font-size`)
 
 Theme CSS uses CSS custom properties with `prefers-color-scheme` and explicit `html.dark`/`html.light` class overrides for app-controlled appearance.
 

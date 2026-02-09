@@ -11,6 +11,7 @@
     --toolbar-bg: #f8f8f8;
     --btn-hover-bg: #e8e8e8;
     --row-alt: #fafafa;
+    --font-size: 16px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -58,6 +59,7 @@ html.dark {
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-size: var(--font-size);
     line-height: 1.7;
     color: var(--fg);
     background: var(--bg);
@@ -185,6 +187,33 @@ img {
     max-width: 100%;
     height: auto;
     border-radius: 8px;
+}
+
+/* Code block copy button */
+.copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--fg);
+    background: var(--btn-hover-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+pre:hover .copy-btn {
+    opacity: 1;
+}
+
+.copy-btn:hover {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
 }
 
 /* Override highlight.js background to match our theme */

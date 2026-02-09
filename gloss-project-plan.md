@@ -537,12 +537,16 @@ Gloss/
 - [x] Folder persistence via @AppStorage
 - [x] 34 tests passing (13 original + 14 DocumentType + 7 FileTreeNode)
 
-#### Phase 3: Quick Look & Polish (Weeks 9-10)
-- [ ] Quick Look extension target
-- [ ] Register for `.md` file type
-- [ ] Custom CSS theming
-- [ ] Dark mode support
-- [ ] Keyboard shortcuts (`j/k` scroll, `Cmd+E` edit)
+#### Phase 3: Quick Look & Polish ✅
+- [x] Extract GlossKit shared library (MarkdownRenderer + CSS)
+- [x] Font size setting with CSS variable + stepper (12-24px)
+- [x] Code block copy buttons (hover to reveal, clipboard API)
+- [x] Vim-style keyboard navigation (j/k scroll, gg/G, Space/Shift+Space)
+- [x] Sidebar file search (.searchable modifier)
+- [x] Quick Look extension scaffolding (PreviewProvider + Info.plist)
+- [x] Document type declarations in Info.plist (.md/.markdown)
+- [x] Settings reorganized into Editor/Appearance/Reading sections
+- [x] 56 tests passing (34 original + 22 new)
 
 #### Phase 4: Search & Release (Weeks 11-12)
 - [ ] Full-text search across folder

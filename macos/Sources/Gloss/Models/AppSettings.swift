@@ -7,6 +7,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("lastOpenedFile") var lastOpenedFile: String = ""
     @AppStorage("appearance") var appearance: String = Appearance.system.rawValue
     @AppStorage("rootFolderPath") var rootFolderPath: String = ""
+    @AppStorage("fontSize") var fontSize: Int = 16
 
     @Published var currentFileURL: URL?
 

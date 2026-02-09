@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// File browser sidebar with recursive file tree and recent documents.
+/// File browser sidebar with recursive file tree, search, and recent documents.
 struct SidebarView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @EnvironmentObject private var settings: AppSettings
@@ -10,33 +10,50 @@ struct SidebarView: View {
     private var recentDocuments: [RecentDocument]
 
     var body: some View {
+        @Bindable var tree = fileTree
+
         List(selection: Binding(
             get: { fileTree.selectedFileURL },
             set: { selectFile($0) }
         )) {
-            if let root = fileTree.rootNode {
-                Section(root.name) {
-                    ForEach(root.children ?? []) { node in
-                        fileTreeItem(node)
+            if let results = fileTree.searchResults {
+                Section("Search Results") {
+                    if results.isEmpty {
+                        Text("No matches")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(results) { node in
+                            FileTreeRow(node: node)
+                                .tag(node.url)
+                        }
                     }
                 }
-            }
-
-            if !recentDocuments.isEmpty {
-                Section("Recent Documents") {
-                    ForEach(recentDocuments.prefix(10)) { doc in
-                        Label {
-                            Text(doc.title)
-                                .lineLimit(1)
-                        } icon: {
-                            Text(doc.type.icon)
+            } else {
+                if let root = fileTree.rootNode {
+                    Section(root.name) {
+                        ForEach(root.children ?? []) { node in
+                            fileTreeItem(node)
                         }
-                        .tag(doc.url)
+                    }
+                }
+
+                if !recentDocuments.isEmpty {
+                    Section("Recent Documents") {
+                        ForEach(recentDocuments.prefix(10)) { doc in
+                            Label {
+                                Text(doc.title)
+                                    .lineLimit(1)
+                            } icon: {
+                                Text(doc.type.icon)
+                            }
+                            .tag(doc.url)
+                        }
                     }
                 }
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $tree.searchQuery, prompt: "Search files")
         .toolbar {
             ToolbarItem {
                 Button {

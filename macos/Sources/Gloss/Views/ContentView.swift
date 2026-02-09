@@ -22,6 +22,13 @@ struct ContentView: View {
                         .help("Open in \(settings.editor.displayName) (⇧⌘E)")
                         .disabled(settings.currentFileURL == nil)
                     }
+                    if settings.currentFileURL != nil {
+                        ToolbarItem(placement: .status) {
+                            Text("j/k to scroll")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
                 .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
                 .navigationSubtitle(settings.currentFileURL != nil ? "Reading Mode" : "")

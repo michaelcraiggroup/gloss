@@ -1,4 +1,8 @@
 #!/bin/bash
+# DEPRECATED: This script is replaced by the Xcode project for Phase 3+.
+# Use Xcode to build Gloss.app with the embedded Quick Look extension.
+# Kept for reference and rapid SPM-only iteration without QL extension.
+#
 # Build Gloss.app bundle from Swift Package
 # Usage: ./Scripts/make-app.sh [--release]
 
@@ -30,13 +34,14 @@ mkdir -p "$APP_DIR/Contents/Resources"
 # Copy executable
 cp "$BUILD_DIR/$APP_NAME" "$APP_DIR/Contents/MacOS/"
 
-# Copy resource bundle where Bundle.module expects it:
-# SPM checks Bundle.main.bundleURL/Gloss_Gloss.bundle (= Gloss.app/Gloss_Gloss.bundle)
-# and also Bundle.main.bundleURL/Contents/Resources/Gloss_Gloss.bundle
-if [ -d "$BUILD_DIR/Gloss_Gloss.bundle" ]; then
-    cp -R "$BUILD_DIR/Gloss_Gloss.bundle" "$APP_DIR/"
-    cp -R "$BUILD_DIR/Gloss_Gloss.bundle" "$APP_DIR/Contents/Resources/"
-fi
+# Copy resource bundles where Bundle.module expects them:
+# SPM checks Bundle.main.bundleURL/<name>.bundle and Contents/Resources/<name>.bundle
+for BUNDLE_NAME in Gloss_Gloss Gloss_GlossKit; do
+    if [ -d "$BUILD_DIR/$BUNDLE_NAME.bundle" ]; then
+        cp -R "$BUILD_DIR/$BUNDLE_NAME.bundle" "$APP_DIR/"
+        cp -R "$BUILD_DIR/$BUNDLE_NAME.bundle" "$APP_DIR/Contents/Resources/"
+    fi
+done
 
 # Copy icon to Resources (for Finder/Dock via Info.plist CFBundleIconFile)
 cp "Sources/Gloss/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"

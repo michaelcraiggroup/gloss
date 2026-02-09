@@ -1,8 +1,10 @@
 import SwiftUI
+import GlossKit
 
 /// Loads and renders a markdown file, responding to theme changes and file modifications.
 struct DocumentView: View {
     let fileURL: URL?
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
     @State private var fileWatcher = FileWatcher()
@@ -11,7 +13,7 @@ struct DocumentView: View {
         Group {
             if let url = fileURL {
                 if let content = fileContent {
-                    let html = MarkdownRenderer.render(content, isDark: colorScheme == .dark)
+                    let html = MarkdownRenderer.render(content, isDark: colorScheme == .dark, fontSize: settings.fontSize)
                     WebView(htmlContent: html)
                 } else {
                     errorState(message: "Could not read file:\n\(url.lastPathComponent)")

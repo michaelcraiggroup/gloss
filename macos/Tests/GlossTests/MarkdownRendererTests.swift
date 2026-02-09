@@ -1,5 +1,5 @@
 import Testing
-@testable import Gloss
+@testable import GlossKit
 
 @Suite("MarkdownRenderer")
 struct MarkdownRendererTests {
