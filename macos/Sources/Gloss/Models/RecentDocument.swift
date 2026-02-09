@@ -8,12 +8,14 @@ final class RecentDocument {
     var title: String
     var lastOpened: Date
     var documentType: String
+    var isFavorite: Bool = false
 
-    init(path: String, title: String, lastOpened: Date = .now, documentType: String = "generic") {
+    init(path: String, title: String, lastOpened: Date = .now, documentType: String = "generic", isFavorite: Bool = false) {
         self.path = path
         self.title = title
         self.lastOpened = lastOpened
         self.documentType = documentType
+        self.isFavorite = isFavorite
     }
 
     /// The resolved document type enum value.

@@ -31,25 +31,27 @@ gloss/
 │   │   │   ├── AppSettings.swift   # User preferences + folder path + font size
 │   │   │   ├── DocumentType.swift  # Document classification (14 types)
 │   │   │   ├── FileTreeNode.swift  # Lazy file tree node (@Observable)
-│   │   │   ├── FileTreeModel.swift # Sidebar state + search
-│   │   │   └── RecentDocument.swift # SwiftData recent docs
+│   │   │   ├── FileTreeModel.swift # Sidebar state + search + SearchScope
+│   │   │   ├── RecentDocument.swift # SwiftData recent docs + favorites
+│   │   │   └── ContentSearchResult.swift # Content search result model
 │   │   ├── Views/
-│   │   │   ├── ContentView.swift   # NavigationSplitView layout
+│   │   │   ├── ContentView.swift   # NavigationSplitView layout + FocusedValues
 │   │   │   ├── DocumentView.swift  # File loading + live reload
-│   │   │   ├── SidebarView.swift   # File tree + search + recents
+│   │   │   ├── SidebarView.swift   # File tree + search scopes + favorites + recents
 │   │   │   ├── SettingsView.swift  # Editor/Appearance/Reading sections
 │   │   │   └── Components/
 │   │   │       ├── WebView.swift   # WKWebView wrapper (first responder)
 │   │   │       └── FileTreeRow.swift # Tree row with icon
 │   │   ├── Services/
 │   │   │   ├── EditorLauncher.swift    # External editor launch
-│   │   │   └── FileWatcher.swift       # DispatchSource file watcher
+│   │   │   ├── FileWatcher.swift       # DispatchSource file watcher
+│   │   │   └── ContentSearchService.swift # Async full-text content search
 │   │   └── Resources/
 │   │       └── AppIcon.icns        # App icon
 │   ├── GlossQLExtension/   # Quick Look extension (needs Xcode project)
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 56 tests in 9 suites
+│   └── Tests/GlossTests/   # 68 tests in 11 suites
 └── gloss-project-plan.md   # Full product plan
 ```
 
@@ -60,7 +62,7 @@ gloss/
 ```bash
 cd macos
 swift build              # Build
-swift test               # Run tests (56 tests)
+swift test               # Run tests (68 tests)
 swift run                # Launch the app
 open Package.swift       # Open in Xcode, then Cmd+R
 ```

@@ -1,13 +1,17 @@
 import SwiftUI
 import SwiftData
 
-/// File browser sidebar with recursive file tree, search, and recent documents.
+/// File browser sidebar with recursive file tree, search, favorites, and recent documents.
 struct SidebarView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \RecentDocument.lastOpened, order: .reverse)
     private var recentDocuments: [RecentDocument]
+    @Query(filter: #Predicate<RecentDocument> { $0.isFavorite },
+           sort: \RecentDocument.title)
+    private var favoriteDocuments: [RecentDocument]
+    @Environment(ContentSearchService.self) private var contentSearch
 
     var body: some View {
         @Bindable var tree = fileTree
@@ -16,7 +20,45 @@ struct SidebarView: View {
             get: { fileTree.selectedFileURL },
             set: { selectFile($0) }
         )) {
-            if let results = fileTree.searchResults {
+            if fileTree.searchScope == .content && !fileTree.searchQuery.isEmpty {
+                // Content search results
+                Section("Content Results") {
+                    if contentSearch.isSearching {
+                        HStack {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Searching…")
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if contentSearch.results.isEmpty {
+                        Text("No matches")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(contentSearch.results) { result in
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text(result.documentType.icon)
+                                        .font(.caption)
+                                    Text(result.fileName)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Text("L\(result.lineNumber)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Text(result.lineContent)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .tag(result.fileURL)
+                            .contextMenu { favoriteContextMenu(for: result.fileURL) }
+                        }
+                    }
+                }
+            } else if let results = fileTree.searchResults,
+                      fileTree.searchScope == .filename {
                 Section("Search Results") {
                     if results.isEmpty {
                         Text("No matches")
@@ -25,10 +67,12 @@ struct SidebarView: View {
                         ForEach(results) { node in
                             FileTreeRow(node: node)
                                 .tag(node.url)
+                                .contextMenu { favoriteContextMenu(for: node.url) }
                         }
                     }
                 }
-            } else {
+            } else if fileTree.searchScope == .filename {
+                // Normal browsing mode (no search active)
                 if let root = fileTree.rootNode {
                     Section(root.name) {
                         ForEach(root.children ?? []) { node in
@@ -37,9 +81,9 @@ struct SidebarView: View {
                     }
                 }
 
-                if !recentDocuments.isEmpty {
-                    Section("Recent Documents") {
-                        ForEach(recentDocuments.prefix(10)) { doc in
+                if !favoriteDocuments.isEmpty {
+                    Section("Favorites") {
+                        ForEach(favoriteDocuments) { doc in
                             Label {
                                 Text(doc.title)
                                     .lineLimit(1)
@@ -47,6 +91,41 @@ struct SidebarView: View {
                                 Text(doc.type.icon)
                             }
                             .tag(doc.url)
+                            .contextMenu { favoriteContextMenu(for: doc.url) }
+                            .swipeActions(edge: .trailing) {
+                                Button {
+                                    toggleFavorite(url: doc.url)
+                                } label: {
+                                    Label("Unfavorite", systemImage: "star.slash")
+                                }
+                                .tint(.yellow)
+                            }
+                        }
+                    }
+                }
+
+                if !recentDocuments.isEmpty {
+                    Section("Recent Documents") {
+                        ForEach(recentDocuments.prefix(10)) { doc in
+                            HStack {
+                                Label {
+                                    Text(doc.title)
+                                        .lineLimit(1)
+                                } icon: {
+                                    Text(doc.type.icon)
+                                }
+                                Spacer()
+                                Button {
+                                    toggleFavorite(url: doc.url)
+                                } label: {
+                                    Image(systemName: isFavorited(url: doc.url) ? "star.fill" : "star")
+                                        .foregroundStyle(isFavorited(url: doc.url) ? .yellow : .secondary)
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .tag(doc.url)
+                            .contextMenu { favoriteContextMenu(for: doc.url) }
                         }
                     }
                 }
@@ -54,6 +133,24 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .searchable(text: $tree.searchQuery, prompt: "Search files")
+        .searchScopes($tree.searchScope) {
+            ForEach(SearchScope.allCases, id: \.self) { scope in
+                Text(scope.rawValue).tag(scope)
+            }
+        }
+        .onChange(of: fileTree.searchQuery) { _, query in
+            if fileTree.searchScope == .content {
+                contentSearch.search(query: query, rootURL: fileTree.rootNode?.url)
+            }
+        }
+        .onChange(of: fileTree.searchScope) { _, scope in
+            if scope == .content && !fileTree.searchQuery.isEmpty {
+                contentSearch.search(query: fileTree.searchQuery, rootURL: fileTree.rootNode?.url)
+            } else if scope == .filename {
+                contentSearch.cancel()
+                contentSearch.results = []
+            }
+        }
         .toolbar {
             ToolbarItem {
                 Button {
@@ -65,6 +162,8 @@ struct SidebarView: View {
             }
         }
     }
+
+    // MARK: - File Tree
 
     private func fileTreeItem(_ node: FileTreeNode) -> AnyView {
         if node.isDirectory {
@@ -89,9 +188,51 @@ struct SidebarView: View {
             AnyView(
                 FileTreeRow(node: node)
                     .tag(node.url)
+                    .contextMenu { favoriteContextMenu(for: node.url) }
             )
         }
     }
+
+    // MARK: - Favorites
+
+    @ViewBuilder
+    private func favoriteContextMenu(for url: URL) -> some View {
+        let favorited = isFavorited(url: url)
+        Button {
+            toggleFavorite(url: url)
+        } label: {
+            Label(
+                favorited ? "Remove from Favorites" : "Add to Favorites",
+                systemImage: favorited ? "star.slash" : "star"
+            )
+        }
+    }
+
+    func isFavorited(url: URL) -> Bool {
+        favoriteDocuments.contains { $0.path == url.path }
+    }
+
+    func toggleFavorite(url: URL) {
+        let path = url.path
+        let descriptor = FetchDescriptor<RecentDocument>(
+            predicate: #Predicate { $0.path == path }
+        )
+
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.isFavorite.toggle()
+        } else {
+            // Create a new RecentDocument marked as favorite
+            let filename = url.lastPathComponent
+            let parentFolder = url.deletingLastPathComponent().lastPathComponent
+            let docType = DocumentType.detect(filename: filename, folderName: parentFolder)
+            let title = filename.replacingOccurrences(of: ".md", with: "")
+                .replacingOccurrences(of: ".markdown", with: "")
+            let doc = RecentDocument(path: path, title: title, documentType: docType.rawValue, isFavorite: true)
+            modelContext.insert(doc)
+        }
+    }
+
+    // MARK: - Selection & Recents
 
     private func selectFile(_ url: URL?) {
         fileTree.selectedFileURL = url
@@ -107,7 +248,6 @@ struct SidebarView: View {
         let parentFolder = url.deletingLastPathComponent().lastPathComponent
         let docType = DocumentType.detect(filename: filename, folderName: parentFolder)
 
-        // Update existing or insert new
         let descriptor = FetchDescriptor<RecentDocument>(
             predicate: #Predicate { $0.path == path }
         )

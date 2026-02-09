@@ -7,6 +7,7 @@ final class FileTreeModel {
     var rootNode: FileTreeNode?
     var selectedFileURL: URL?
     var searchQuery: String = ""
+    var searchScope: SearchScope = .filename
 
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
@@ -54,4 +55,10 @@ final class FileTreeModel {
             }
         }
     }
+}
+
+/// Search scope for the sidebar search bar.
+enum SearchScope: String, CaseIterable {
+    case filename = "Filenames"
+    case content = "Content"
 }

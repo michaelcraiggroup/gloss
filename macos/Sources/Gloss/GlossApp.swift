@@ -5,12 +5,15 @@ import SwiftData
 struct GlossApp: App {
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
+    @State private var contentSearch = ContentSearchService()
+    @FocusedValue(\.toggleFavorite) var toggleFavorite
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(settings)
                 .environment(fileTree)
+                .environment(contentSearch)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
@@ -49,6 +52,14 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(settings.currentFileURL == nil)
+
+                Divider()
+
+                Button("Toggle Favorite") {
+                    toggleFavorite?()
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(toggleFavorite == nil)
             }
         }
 

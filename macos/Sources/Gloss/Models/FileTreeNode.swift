@@ -15,8 +15,8 @@ final class FileTreeNode: Identifiable {
     var isExpanded: Bool = false
 
     /// Folders and markdown extensions to include
-    private static let markdownExtensions: Set<String> = ["md", "markdown"]
-    private static let excludedNames: Set<String> = [
+    static let markdownExtensions: Set<String> = ["md", "markdown"]
+    static let excludedNames: Set<String> = [
         "node_modules", ".git", ".build", ".swiftpm", "__pycache__",
         ".DS_Store", "Thumbs.db"
     ]

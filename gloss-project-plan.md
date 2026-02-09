@@ -548,9 +548,18 @@ Gloss/
 - [x] Settings reorganized into Editor/Appearance/Reading sections
 - [x] 56 tests passing (34 original + 22 new)
 
-#### Phase 4: Search & Release (Weeks 11-12)
-- [ ] Full-text search across folder
-- [ ] Favorites system
+#### Phase 4: Search & Favorites ✅
+- [x] Full-text content search across folder (async, debounced, TaskGroup)
+- [x] Search scopes: Filenames / Content with `.searchScopes()` pills
+- [x] ContentSearchService with 300ms debounce, 100-result cap
+- [x] Favorites system (isFavorite on RecentDocument, SwiftData lightweight migration)
+- [x] Favorites section in sidebar, star buttons on recents, context menus on tree items
+- [x] Cmd+D toggle favorite via FocusedValues + menu command
+- [x] Star toggle in toolbar reflecting current file's favorite state
+- [x] 68 tests passing (56 original + 6 content search + 6 favorites)
+
+#### Phase 5: Release (Future)
+- [ ] Xcode project wrapper for code signing
 - [ ] App Store assets (screenshots, description)
 - [ ] TestFlight beta
 - [ ] App Store submission
