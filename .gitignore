@@ -9,7 +9,9 @@ extension/*.vsix
 # macOS
 .DS_Store
 macos/.build/
+macos/.swiftpm/
 macos/DerivedData/
+macos/Gloss.app/
 *.xcuserstate
 
 # IDE
