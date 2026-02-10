@@ -558,6 +558,17 @@ Gloss/
 - [x] Star toggle in toolbar reflecting current file's favorite state
 - [x] 68 tests passing (56 original + 6 content search + 6 favorites)
 
+#### Phase 4.5: Find-in-Page ✅
+- [x] JS-based find bar injected into rendered HTML (both platforms)
+- [x] Cmd+F toggle, Cmd+G/Cmd+Shift+G navigation, Escape close
+- [x] TreeWalker-based text matching with yellow highlight + teal current match
+- [x] Match counter (e.g. "3 / 12")
+- [x] macOS: Coordinator on WebView, NotificationCenter → evaluateJavaScript
+- [x] macOS: Find/Find Next/Find Previous menu commands
+- [x] Keyboard nav input-focus guard (vim keys skip when typing in find bar)
+- [x] VS Code: find bar HTML + CSS + JS in GlossReaderPanel
+- [x] 76 tests passing (68 original + 8 find-in-page)
+
 #### Phase 5: Release (Future)
 - [ ] Xcode project wrapper for code signing
 - [ ] App Store assets (screenshots, description)
