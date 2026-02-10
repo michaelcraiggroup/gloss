@@ -45,14 +45,14 @@ All documents open in Gloss's distraction-free reading mode.
 
 ## Commands
 
-| Command | Keybinding | Description |
-|---------|------------|-------------|
-| `Gloss: Edit This File` | `Cmd+Shift+E` | Switch from preview to editor |
-| `Gloss: Toggle Reading Mode` | — | Enable/disable globally |
-| `Gloss: Open in Reading Mode` | — | Open current file in preview |
-| `Gloss: Merrily: Configure Local Folder` | — | Set your docs folder |
-| `Gloss: Merrily: Connect to API` | — | Connect to Merrily instance |
-| `Gloss: Merrily: Disconnect` | — | Disconnect from API |
+| Command                                  | Keybinding    | Description                   |
+| ---------------------------------------- | ------------- | ----------------------------- |
+| `Gloss: Edit This File`                  | `Cmd+Shift+E` | Switch from preview to editor |
+| `Gloss: Toggle Reading Mode`             | —             | Enable/disable globally       |
+| `Gloss: Open in Reading Mode`            | —             | Open current file in preview  |
+| `Gloss: Merrily: Configure Local Folder` | —             | Set your docs folder          |
+| `Gloss: Merrily: Connect to API`         | —             | Connect to Merrily instance   |
+| `Gloss: Merrily: Disconnect`             | —             | Disconnect from API           |
 
 ## Merrily Sidebar
 

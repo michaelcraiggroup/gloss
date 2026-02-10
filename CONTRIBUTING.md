@@ -58,6 +58,7 @@ gloss/
 ### Suggesting Features
 
 Open an issue with the `enhancement` label. Describe:
+
 - The problem you're solving
 - Your proposed solution
 - Any alternatives you considered
@@ -81,17 +82,20 @@ Open an issue with the `enhancement` label. Describe:
 ## Areas for Contribution
 
 ### VS Code Extension
+
 - [ ] Integration tests
 - [ ] Edge cases (remote workspaces, WSL)
 - [ ] Additional document type icons
 - [ ] Custom CSS theming for reader
 
 ### macOS App (Future)
+
 - [ ] Swift/SwiftUI implementation
 - [ ] Quick Look extension
 - [ ] File browser sidebar
 
 ### Documentation
+
 - [ ] Usage examples
 - [ ] Screenshots/GIFs
 - [ ] Configuration recipes
@@ -102,4 +106,4 @@ Open an issue or reach out at [michaelcraig.group](https://michaelcraig.group).
 
 ---
 
-*A [Michael Craig Group](https://michaelcraig.group) project*
+_A [Michael Craig Group](https://michaelcraig.group) project_

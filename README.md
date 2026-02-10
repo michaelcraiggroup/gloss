@@ -8,11 +8,11 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 
 **In VS Code:** Double-clicking in markdown preview switches to editor. Files always open in code view first. Preview is a separate tab. There's no "just let me read this" mode.
 
-**Outside VS Code:** There's no good way to browse markdown without an editor. Preview.app doesn't render markdown. Every tool wants to edit. Sometimes you just want to *read*.
+**Outside VS Code:** There's no good way to browse markdown without an editor. Preview.app doesn't render markdown. Every tool wants to edit. Sometimes you just want to _read_.
 
 ## The Solution
 
-**Gloss** treats reading and writing as separate concerns. Open to read, explicitly switch to edit. The default is *preservation*, not modification.
+**Gloss** treats reading and writing as separate concerns. Open to read, explicitly switch to edit. The default is _preservation_, not modification.
 
 ## Components
 
@@ -52,4 +52,4 @@ MIT — Free to use, modify, and distribute.
 
 ---
 
-*A [Michael Craig Group](https://michaelcraig.group) project — sharp tools that don't spy on you.*
+_A [Michael Craig Group](https://michaelcraig.group) project — sharp tools that don't spy on you._
