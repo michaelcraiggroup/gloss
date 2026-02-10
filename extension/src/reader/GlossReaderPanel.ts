@@ -150,6 +150,13 @@ export class GlossReaderPanel {
 			</button>
 		</div>
 	</div>
+	<div class="gloss-find-bar" hidden>
+		<input type="text" placeholder="Find…" spellcheck="false" autocomplete="off">
+		<span class="gloss-find-count"></span>
+		<button class="gloss-find-prev" title="Previous (⌘⇧G)">▲</button>
+		<button class="gloss-find-next" title="Next (⌘G)">▼</button>
+		<button class="gloss-find-close" title="Close (Esc)">✕</button>
+	</div>
 	<article class="gloss-content">
 		${htmlContent}
 	</article>
@@ -205,6 +212,110 @@ export class GlossReaderPanel {
 				}
 			}
 		});
+
+		// Find-in-page
+		(function() {
+			var bar = document.querySelector('.gloss-find-bar');
+			var input = bar.querySelector('input');
+			var countEl = bar.querySelector('.gloss-find-count');
+			var matches = [];
+			var currentIndex = -1;
+
+			bar.querySelector('.gloss-find-prev').addEventListener('click', function() { navigateMatch(-1); });
+			bar.querySelector('.gloss-find-next').addEventListener('click', function() { navigateMatch(1); });
+			bar.querySelector('.gloss-find-close').addEventListener('click', function() { closeFindBar(); });
+
+			input.addEventListener('input', function() { performFind(input.value); });
+			input.addEventListener('keydown', function(e) {
+				if (e.key === 'Enter') { e.preventDefault(); navigateMatch(e.shiftKey ? -1 : 1); }
+				else if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
+			});
+
+			function toggleFindBar() {
+				if (bar.hidden) { bar.hidden = false; input.focus(); input.select(); }
+				else { closeFindBar(); }
+			}
+
+			function closeFindBar() {
+				bar.hidden = true;
+				clearHighlights();
+				input.value = '';
+				countEl.textContent = '';
+			}
+
+			function clearHighlights() {
+				matches = [];
+				currentIndex = -1;
+				var marks = document.querySelectorAll('.gloss-find-match');
+				for (var i = 0; i < marks.length; i++) {
+					var mark = marks[i];
+					var parent = mark.parentNode;
+					parent.replaceChild(document.createTextNode(mark.textContent), mark);
+					parent.normalize();
+				}
+			}
+
+			function performFind(query) {
+				clearHighlights();
+				if (!query) { countEl.textContent = ''; return; }
+				var content = document.querySelector('.gloss-content');
+				if (!content) return;
+				var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null);
+				var textNodes = [];
+				while (walker.nextNode()) textNodes.push(walker.currentNode);
+				var lowerQuery = query.toLowerCase();
+				for (var i = 0; i < textNodes.length; i++) {
+					var node = textNodes[i];
+					var text = node.textContent;
+					var lowerText = text.toLowerCase();
+					var idx = lowerText.indexOf(lowerQuery);
+					if (idx === -1) continue;
+					var parts = [];
+					var lastIdx = 0;
+					while (idx !== -1) {
+						if (idx > lastIdx) parts.push(document.createTextNode(text.substring(lastIdx, idx)));
+						var mark = document.createElement('mark');
+						mark.className = 'gloss-find-match';
+						mark.textContent = text.substring(idx, idx + query.length);
+						parts.push(mark);
+						lastIdx = idx + query.length;
+						idx = lowerText.indexOf(lowerQuery, lastIdx);
+					}
+					if (lastIdx < text.length) parts.push(document.createTextNode(text.substring(lastIdx)));
+					var parent = node.parentNode;
+					for (var j = 0; j < parts.length; j++) parent.insertBefore(parts[j], node);
+					parent.removeChild(node);
+				}
+				matches = Array.from(document.querySelectorAll('.gloss-find-match'));
+				if (matches.length > 0) {
+					currentIndex = 0;
+					matches[0].classList.add('gloss-find-current');
+					matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+					countEl.textContent = '1 / ' + matches.length;
+				} else {
+					countEl.textContent = 'No matches';
+				}
+			}
+
+			function navigateMatch(delta) {
+				if (matches.length === 0) return;
+				matches[currentIndex].classList.remove('gloss-find-current');
+				currentIndex = (currentIndex + delta + matches.length) % matches.length;
+				matches[currentIndex].classList.add('gloss-find-current');
+				matches[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+				countEl.textContent = (currentIndex + 1) + ' / ' + matches.length;
+			}
+
+			document.addEventListener('keydown', function(e) {
+				if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+					e.preventDefault();
+					toggleFindBar();
+				} else if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
+					e.preventDefault();
+					if (!bar.hidden) navigateMatch(e.shiftKey ? -1 : 1);
+				}
+			});
+		})();
 
 		// Keyboard shortcut for edit
 		document.addEventListener('keydown', (e) => {
@@ -420,6 +531,78 @@ export class GlossReaderPanel {
 			/* Override highlight.js background to match our theme */
 			.hljs {
 				background: ${codeBg} !important;
+			}
+
+			/* Find-in-page bar */
+			.gloss-find-bar {
+				position: fixed;
+				top: 12px;
+				right: 16px;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				background: ${toolbarBg};
+				border: 1px solid ${borderColor};
+				border-radius: 8px;
+				padding: 6px 10px;
+				z-index: 1000;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+				font-size: 13px;
+				font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+			}
+
+			.gloss-find-bar[hidden] {
+				display: none;
+			}
+
+			.gloss-find-bar input {
+				width: 200px;
+				padding: 4px 8px;
+				border: 1px solid ${borderColor};
+				border-radius: 4px;
+				background: ${bg};
+				color: ${fg};
+				font-size: 13px;
+				font-family: inherit;
+				outline: none;
+			}
+
+			.gloss-find-bar input:focus {
+				border-color: ${accent};
+			}
+
+			.gloss-find-bar button {
+				background: transparent;
+				border: 1px solid ${borderColor};
+				border-radius: 4px;
+				padding: 4px 8px;
+				cursor: pointer;
+				color: ${fg};
+				font-size: 13px;
+				line-height: 1;
+			}
+
+			.gloss-find-bar button:hover {
+				background: ${isDark ? '#3d3d3d' : '#e8e8e8'};
+			}
+
+			.gloss-find-count {
+				color: ${fg};
+				opacity: 0.7;
+				font-size: 12px;
+				min-width: 50px;
+				text-align: center;
+			}
+
+			.gloss-find-match {
+				background: rgba(255, 213, 0, 0.4);
+				border-radius: 2px;
+			}
+
+			.gloss-find-current {
+				background: ${accent};
+				color: #ffffff;
+				border-radius: 2px;
 			}
 		`;
   }

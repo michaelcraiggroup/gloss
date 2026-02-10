@@ -63,6 +63,25 @@ struct GlossApp: App {
             }
         }
 
+        .commands {
+            CommandGroup(after: .textEditing) {
+                Button("Find…") {
+                    NotificationCenter.default.post(name: .glossFindInPage, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+
+                Button("Find Next") {
+                    NotificationCenter.default.post(name: .glossFindNext, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: .command)
+
+                Button("Find Previous") {
+                    NotificationCenter.default.post(name: .glossFindPrevious, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+            }
+        }
+
         Settings {
             SettingsView()
                 .environmentObject(settings)

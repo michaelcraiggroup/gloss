@@ -220,3 +220,75 @@ pre:hover .copy-btn {
 .hljs {
     background: var(--code-bg) !important;
 }
+
+/* Find-in-page bar */
+.gloss-find-bar {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.gloss-find-bar[hidden] {
+    display: none;
+}
+
+.gloss-find-bar input {
+    width: 200px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+
+.gloss-find-bar input:focus {
+    border-color: var(--accent);
+}
+
+.gloss-find-bar button {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    color: var(--fg);
+    font-size: 13px;
+    line-height: 1;
+}
+
+.gloss-find-bar button:hover {
+    background: var(--btn-hover-bg);
+}
+
+.gloss-find-count {
+    color: var(--fg);
+    opacity: 0.7;
+    font-size: 12px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.gloss-find-match {
+    background: rgba(255, 213, 0, 0.4);
+    border-radius: 2px;
+}
+
+.gloss-find-current {
+    background: var(--accent);
+    color: #ffffff;
+    border-radius: 2px;
+}
