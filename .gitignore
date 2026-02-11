@@ -12,6 +12,7 @@ macos/.build/
 macos/.swiftpm/
 macos/DerivedData/
 macos/Gloss.app/
+macos/Gloss.xcodeproj/
 *.xcuserstate
 
 # IDE

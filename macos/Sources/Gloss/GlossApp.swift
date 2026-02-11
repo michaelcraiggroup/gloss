@@ -112,10 +112,17 @@ struct GlossApp: App {
     }
 
     private func setAppIcon() {
-        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
+        #if XCODE_BUILD
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) {
             NSApplication.shared.applicationIconImage = icon
         }
+        #else
+        if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) {
+            NSApplication.shared.applicationIconImage = icon
+        }
+        #endif
     }
 
     private func restoreFolder() {

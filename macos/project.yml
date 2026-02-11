@@ -1,0 +1,131 @@
+name: Gloss
+options:
+  bundleIdPrefix: group.michaelcraig
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: false
+
+packages:
+  GlossPackage:
+    path: .
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+targets:
+  Gloss:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Gloss
+        excludes:
+          - Resources
+    resources:
+      - path: Sources/Gloss/Resources
+    info:
+      path: Scripts/Info.plist
+      properties:
+        CFBundleIconFile: AppIcon
+        CFBundleDisplayName: Gloss
+        NSHighResolutionCapable: true
+        NSSupportsAutomaticTermination: true
+        NSSupportsSuddenTermination: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Viewer
+            LSItemContentTypes:
+              - net.daringfireball.markdown
+            CFBundleTypeExtensions:
+              - md
+              - markdown
+    entitlements:
+      path: Gloss.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-only: true
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
+        PRODUCT_NAME: Gloss
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
+        INFOPLIST_KEY_CFBundleDisplayName: Gloss
+    dependencies:
+      - package: GlossPackage
+        product: GlossKit
+      - target: GlossQL
+        embed: true
+    scheme:
+      testTargets:
+        - GlossTests
+
+  GlossQL:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: GlossQLExtension
+    info:
+      path: GlossQLExtension/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewProvider"
+          QLSupportedContentTypes:
+            - net.daringfireball.markdown
+            - public.plain-text
+          QLSupportsSearchableItems: true
+    entitlements:
+      path: GlossQL.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
+        PRODUCT_NAME: GlossQL
+        SKIP_INSTALL: true
+        LD_RUNPATH_SEARCH_PATHS:
+          - "@executable_path/../Frameworks"
+          - "@executable_path/../../../../Frameworks"
+    dependencies:
+      - package: GlossPackage
+        product: GlossKit
+      - framework: Quartz.framework
+        implicit: true
+
+  GlossTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/GlossTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Gloss.app/Contents/MacOS/Gloss"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: Gloss
+      - package: GlossPackage
+        product: GlossKit
+
+schemes:
+  Gloss:
+    build:
+      targets:
+        Gloss: all
+        GlossQL: all
+        GlossTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GlossTests
+    profile:
+      config: Release
+    archive:
+      config: Release

@@ -569,8 +569,12 @@ Gloss/
 - [x] VS Code: find bar HTML + CSS + JS in GlossReaderPanel
 - [x] 76 tests passing (68 original + 8 find-in-page)
 
-#### Phase 5: Release (Future)
-- [ ] Xcode project wrapper for code signing
+#### Phase 5: Release (In Progress)
+- [x] Xcode project wrapper via xcodegen (`project.yml` → `Gloss.xcodeproj`)
+- [x] App sandbox entitlements (user-selected read-only, network client)
+- [x] Quick Look extension builds and embeds in app bundle
+- [x] Dual build: SPM (`swift build/test`) + Xcode (`xcodebuild`) both work, 76 tests pass
+- [ ] Developer ID signing + notarization
 - [ ] App Store assets (screenshots, description)
 - [ ] TestFlight beta
 - [ ] App Store submission
