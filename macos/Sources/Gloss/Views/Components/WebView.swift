@@ -75,14 +75,14 @@ struct WebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        guard htmlContent != context.coordinator.lastHTML else { return }
+        context.coordinator.lastHTML = htmlContent
         webView.loadHTMLString(htmlContent, baseURL: nil)
-        DispatchQueue.main.async {
-            webView.window?.makeFirstResponder(webView)
-        }
     }
 
     class Coordinator: NSObject, @unchecked Sendable {
         weak var webView: WKWebView?
+        var lastHTML: String?
         private var observers: [Any] = []
 
         override init() {

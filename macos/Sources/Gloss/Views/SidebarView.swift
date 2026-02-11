@@ -12,15 +12,15 @@ struct SidebarView: View {
            sort: \RecentDocument.title)
     private var favoriteDocuments: [RecentDocument]
     @Environment(ContentSearchService.self) private var contentSearch
+    @State private var searchText = ""
+    @State private var searchScope: SearchScope = .filename
 
     var body: some View {
-        @Bindable var tree = fileTree
-
         List(selection: Binding(
             get: { fileTree.selectedFileURL },
             set: { selectFile($0) }
         )) {
-            if fileTree.searchScope == .content && !fileTree.searchQuery.isEmpty {
+            if searchScope == .content && !searchText.isEmpty {
                 // Content search results
                 Section("Content Results") {
                     if contentSearch.isSearching {
@@ -58,7 +58,7 @@ struct SidebarView: View {
                     }
                 }
             } else if let results = fileTree.searchResults,
-                      fileTree.searchScope == .filename {
+                      searchScope == .filename {
                 Section("Search Results") {
                     if results.isEmpty {
                         Text("No matches")
@@ -71,7 +71,7 @@ struct SidebarView: View {
                         }
                     }
                 }
-            } else if fileTree.searchScope == .filename {
+            } else if searchScope == .filename {
                 // Normal browsing mode (no search active)
                 if let root = fileTree.rootNode {
                     Section(root.name) {
@@ -132,20 +132,22 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $tree.searchQuery, prompt: "Search files")
-        .searchScopes($tree.searchScope) {
+        .searchable(text: $searchText, prompt: "Search files")
+        .searchScopes($searchScope) {
             ForEach(SearchScope.allCases, id: \.self) { scope in
                 Text(scope.rawValue).tag(scope)
             }
         }
-        .onChange(of: fileTree.searchQuery) { _, query in
-            if fileTree.searchScope == .content {
+        .onChange(of: searchText) { _, query in
+            fileTree.searchQuery = query
+            if searchScope == .content {
                 contentSearch.search(query: query, rootURL: fileTree.rootNode?.url)
             }
         }
-        .onChange(of: fileTree.searchScope) { _, scope in
-            if scope == .content && !fileTree.searchQuery.isEmpty {
-                contentSearch.search(query: fileTree.searchQuery, rootURL: fileTree.rootNode?.url)
+        .onChange(of: searchScope) { _, scope in
+            fileTree.searchScope = scope
+            if scope == .content && !searchText.isEmpty {
+                contentSearch.search(query: searchText, rootURL: fileTree.rootNode?.url)
             } else if scope == .filename {
                 contentSearch.cancel()
                 contentSearch.results = []
