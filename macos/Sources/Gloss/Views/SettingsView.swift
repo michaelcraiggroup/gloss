@@ -5,30 +5,38 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        Form {
-            Section("Editor") {
-                Picker("Open files in:", selection: $settings.preferredEditor) {
+        Grid(alignment: .leading, verticalSpacing: 12) {
+            GridRow {
+                Text("Open files in:")
+                    .gridColumnAlignment(.trailing)
+                Picker("", selection: $settings.preferredEditor) {
                     ForEach(Editor.allCases) { editor in
                         Text(editor.displayName).tag(editor.rawValue)
                     }
                 }
+                .labelsHidden()
                 .pickerStyle(.menu)
             }
 
-            Section("Appearance") {
-                Picker("Theme:", selection: $settings.appearance) {
+            GridRow {
+                Text("Theme:")
+                    .gridColumnAlignment(.trailing)
+                Picker("", selection: $settings.appearance) {
                     ForEach(Appearance.allCases) { appearance in
                         Text(appearance.displayName).tag(appearance.rawValue)
                     }
                 }
+                .labelsHidden()
                 .pickerStyle(.menu)
             }
 
-            Section("Reading") {
-                Stepper("Font size: \(settings.fontSize)px", value: $settings.fontSize, in: 12...24, step: 2)
+            GridRow {
+                Text("Font size:")
+                    .gridColumnAlignment(.trailing)
+                Stepper("\(settings.fontSize)px", value: $settings.fontSize, in: 12...24, step: 2)
             }
         }
-        .formStyle(.grouped)
-        .frame(width: 350, height: 220)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
     }
 }

@@ -43,6 +43,14 @@ struct DocumentView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first,
+                  ["md", "markdown"].contains(url.pathExtension.lowercased()) else {
+                return false
+            }
+            NotificationCenter.default.post(name: .glossFileDrop, object: url)
+            return true
+        }
     }
 
     private func errorState(message: String) -> some View {

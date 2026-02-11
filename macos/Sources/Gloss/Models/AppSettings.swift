@@ -10,6 +10,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("fontSize") var fontSize: Int = 16
 
     @Published var currentFileURL: URL?
+    @Published var isZenMode: Bool = false
 
     var editor: Editor {
         get { Editor(rawValue: preferredEditor) ?? .cursor }

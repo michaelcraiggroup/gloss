@@ -1,12 +1,20 @@
 import SwiftUI
 import SwiftData
 
+class GlossAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+}
+
 @main
 struct GlossApp: App {
+    @NSApplicationDelegateAdaptor(GlossAppDelegate.self) var appDelegate
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
     @State private var contentSearch = ContentSearchService()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         WindowGroup {
@@ -64,6 +72,12 @@ struct GlossApp: App {
         }
 
         .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    openWindow(id: "settings")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
                     NotificationCenter.default.post(name: .glossFindInPage, object: nil)
@@ -80,12 +94,20 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
             }
+            CommandGroup(after: .toolbar) {
+                Button(settings.isZenMode ? "Exit Zen Mode" : "Enter Zen Mode") {
+                    withAnimation { settings.isZenMode.toggle() }
+                }
+                .keyboardShortcut("\\", modifiers: .command)
+            }
         }
 
-        Settings {
+        Window("Gloss Settings", id: "settings") {
             SettingsView()
                 .environmentObject(settings)
         }
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 320, height: 140)
     }
 
     private func openFilePanel() {

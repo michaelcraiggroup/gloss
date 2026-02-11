@@ -5,6 +5,55 @@ extension Notification.Name {
     static let glossFindInPage = Notification.Name("glossFindInPage")
     static let glossFindNext = Notification.Name("glossFindNext")
     static let glossFindPrevious = Notification.Name("glossFindPrevious")
+    static let glossFileDrop = Notification.Name("glossFileDrop")
+}
+
+/// WKWebView subclass that intercepts markdown file drops.
+@MainActor
+class DropAcceptingWebView: WKWebView {
+    override init(frame: CGRect, configuration: WKWebViewConfiguration) {
+        super.init(frame: frame, configuration: configuration)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if hasMarkdownFile(sender) { return .copy }
+        return super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if hasMarkdownFile(sender) { return .copy }
+        return super.draggingUpdated(sender)
+    }
+
+    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        if hasMarkdownFile(sender) { return true }
+        return super.prepareForDragOperation(sender)
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        if let url = markdownURL(from: sender) {
+            NotificationCenter.default.post(name: .glossFileDrop, object: url)
+            return true
+        }
+        return super.performDragOperation(sender)
+    }
+
+    private func hasMarkdownFile(_ info: any NSDraggingInfo) -> Bool {
+        markdownURL(from: info) != nil
+    }
+
+    private func markdownURL(from info: any NSDraggingInfo) -> URL? {
+        guard let items = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL],
+              let url = items.first,
+              ["md", "markdown"].contains(url.pathExtension.lowercased()) else {
+            return nil
+        }
+        return url
+    }
 }
 
 /// NSViewRepresentable wrapper around WKWebView for rendering HTML content.
@@ -19,7 +68,7 @@ struct WebView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = DropAcceptingWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
         context.coordinator.webView = webView
         return webView

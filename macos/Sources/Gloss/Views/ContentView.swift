@@ -12,46 +12,58 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
+                .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                    handleDropProviders(providers)
+                }
         } detail: {
             DocumentView(fileURL: settings.currentFileURL)
+                .toolbar(settings.isZenMode ? .hidden : .automatic)
                 .toolbar {
-                    if settings.currentFileURL != nil {
+                    if !settings.isZenMode {
+                        if settings.currentFileURL != nil {
+                            ToolbarItem(placement: .primaryAction) {
+                                Button {
+                                    toggleFavoriteForCurrentFile()
+                                } label: {
+                                    Label(
+                                        "Toggle Favorite",
+                                        systemImage: isCurrentFileFavorited ? "star.fill" : "star"
+                                    )
+                                }
+                                .foregroundStyle(isCurrentFileFavorited ? .yellow : .secondary)
+                                .help("Toggle Favorite (⌘D)")
+                            }
+                        }
                         ToolbarItem(placement: .primaryAction) {
                             Button {
-                                toggleFavoriteForCurrentFile()
+                                openInEditor()
                             } label: {
-                                Label(
-                                    "Toggle Favorite",
-                                    systemImage: isCurrentFileFavorited ? "star.fill" : "star"
-                                )
+                                Label("Open in Editor", systemImage: "pencil.and.outline")
                             }
-                            .foregroundStyle(isCurrentFileFavorited ? .yellow : .secondary)
-                            .help("Toggle Favorite (⌘D)")
+                            .help("Open in \(settings.editor.displayName) (⇧⌘E)")
+                            .disabled(settings.currentFileURL == nil)
                         }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            openInEditor()
-                        } label: {
-                            Label("Open in Editor", systemImage: "pencil.and.outline")
-                        }
-                        .help("Open in \(settings.editor.displayName) (⇧⌘E)")
-                        .disabled(settings.currentFileURL == nil)
-                    }
-                    if settings.currentFileURL != nil {
-                        ToolbarItem(placement: .status) {
-                            Text("j/k to scroll")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                        if settings.currentFileURL != nil {
+                            ToolbarItem(placement: .status) {
+                                Text("j/k to scroll")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
                 }
                 .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
-                .navigationSubtitle(settings.currentFileURL != nil ? "Reading Mode" : "")
+                .navigationSubtitle(settings.isZenMode ? "" : (settings.currentFileURL != nil ? "Reading Mode" : ""))
         }
         .focusedSceneValue(\.toggleFavorite, toggleFavoriteForCurrentFile)
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-            handleDrop(providers)
+        .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
+            if let url = notification.object as? URL {
+                settings.currentFileURL = url
+                settings.lastOpenedFile = url.path
+            }
+        }
+        .onChange(of: settings.isZenMode) {
+            columnVisibility = settings.isZenMode ? .detailOnly : .automatic
         }
     }
 
@@ -93,17 +105,14 @@ struct ContentView: View {
         EditorLauncher.open(fileAt: url.path, with: settings.editor)
     }
 
-    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+    // MARK: - Drop
+
+    private func handleDropProviders(_ providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { data, _ in
-            if let data = data as? Data,
-               let path = String(data: data, encoding: .utf8),
-               let url = URL(string: path),
-               url.pathExtension.lowercased() == "md" || url.pathExtension.lowercased() == "markdown" {
-                DispatchQueue.main.async {
-                    settings.currentFileURL = url
-                    settings.lastOpenedFile = url.path
-                }
+        _ = provider.loadObject(ofClass: URL.self) { url, _ in
+            guard let url, ["md", "markdown"].contains(url.pathExtension.lowercased()) else { return }
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .glossFileDrop, object: url)
             }
         }
         return true
