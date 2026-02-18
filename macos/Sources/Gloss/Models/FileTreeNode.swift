@@ -9,6 +9,7 @@ final class FileTreeNode: Identifiable {
     let name: String
     let isDirectory: Bool
     let documentType: DocumentType
+    let modificationDate: Date?
 
     /// nil = children not yet loaded, empty = loaded but no matching children
     var children: [FileTreeNode]?
@@ -28,6 +29,7 @@ final class FileTreeNode: Identifiable {
         self.documentType = isDirectory
             ? .folder
             : DocumentType.detect(filename: url.lastPathComponent, folderName: parentFolderName)
+        self.modificationDate = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
     }
 
     /// Scan one directory level, populating `children` with directories and markdown files.
@@ -37,7 +39,7 @@ final class FileTreeNode: Identifiable {
         let fm = FileManager.default
         guard let contents = try? fm.contentsOfDirectory(
             at: url,
-            includingPropertiesForKeys: [.isDirectoryKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles]
         ) else {
             children = []

@@ -35,25 +35,9 @@ struct SidebarView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(contentSearch.results) { result in
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Text(result.documentType.icon)
-                                        .font(.caption)
-                                    Text(result.fileName)
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                    Spacer()
-                                    Text("L\(result.lineNumber)")
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                Text(result.lineContent)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            .tag(result.fileURL)
-                            .contextMenu { favoriteContextMenu(for: result.fileURL) }
+                            contentResultRow(result)
+                                .tag(result.fileURL)
+                                .contextMenu { favoriteContextMenu(for: result.fileURL) }
                         }
                     }
                 }
@@ -73,13 +57,7 @@ struct SidebarView: View {
                 }
             } else if searchScope == .filename {
                 // Normal browsing mode (no search active)
-                if let root = fileTree.rootNode {
-                    Section(root.name) {
-                        ForEach(root.children ?? []) { node in
-                            fileTreeItem(node)
-                        }
-                    }
-                }
+                browseSection
 
                 if !favoriteDocuments.isEmpty {
                     Section("Favorites") {
@@ -141,13 +119,13 @@ struct SidebarView: View {
         .onChange(of: searchText) { _, query in
             fileTree.searchQuery = query
             if searchScope == .content {
-                contentSearch.search(query: query, rootURL: fileTree.rootNode?.url)
+                contentSearch.search(query: query, rootURL: fileTree.activeNode?.url)
             }
         }
         .onChange(of: searchScope) { _, scope in
             fileTree.searchScope = scope
             if scope == .content && !searchText.isEmpty {
-                contentSearch.search(query: searchText, rootURL: fileTree.rootNode?.url)
+                contentSearch.search(query: searchText, rootURL: fileTree.activeNode?.url)
             } else if scope == .filename {
                 contentSearch.cancel()
                 contentSearch.results = []
@@ -161,6 +139,89 @@ struct SidebarView: View {
                     Label("Open Folder", systemImage: "folder.badge.plus")
                 }
                 .help("Open Folder (⇧⌘O)")
+            }
+        }
+    }
+
+    // MARK: - Content Result Row
+
+    private func contentResultRow(_ result: ContentSearchResult) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Text(result.documentType.icon)
+                    .font(.caption)
+                Text(result.fileName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                Spacer()
+                Text("L\(result.lineNumber)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Text(highlightedLine(result.lineContent, query: searchText))
+                .font(.caption)
+                .lineLimit(1)
+        }
+    }
+
+    private func highlightedLine(_ line: String, query: String) -> AttributedString {
+        var attributed = AttributedString(line)
+        attributed.foregroundColor = .secondary
+        guard !query.isEmpty,
+              let range = attributed.range(of: query, options: .caseInsensitive) else {
+            return attributed
+        }
+        attributed[range].foregroundColor = .primary
+        attributed[range].font = .caption.bold()
+        return attributed
+    }
+
+    // MARK: - Browse Section
+
+    @ViewBuilder
+    private var browseSection: some View {
+        if fileTree.isScoped {
+            Section {
+                Button {
+                    fileTree.unscopeFolder()
+                } label: {
+                    Label("Back to \(fileTree.rootNode?.name ?? "root")", systemImage: "chevron.left")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+            }
+        }
+
+        if let active = fileTree.activeNode {
+            Section {
+                ForEach(fileTree.sortedChildren(active.children ?? [])) { node in
+                    fileTreeItem(node)
+                }
+            } header: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(active.url.path)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                    HStack(spacing: 8) {
+                        ForEach(SortOrder.allCases, id: \.self) { order in
+                            Button {
+                                fileTree.toggleSort(order)
+                            } label: {
+                                HStack(spacing: 2) {
+                                    Text(order.rawValue)
+                                    if fileTree.sortOrder == order {
+                                        Image(systemName: fileTree.sortDirection.symbol)
+                                    }
+                                }
+                                .font(.caption2)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(fileTree.sortOrder == order ? .primary : .secondary)
+                        }
+                        Spacer()
+                    }
+                }
             }
         }
     }
@@ -179,11 +240,21 @@ struct SidebarView: View {
                         node.isExpanded = expanded
                     }
                 )) {
-                    ForEach(node.children ?? []) { child in
+                    ForEach(fileTree.sortedChildren(node.children ?? [])) { child in
                         fileTreeItem(child)
                     }
                 } label: {
                     FileTreeRow(node: node)
+                        .onTapGesture(count: 2) {
+                            fileTree.scopeToFolder(node)
+                        }
+                        .contextMenu {
+                            Button {
+                                fileTree.scopeToFolder(node)
+                            } label: {
+                                Label("Open in Sidebar", systemImage: "folder")
+                            }
+                        }
                 }
             )
         } else {
