@@ -68,6 +68,14 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("d", modifiers: .command)
                 .disabled(toggleFavorite == nil)
+
+                Divider()
+
+                Button("Print…") {
+                    NotificationCenter.default.post(name: .glossPrint, object: nil)
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(settings.currentFileURL == nil)
             }
         }
 
@@ -77,13 +85,6 @@ struct GlossApp: App {
                     openWindow(id: "settings")
                 }
                 .keyboardShortcut(",", modifiers: .command)
-            }
-            CommandGroup(replacing: .printItem) {
-                Button("Print…") {
-                    NotificationCenter.default.post(name: .glossPrint, object: nil)
-                }
-                .keyboardShortcut("p", modifiers: .command)
-                .disabled(settings.currentFileURL == nil)
             }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {

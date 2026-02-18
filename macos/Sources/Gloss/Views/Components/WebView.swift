@@ -104,7 +104,6 @@ struct WebView: NSViewRepresentable {
                 (.glossFindInPage, "glossToggleFindBar()"),
                 (.glossFindNext, "glossFindNext()"),
                 (.glossFindPrevious, "glossFindPrevious()"),
-                (.glossPrint, "window.print()"),
             ]
             for (name, js) in names {
                 observers.append(
@@ -117,6 +116,23 @@ struct WebView: NSViewRepresentable {
                     }
                 )
             }
+            observers.append(
+                NotificationCenter.default.addObserver(
+                    forName: .glossPrint, object: nil, queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let webView = self?.webView else { return }
+                        let printInfo = NSPrintInfo.shared
+                        printInfo.isHorizontallyCentered = true
+                        printInfo.isVerticallyCentered = false
+                        let op = webView.printOperation(with: printInfo)
+                        op.showsPrintPanel = true
+                        op.showsProgressPanel = true
+                        op.runModal(for: webView.window ?? NSApp.keyWindow ?? NSWindow(),
+                                    delegate: nil, didRun: nil, contextInfo: nil)
+                    }
+                }
+            )
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
