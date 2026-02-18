@@ -2,14 +2,15 @@
 project: "gloss"
 title: "Gloss — Distraction-free markdown reading"
 status: "active"
-phase: "Phase 4 - Released"
-progress: 100
+phase: "macOS App - Polish & Release"
+progress: 90
 stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
 next_steps:
-  - "macOS app Phase 2: file browser sidebar"
-  - "macOS app Phase 3: Quick Look extension"
+  - "Code signing + notarization"
+  - "DMG packaging or App Store submission"
   - "VS Code integration tests"
-last_updated: "2026-02-08"
+  - "Custom CSS theme support"
+last_updated: "2026-02-18"
 ---
 
 # Gloss - Project Plan
@@ -90,27 +91,37 @@ See [gloss-project-plan.md](gloss-project-plan.md) for full product specificatio
 - [x] highlight.js syntax highlighting (CDN)
 - [x] 13 passing tests (MarkdownRenderer + Editor)
 
-### macOS Phase 2: File Browser
+### macOS Phase 2: File Browser ✅
 
-- [ ] NavigationSplitView with sidebar + detail
-- [ ] Recursive file tree using FileManager
-- [ ] Document type icons (pitch, retro, strategy, etc.)
-- [ ] Folder picker via NSOpenPanel
-- [ ] RecentDocument SwiftData model
-- [ ] File watcher for live reload (DispatchSource)
+- [x] NavigationSplitView with sidebar + detail
+- [x] Recursive file tree using FileManager
+- [x] Document type icons (pitch, retro, strategy, etc.)
+- [x] Folder picker via NSOpenPanel
+- [x] RecentDocument SwiftData model
+- [x] File watcher for live reload (DispatchSource)
+- [x] Content search (full-text across folder)
+- [x] Filename search with scoped subfolder support
+- [x] Favorites system (SwiftData, star/unstar, context menus)
+- [x] Recent documents list
 
-### macOS Phase 3: Quick Look & Polish
+### macOS Phase 3: Quick Look & Polish ✅
 
-- [ ] Quick Look extension target
-- [ ] Bundle highlight.js locally (remove CDN)
-- [ ] Keyboard shortcuts (j/k scroll, Space page up/down)
+- [x] Quick Look extension target
+- [x] Bundle highlight.js locally (remove CDN)
+- [x] Keyboard shortcuts (j/k scroll, Space page up/down, gg/G)
+- [x] App icon
+- [x] Find in page (Cmd+F)
+- [x] Copy button on code blocks
+- [x] Print support (Cmd+P via native NSPrintOperation)
+- [x] Font size controls
+- [x] Zen mode
 - [ ] Custom CSS theme support
-- [ ] App icon (teal gradient)
 
-### macOS Phase 4: Search & Release
+### macOS Phase 4: Sidebar Improvements & Release
 
-- [ ] Full-text search across folder
-- [ ] Favorites system (SwiftData)
+- [x] Full directory path in sidebar header
+- [x] Periodic directory polling (3s) to detect new/deleted files
+- [x] Sortable file list (Name/Date, ascending/descending)
 - [ ] Code signing + notarization
 - [ ] DMG packaging or App Store submission
 
