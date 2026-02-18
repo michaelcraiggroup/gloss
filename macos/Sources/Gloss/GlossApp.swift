@@ -78,6 +78,13 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") {
+                    NotificationCenter.default.post(name: .glossPrint, object: nil)
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(settings.currentFileURL == nil)
+            }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
                     NotificationCenter.default.post(name: .glossFindInPage, object: nil)

@@ -292,3 +292,40 @@ pre:hover .copy-btn {
     color: #ffffff;
     border-radius: 2px;
 }
+
+/* Print styles — light theme, clean layout */
+@media print {
+    :root {
+        --bg: #ffffff;
+        --fg: #333333;
+        --code-bg: #f5f5f5;
+        --border: #cccccc;
+    }
+
+    body {
+        background: white;
+        color: #333333;
+        font-size: 12pt;
+    }
+
+    .gloss-content {
+        max-width: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .gloss-find-bar,
+    .copy-btn {
+        display: none !important;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    a {
+        color: #333333;
+        text-decoration: underline;
+    }
+}
