@@ -567,7 +567,16 @@ Gloss/
 - [x] macOS: Find/Find Next/Find Previous menu commands
 - [x] Keyboard nav input-focus guard (vim keys skip when typing in find bar)
 - [x] VS Code: find bar HTML + CSS + JS in GlossReaderPanel
+- [x] macOS: content search highlight pass-through (sidebar query → WebView via performFind/clearHighlights)
 - [x] 76 tests passing (68 original + 8 find-in-page)
+
+#### Phase 4.6: Print ✅
+- [x] macOS: File → Print… menu command (Cmd+P) with native NSPrintOperation
+- [x] macOS: @media print CSS (light theme, hide chrome, page-break rules)
+- [x] VS Code: 🖨️ Print toolbar button + printContent() via window.print()
+- [x] VS Code: Cmd+P / Ctrl+P keyboard shortcut
+- [x] VS Code: @media print CSS (hide toolbar/find bar/copy buttons, optimize layout)
+- [x] Both: break-inside: avoid on code blocks, break-after: avoid on headings
 
 #### Phase 5: Release (In Progress)
 - [x] Xcode project wrapper via xcodegen (`project.yml` → `Gloss.xcodeproj`)
