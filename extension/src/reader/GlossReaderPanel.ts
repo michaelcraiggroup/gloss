@@ -128,6 +128,7 @@ export class GlossReaderPanel {
     const fileName = path.basename(this._uri.fsPath);
     const config = vscode.workspace.getConfiguration('gloss');
     const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
+    const hasMermaid = markdown.includes('```mermaid');
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -163,7 +164,7 @@ export class GlossReaderPanel {
 	<article class="gloss-content">
 		${htmlContent}
 	</article>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>${hasMermaid ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>' : ''}
 	<script>
 		const vscode = acquireVsCodeApi();
 		
@@ -187,13 +188,16 @@ export class GlossReaderPanel {
 			}
 		});
 
-		// Apply syntax highlighting
+		// Apply syntax highlighting (skip mermaid blocks)
 		document.querySelectorAll('pre code').forEach((block) => {
-			hljs.highlightElement(block);
+			if (!block.classList.contains('language-mermaid')) {
+				hljs.highlightElement(block);
+			}
 		});
 
-		// Add copy buttons to code blocks
+		// Add copy buttons to code blocks (skip mermaid)
 		document.querySelectorAll('pre code').forEach((block) => {
+			if (block.classList.contains('language-mermaid')) return;
 			const pre = block.parentElement;
 			const button = document.createElement('button');
 			button.className = 'copy-button';
@@ -206,6 +210,19 @@ export class GlossReaderPanel {
 			pre.style.position = 'relative';
 			pre.appendChild(button);
 		});
+
+		// Initialize mermaid diagrams
+		(async function() {
+			if (typeof mermaid === 'undefined') return;
+			mermaid.initialize({ startOnLoad: false, theme: ${isDark} ? 'dark' : 'default' });
+			document.querySelectorAll('pre code.language-mermaid').forEach(function(code) {
+				var pre = code.parentElement;
+				var text = code.textContent;
+				pre.className = 'mermaid';
+				pre.textContent = text;
+			});
+			await mermaid.run();
+		})();
 
 		// Handle anchor links (TOC navigation)
 		document.addEventListener('click', (e) => {
@@ -543,6 +560,20 @@ export class GlossReaderPanel {
 				border-radius: 8px;
 			}
 
+			/* Mermaid diagram containers */
+			pre.mermaid {
+				background: transparent;
+				border: none;
+				text-align: center;
+				padding: 16px 0;
+				overflow-x: auto;
+			}
+
+			pre.mermaid svg {
+				max-width: 100%;
+				height: auto;
+			}
+
 			/* Override highlight.js background to match our theme */
 			.hljs {
 				background: ${codeBg} !important;
@@ -627,6 +658,7 @@ export class GlossReaderPanel {
 				.gloss-content { max-width: 100%; padding: 16px 0; }
 				body { background: white; color: black; }
 				pre { break-inside: avoid; }
+				pre.mermaid { break-inside: avoid; }
 				a { color: inherit; text-decoration: underline; }
 				h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 			}

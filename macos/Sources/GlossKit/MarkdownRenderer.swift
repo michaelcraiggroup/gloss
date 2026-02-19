@@ -15,11 +15,12 @@ public struct MarkdownRenderer: Sendable {
     public static func render(_ source: String, isDark: Bool? = nil, fontSize: Int = 16) -> String {
         let document = Document(parsing: source, options: [.parseBlockDirectives, .parseSymbolLinks])
         let bodyHTML = HTMLFormatter.format(document)
-        return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize)
+        let hasMermaid = source.contains("```mermaid")
+        return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize, hasMermaid: hasMermaid)
     }
 
     /// Wrap HTML body content in a full document with CSS theme.
-    private static func wrapInDocument(_ bodyHTML: String, isDark: Bool?, fontSize: Int) -> String {
+    private static func wrapInDocument(_ bodyHTML: String, isDark: Bool?, fontSize: Int, hasMermaid: Bool = false) -> String {
         let themeClassAttr: String
         if let isDark {
             themeClassAttr = " class=\"\(isDark ? "dark" : "light")\""
@@ -44,8 +45,15 @@ public struct MarkdownRenderer: Sendable {
                 \(bodyHTML)
             </div>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-            <script>hljs.highlightAll();</script>
+            <script>
+            document.querySelectorAll('pre code').forEach(function(block) {
+                if (!block.classList.contains('language-mermaid')) {
+                    hljs.highlightElement(block);
+                }
+            });
+            </script>
             \(copyButtonScript)
+            \(hasMermaid ? mermaidScript : "")
             \(keyboardNavScript)
             \(findInPageScript)
         </body>
@@ -57,6 +65,7 @@ public struct MarkdownRenderer: Sendable {
     private static let copyButtonScript = """
     <script>
     document.querySelectorAll('pre').forEach(function(pre) {
+        if (pre.classList.contains('mermaid')) return;
         var btn = document.createElement('button');
         btn.className = 'copy-btn';
         btn.textContent = 'Copy';
@@ -70,6 +79,31 @@ public struct MarkdownRenderer: Sendable {
         });
         pre.appendChild(btn);
     });
+    </script>
+    """
+
+    /// Mermaid diagram rendering — CDN script + initialization.
+    private static let mermaidScript = """
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>
+    <script>
+    (async function() {
+        if (typeof mermaid === 'undefined') return;
+        var htmlEl = document.documentElement;
+        var isDark = false;
+        if (htmlEl.classList.contains('dark')) {
+            isDark = true;
+        } else if (!htmlEl.classList.contains('light')) {
+            isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        mermaid.initialize({ startOnLoad: false, theme: isDark ? 'dark' : 'default' });
+        document.querySelectorAll('pre code.language-mermaid').forEach(function(code) {
+            var pre = code.parentElement;
+            var text = code.textContent;
+            pre.className = 'mermaid';
+            pre.textContent = text;
+        });
+        await mermaid.run();
+    })();
     </script>
     """
 

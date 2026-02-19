@@ -216,6 +216,20 @@ pre:hover .copy-btn {
     border-color: var(--accent);
 }
 
+/* Mermaid diagram containers */
+pre.mermaid {
+    background: transparent;
+    border: none;
+    text-align: center;
+    padding: 16px 0;
+    overflow-x: auto;
+}
+
+pre.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
 /* Override highlight.js background to match our theme */
 .hljs {
     background: var(--code-bg) !important;
@@ -322,6 +336,10 @@ pre:hover .copy-btn {
     pre {
         white-space: pre-wrap;
         word-wrap: break-word;
+        break-inside: avoid;
+    }
+
+    pre.mermaid {
         break-inside: avoid;
     }
 
