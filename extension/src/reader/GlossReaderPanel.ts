@@ -145,6 +145,9 @@ export class GlossReaderPanel {
 	<div class="gloss-toolbar">
 		<span class="gloss-title">📖 ${fileName}</span>
 		<div class="gloss-actions">
+			<button onclick="printContent()" title="Print (Cmd+P)">
+				🖨️ Print
+			</button>
 			<button onclick="editFile()" title="Edit this file (Cmd+Shift+E)">
 				✏️ Edit
 			</button>
@@ -166,6 +169,10 @@ export class GlossReaderPanel {
 		
 		function editFile() {
 			vscode.postMessage({ command: 'edit' });
+		}
+
+		function printContent() {
+			window.print();
 		}
 
 		// Generate heading IDs for anchor navigation (marked v5+ removed built-in IDs)
@@ -316,6 +323,14 @@ export class GlossReaderPanel {
 				}
 			});
 		})();
+
+		// Keyboard shortcut for print
+		document.addEventListener('keydown', (e) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+				e.preventDefault();
+				printContent();
+			}
+		});
 
 		// Keyboard shortcut for edit
 		document.addEventListener('keydown', (e) => {
@@ -603,6 +618,17 @@ export class GlossReaderPanel {
 				background: ${accent};
 				color: #ffffff;
 				border-radius: 2px;
+			}
+
+			@media print {
+				.gloss-toolbar { display: none; }
+				.gloss-find-bar { display: none; }
+				.copy-button { display: none; }
+				.gloss-content { max-width: 100%; padding: 16px 0; }
+				body { background: white; color: black; }
+				pre { break-inside: avoid; }
+				a { color: inherit; text-decoration: underline; }
+				h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 			}
 		`;
   }
