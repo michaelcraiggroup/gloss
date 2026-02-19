@@ -4,6 +4,7 @@ import GlossKit
 /// Loads and renders a markdown file, responding to theme changes and file modifications.
 struct DocumentView: View {
     let fileURL: URL?
+    var highlightQuery: String?
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
@@ -14,7 +15,7 @@ struct DocumentView: View {
             if let url = fileURL {
                 if let content = fileContent {
                     let html = MarkdownRenderer.render(content, isDark: colorScheme == .dark, fontSize: settings.fontSize)
-                    WebView(htmlContent: html)
+                    WebView(htmlContent: html, highlightQuery: highlightQuery)
                 } else {
                     errorState(message: "Could not read file:\n\(url.lastPathComponent)")
                 }

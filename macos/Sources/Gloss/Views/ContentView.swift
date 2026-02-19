@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
+    @Environment(ContentSearchService.self) private var contentSearch
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
@@ -16,7 +17,10 @@ struct ContentView: View {
                     handleDropProviders(providers)
                 }
         } detail: {
-            DocumentView(fileURL: settings.currentFileURL)
+            DocumentView(
+                fileURL: settings.currentFileURL,
+                highlightQuery: fileTree.searchScope == .content ? fileTree.searchQuery : nil
+            )
                 .toolbar(settings.isZenMode ? .hidden : .automatic)
                 .toolbar {
                     if !settings.isZenMode {

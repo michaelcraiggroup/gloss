@@ -243,10 +243,12 @@ public struct MarkdownRenderer: Sendable {
             }
         });
 
-        // Expose for external evaluation (menu commands)
+        // Expose for external evaluation (menu commands + content search)
         window.glossToggleFindBar = toggleFindBar;
         window.glossFindNext = function() { navigateMatch(1); };
         window.glossFindPrevious = function() { navigateMatch(-1); };
+        window.performFind = performFind;
+        window.clearHighlights = clearHighlights;
     })();
     </script>
     """
