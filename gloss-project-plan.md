@@ -578,11 +578,22 @@ Gloss/
 - [x] VS Code: @media print CSS (hide toolbar/find bar/copy buttons, optimize layout)
 - [x] Both: break-inside: avoid on code blocks, break-after: avoid on headings
 
+#### Phase 4.6: Mermaid Diagrams (Complete)
+- [x] Both: Mermaid.js CDN rendering for ```mermaid fenced blocks (v11.12.0)
+- [x] Both: Conditional CDN loading (only when source contains mermaid blocks)
+- [x] Both: hljs skips mermaid blocks, copy buttons skip mermaid containers
+- [x] macOS: Theme detection via html class (dark/light) with prefers-color-scheme fallback for Quick Look
+- [x] Extension: Theme detection via isDark template literal
+- [x] Both: Graceful offline fallback (plain text if CDN unavailable)
+- [x] Both: Mermaid CSS styles (transparent bg, centered, responsive SVG, print break-inside)
+- [x] macOS: 9 new tests in MermaidTests suite (85 total)
+- [x] Extension: Fix reopen reliability via onDidChangeActiveTextEditor listener
+
 #### Phase 5: Release (In Progress)
 - [x] Xcode project wrapper via xcodegen (`project.yml` → `Gloss.xcodeproj`)
 - [x] App sandbox entitlements (user-selected read-only, network client)
 - [x] Quick Look extension builds and embeds in app bundle
-- [x] Dual build: SPM (`swift build/test`) + Xcode (`xcodebuild`) both work, 76 tests pass
+- [x] Dual build: SPM (`swift build/test`) + Xcode (`xcodebuild`) both work, 85 tests pass
 - [ ] Developer ID signing + notarization
 - [ ] App Store assets (screenshots, description)
 - [ ] TestFlight beta
