@@ -4,6 +4,7 @@ import * as fs from 'fs';
 
 export class GlossReaderPanel {
   public static currentPanels: Map<string, GlossReaderPanel> = new Map();
+  public static recentlyEdited: Set<string> = new Set();
   public static readonly viewType = 'glossReader';
 
   private readonly _panel: vscode.WebviewPanel;
@@ -84,8 +85,13 @@ export class GlossReaderPanel {
   }
 
   private async _openInEditor() {
+    // Suppress auto-reopen when switching to editor
+    const uriString = this._uri.toString();
+    GlossReaderPanel.recentlyEdited.add(uriString);
+    setTimeout(() => GlossReaderPanel.recentlyEdited.delete(uriString), 2000);
+
     // Remove from reading mode tracking
-    GlossReaderPanel.currentPanels.delete(this._uri.toString());
+    GlossReaderPanel.currentPanels.delete(uriString);
     this._panel.dispose();
 
     // Open in editor

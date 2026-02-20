@@ -46,6 +46,23 @@ export function activate(context: vscode.ExtensionContext) {
   // Listen for document opens
   context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(onDocumentOpen));
 
+  // Catch reopens of cached documents (onDidOpenTextDocument won't fire again)
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+      if (!editor) return;
+      const doc = editor.document;
+      if (doc.languageId !== 'markdown') return;
+      const config = vscode.workspace.getConfiguration('gloss');
+      if (!config.get<boolean>('enabled', true)) return;
+      const uriString = doc.uri.toString();
+      if (GlossReaderPanel.recentlyEdited.has(uriString)) return;
+      if (GlossReaderPanel.currentPanels.has(uriString)) return;
+      if (!shouldOpenInReadingMode(doc.uri)) return;
+      await delay(50);
+      await openPreview(doc.uri);
+    })
+  );
+
   // Listen for configuration changes
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
