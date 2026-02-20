@@ -15,7 +15,7 @@ struct MermaidTests {
         ```
         """
         let html = MarkdownRenderer.render(source)
-        #expect(html.contains("mermaid/11.4.1/mermaid.min.js"))
+        #expect(html.contains("mermaid/11.12.0/mermaid.min.js"))
     }
 
     @Test("Mermaid CDN NOT included when source has no mermaid block")

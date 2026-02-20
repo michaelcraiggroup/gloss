@@ -84,7 +84,7 @@ public struct MarkdownRenderer: Sendable {
 
     /// Mermaid diagram rendering — CDN script + initialization.
     private static let mermaidScript = """
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.0/mermaid.min.js"></script>
     <script>
     (async function() {
         if (typeof mermaid === 'undefined') return;

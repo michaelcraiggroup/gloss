@@ -164,7 +164,7 @@ export class GlossReaderPanel {
 	<article class="gloss-content">
 		${htmlContent}
 	</article>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>${hasMermaid ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>' : ''}
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>${hasMermaid ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.0/mermaid.min.js"></script>' : ''}
 	<script>
 		const vscode = acquireVsCodeApi();
 		
