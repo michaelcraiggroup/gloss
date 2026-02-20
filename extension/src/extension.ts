@@ -1,11 +1,8 @@
 import * as vscode from 'vscode';
 import { minimatch } from 'minimatch';
-import { MerrilyTreeProvider } from './merrily/treeProvider';
-import { MerrilyApiClient } from './merrily/apiClient';
 import { GlossReaderPanel } from './reader/GlossReaderPanel';
 
 let statusBarItem: vscode.StatusBarItem;
-let merrilyTreeProvider: MerrilyTreeProvider;
 let extensionUri: vscode.Uri;
 
 export function activate(context: vscode.ExtensionContext) {
@@ -13,17 +10,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Store extension URI for webview resources
   extensionUri = context.extensionUri;
-
-  // Initialize Merrily integration
-  const apiClient = new MerrilyApiClient(context);
-  merrilyTreeProvider = new MerrilyTreeProvider(apiClient);
-
-  // Register Merrily tree view
-  const treeView = vscode.window.createTreeView('glossMerrily', {
-    treeDataProvider: merrilyTreeProvider,
-    showCollapseAll: true
-  });
-  context.subscriptions.push(treeView);
 
   // Status bar indicator
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -35,12 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gloss.editFile', editCurrentFile),
     vscode.commands.registerCommand('gloss.toggleEnabled', toggleEnabled),
-    vscode.commands.registerCommand('gloss.openInReadingMode', openInReadingMode),
-    vscode.commands.registerCommand('gloss.refreshMerrily', () => merrilyTreeProvider.refresh()),
-    vscode.commands.registerCommand('gloss.configureMerrilyFolder', configureMerrilyFolder),
-    vscode.commands.registerCommand('gloss.connectMerrilyApi', connectMerrilyApi),
-    vscode.commands.registerCommand('gloss.disconnectMerrilyApi', disconnectMerrilyApi),
-    vscode.commands.registerCommand('gloss.openMerrilyItem', openMerrilyItem)
+    vscode.commands.registerCommand('gloss.openInReadingMode', openInReadingMode)
   );
 
   // Listen for document opens
@@ -68,7 +49,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('gloss')) {
         updateStatusBar();
-        merrilyTreeProvider.refresh();
       }
     })
   );
@@ -167,7 +147,6 @@ async function closeSourceTab(uri: vscode.Uri) {
 async function editCurrentFile() {
   // The GlossReaderPanel handles its own "Edit" button
   // This command is kept for keyboard shortcut compatibility
-  // If there's an active Gloss panel, it will handle Cmd+Shift+E internally
   vscode.window.showInformationMessage('Use the Edit button in the Gloss Reader toolbar');
 }
 
@@ -190,80 +169,6 @@ async function openInReadingMode(uri?: vscode.Uri) {
 
   if (uri) {
     await openPreview(uri);
-  }
-}
-
-// === Merrily Integration ===
-
-async function configureMerrilyFolder() {
-  const options: vscode.OpenDialogOptions = {
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    openLabel: 'Select Operations Folder',
-    title: 'Select your operations documents folder'
-  };
-
-  const result = await vscode.window.showOpenDialog(options);
-
-  if (result && result[0]) {
-    const config = vscode.workspace.getConfiguration('gloss');
-    await config.update('merrily.localFolder', result[0].fsPath, vscode.ConfigurationTarget.Global);
-    merrilyTreeProvider.refresh();
-    vscode.window.showInformationMessage(`Merrily folder set to: ${result[0].fsPath}`);
-  }
-}
-
-async function connectMerrilyApi() {
-  const url = await vscode.window.showInputBox({
-    prompt: 'Enter your Merrily API URL',
-    placeHolder: 'http://localhost:3000',
-    value: 'http://localhost:3000'
-  });
-
-  if (!url) {
-    return;
-  }
-
-  const token = await vscode.window.showInputBox({
-    prompt: 'Enter your Merrily API token (or leave empty to login)',
-    password: true
-  });
-
-  const config = vscode.workspace.getConfiguration('gloss');
-  await config.update('merrily.apiUrl', url, vscode.ConfigurationTarget.Global);
-
-  if (token) {
-    // Store token securely
-    await vscode.workspace
-      .getConfiguration('gloss')
-      .update('merrily.apiToken', token, vscode.ConfigurationTarget.Global);
-  }
-
-  merrilyTreeProvider.refresh();
-  vscode.window.showInformationMessage('Connected to Merrily API');
-}
-
-async function disconnectMerrilyApi() {
-  const config = vscode.workspace.getConfiguration('gloss');
-  await config.update('merrily.apiUrl', undefined, vscode.ConfigurationTarget.Global);
-  await config.update('merrily.apiToken', undefined, vscode.ConfigurationTarget.Global);
-  merrilyTreeProvider.refresh();
-  vscode.window.showInformationMessage('Disconnected from Merrily API');
-}
-
-async function openMerrilyItem(item: { uri?: vscode.Uri; content?: string; title?: string }) {
-  if (item.uri) {
-    // Local file - open in Gloss Reader
-    GlossReaderPanel.createOrShow(extensionUri, item.uri);
-  } else if (item.content) {
-    // API content - create a temp file and open in Gloss Reader
-    // For now, use the built-in preview for virtual content
-    const doc = await vscode.workspace.openTextDocument({
-      content: item.content,
-      language: 'markdown'
-    });
-    await vscode.commands.executeCommand('markdown.showPreview', doc.uri);
   }
 }
 
