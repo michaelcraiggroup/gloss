@@ -35,7 +35,9 @@ export class GlossReaderPanel {
         enableScripts: true,
         localResourceRoots: [
           vscode.Uri.joinPath(extensionUri, 'media'),
-          vscode.Uri.joinPath(extensionUri, 'node_modules')
+          vscode.Uri.joinPath(extensionUri, 'node_modules'),
+          vscode.Uri.file(path.dirname(uri.fsPath)),
+          ...(vscode.workspace.workspaceFolders?.map(f => f.uri) || [])
         ],
         retainContextWhenHidden: true
       }
@@ -124,13 +126,43 @@ export class GlossReaderPanel {
     }
   }
 
+  private _stripFrontmatter(source: string): string {
+    if (!source.startsWith('---\n') && !source.startsWith('---\r\n')) {
+      return source;
+    }
+    const endIdx = source.indexOf('\n---\n', 3);
+    if (endIdx === -1) {
+      // Try \r\n variant
+      const endIdx2 = source.indexOf('\r\n---\r\n', 3);
+      if (endIdx2 === -1) return source;
+      return source.slice(endIdx2 + 7);
+    }
+    return source.slice(endIdx + 5);
+  }
+
+  private _resolveImagePaths(html: string, webview: vscode.Webview): string {
+    const fileDir = path.dirname(this._uri.fsPath);
+    return html.replace(/<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g, (match, pre, src, post) => {
+      // Skip data URIs and absolute URLs
+      if (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://')) {
+        return match;
+      }
+      // Resolve relative path to webview URI
+      const absolutePath = path.resolve(fileDir, src);
+      const webviewUri = webview.asWebviewUri(vscode.Uri.file(absolutePath));
+      return `<img ${pre}src="${webviewUri}"${post}>`;
+    });
+  }
+
   private async _getHtmlForWebview(webview: vscode.Webview, markdown: string): Promise<string> {
     // Dynamic import for ESM module
     const { marked } = await import('marked');
 
-    // Simple code block rendering without external highlighter
-    // The webview will handle highlighting via CSS classes
-    const htmlContent = await marked.parse(markdown);
+    // Strip YAML frontmatter before parsing
+    const stripped = this._stripFrontmatter(markdown);
+    const rawHtml = await marked.parse(stripped);
+    // Resolve local image paths to webview URIs
+    const htmlContent = this._resolveImagePaths(rawHtml, webview);
     const fileName = path.basename(this._uri.fsPath);
     const config = vscode.workspace.getConfiguration('gloss');
     const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
@@ -141,7 +173,7 @@ export class GlossReaderPanel {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; img-src ${webview.cspSource} https: data:;">
 	<title>${fileName}</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${isDark ? 'github-dark' : 'github'}.min.css">
 	<style>

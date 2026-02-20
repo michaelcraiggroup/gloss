@@ -60,6 +60,7 @@ class DropAcceptingWebView: WKWebView {
 /// NSViewRepresentable wrapper around WKWebView for rendering HTML content.
 struct WebView: NSViewRepresentable {
     let htmlContent: String
+    var baseURL: URL?
     var highlightQuery: String?
 
     func makeCoordinator() -> Coordinator {
@@ -83,7 +84,7 @@ struct WebView: NSViewRepresentable {
 
         if contentChanged {
             context.coordinator.lastHTML = htmlContent
-            webView.loadHTMLString(htmlContent, baseURL: nil)
+            webView.loadHTMLString(htmlContent, baseURL: baseURL)
             // highlight will be applied in didFinishNavigation
         } else if highlightQuery != context.coordinator.activeHighlight {
             // Content same but query changed — apply highlight now

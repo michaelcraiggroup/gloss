@@ -15,7 +15,7 @@ struct DocumentView: View {
             if let url = fileURL {
                 if let content = fileContent {
                     let html = MarkdownRenderer.render(content, isDark: colorScheme == .dark, fontSize: settings.fontSize)
-                    WebView(htmlContent: html, highlightQuery: highlightQuery)
+                    WebView(htmlContent: html, baseURL: url.deletingLastPathComponent(), highlightQuery: highlightQuery)
                 } else {
                     errorState(message: "Could not read file:\n\(url.lastPathComponent)")
                 }

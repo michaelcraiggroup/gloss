@@ -67,4 +67,29 @@ struct MarkdownRendererTests {
         let html = MarkdownRenderer.render("test", isDark: false)
         #expect(html.contains("--accent: #0d9488"))
     }
+
+    @Test("Strips YAML frontmatter")
+    func stripsFrontmatter() {
+        let source = "---\ntitle: Hello\ndate: 2026-01-01\n---\n# Heading"
+        let html = MarkdownRenderer.render(source, isDark: false)
+        #expect(html.contains("<h1>"))
+        #expect(html.contains("Heading"))
+        #expect(!html.contains("title: Hello"))
+    }
+
+    @Test("Preserves content without frontmatter")
+    func noFrontmatter() {
+        let source = "# Just a heading\n\nSome text."
+        let html = MarkdownRenderer.render(source, isDark: false)
+        #expect(html.contains("<h1>"))
+        #expect(html.contains("Just a heading"))
+    }
+
+    @Test("Does not strip mid-document hr as frontmatter")
+    func midDocumentHr() {
+        let source = "# Title\n\n---\n\nMore content"
+        let html = MarkdownRenderer.render(source, isDark: false)
+        #expect(html.contains("Title"))
+        #expect(html.contains("More content"))
+    }
 }

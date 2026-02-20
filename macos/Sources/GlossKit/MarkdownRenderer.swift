@@ -13,10 +13,29 @@ public struct MarkdownRenderer: Sendable {
     ///   - fontSize: Base font size in pixels (default 16).
     /// - Returns: Full HTML document string
     public static func render(_ source: String, isDark: Bool? = nil, fontSize: Int = 16) -> String {
-        let document = Document(parsing: source, options: [.parseBlockDirectives, .parseSymbolLinks])
+        let stripped = stripFrontmatter(source)
+        let document = Document(parsing: stripped, options: [.parseBlockDirectives, .parseSymbolLinks])
         let bodyHTML = HTMLFormatter.format(document)
         let hasMermaid = source.contains("```mermaid")
         return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize, hasMermaid: hasMermaid)
+    }
+
+    /// Strip YAML frontmatter (content between leading `---` delimiters).
+    static func stripFrontmatter(_ source: String) -> String {
+        guard source.hasPrefix("---\n") || source.hasPrefix("---\r\n") else {
+            return source
+        }
+        // Find the closing --- after the opening one
+        let startIndex = source.index(source.startIndex, offsetBy: 3) // skip "---"
+        let rest = source[startIndex...]
+        guard let closingRange = rest.range(of: "\n---\n") ?? rest.range(of: "\r\n---\r\n") ?? rest.range(of: "\n---") else {
+            return source // no closing delimiter, leave as-is
+        }
+        // Check if closing delimiter is at end of string (no trailing newline)
+        if closingRange.upperBound == source.endIndex {
+            return ""
+        }
+        return String(source[closingRange.upperBound...])
     }
 
     /// Wrap HTML body content in a full document with CSS theme.
