@@ -58,6 +58,7 @@ struct KaTeXTests {
         let source = "$$x$$"
         let html = MarkdownRenderer.render(source)
         #expect(html.contains("typeof renderMathInElement === 'undefined'"))
+        #expect(html.contains("return false"))
     }
 
     @Test("KaTeX CSS link present when math detected")
@@ -79,5 +80,36 @@ struct KaTeXTests {
         let source = "$$x$$"
         let html = MarkdownRenderer.render(source)
         #expect(html.contains(".katex { color: inherit; }"))
+    }
+
+    @Test("Multi-line display math preserves $$ and backslash commands in HTML")
+    func multiLineDisplayMath() {
+        let source = """
+        **Data Size Calculation:**
+        $$
+        \\text{bytes} = \\frac{\\text{integration time}}{\\text{waveform period}}
+        \\times \\text{samples per waveform} \\times 2 \\text{ bytes}
+        $$
+        """
+        let html = MarkdownRenderer.render(source)
+        // $$ delimiters must be present as literal text for auto-render to match
+        #expect(html.contains("$$"))
+        // Backslash-commands must be preserved (not consumed by markdown parser)
+        #expect(html.contains("\\frac"))
+        #expect(html.contains("\\text"))
+        #expect(html.contains("\\times"))
+        // Must NOT be inside <pre> or <code> (auto-render ignores those)
+        #expect(!html.contains("<code>$$"))
+        #expect(!html.contains("<pre>$$"))
+        // KaTeX scripts must be included
+        #expect(html.contains("katex.min.js"))
+    }
+
+    @Test("Deferred load fallback for async script loading")
+    func deferredLoadFallback() {
+        let source = "$$x$$"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("window.addEventListener('load'"))
+        #expect(html.contains("doRender"))
     }
 }

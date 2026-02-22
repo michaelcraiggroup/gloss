@@ -135,16 +135,22 @@ public struct MarkdownRenderer: Sendable {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
     <script>
     (function() {
-        if (typeof renderMathInElement === 'undefined') return;
-        renderMathInElement(document.querySelector('.gloss-content'), {
-            delimiters: [
-                {left: '$$', right: '$$', display: true},
-                {left: '$', right: '$', display: false},
-                {left: '\\\\(', right: '\\\\)', display: false},
-                {left: '\\\\[', right: '\\\\]', display: true}
-            ],
-            throwOnError: false
-        });
+        function doRender() {
+            if (typeof renderMathInElement === 'undefined') return false;
+            renderMathInElement(document.querySelector('.gloss-content'), {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\\\(', right: '\\\\)', display: false},
+                    {left: '\\\\[', right: '\\\\]', display: true}
+                ],
+                throwOnError: false
+            });
+            return true;
+        }
+        if (!doRender()) {
+            window.addEventListener('load', doRender);
+        }
     })();
     </script>
     """

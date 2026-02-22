@@ -266,16 +266,22 @@ export class GlossReaderPanel {
 
 		// Initialize KaTeX math rendering
 		(function() {
-			if (typeof renderMathInElement === 'undefined') return;
-			renderMathInElement(document.querySelector('.gloss-content'), {
-				delimiters: [
-					{left: '$$', right: '$$', display: true},
-					{left: '$', right: '$', display: false},
-					{left: '\\\\(', right: '\\\\)', display: false},
-					{left: '\\\\[', right: '\\\\]', display: true}
-				],
-				throwOnError: false
-			});
+			function doRender() {
+				if (typeof renderMathInElement === 'undefined') return false;
+				renderMathInElement(document.querySelector('.gloss-content'), {
+					delimiters: [
+						{left: '$$', right: '$$', display: true},
+						{left: '$', right: '$', display: false},
+						{left: '\\\\(', right: '\\\\)', display: false},
+						{left: '\\\\[', right: '\\\\]', display: true}
+					],
+					throwOnError: false
+				});
+				return true;
+			}
+			if (!doRender()) {
+				window.addEventListener('load', doRender);
+			}
 		})();
 
 		// Handle anchor links (TOC navigation)
