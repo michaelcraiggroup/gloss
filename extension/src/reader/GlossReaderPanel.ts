@@ -264,7 +264,7 @@ export class GlossReaderPanel {
 			await mermaid.run();
 		})();
 
-		// Initialize KaTeX math rendering
+		// Initialize KaTeX math rendering (poll for CDN script availability)
 		(function() {
 			function doRender() {
 				if (typeof renderMathInElement === 'undefined') return false;
@@ -280,7 +280,10 @@ export class GlossReaderPanel {
 				return true;
 			}
 			if (!doRender()) {
-				window.addEventListener('load', doRender);
+				var interval = setInterval(function() {
+					if (doRender()) clearInterval(interval);
+				}, 50);
+				setTimeout(function() { clearInterval(interval); }, 5000);
 			}
 		})();
 
