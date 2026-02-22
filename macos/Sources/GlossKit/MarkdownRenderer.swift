@@ -17,7 +17,9 @@ public struct MarkdownRenderer: Sendable {
         let document = Document(parsing: stripped, options: [.parseBlockDirectives, .parseSymbolLinks])
         let bodyHTML = HTMLFormatter.format(document)
         let hasMermaid = source.contains("```mermaid")
-        return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize, hasMermaid: hasMermaid)
+        let hasMath = source.contains("$$") || source.contains("$\\")
+            || source.contains("\\(") || source.contains("\\[")
+        return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize, hasMermaid: hasMermaid, hasMath: hasMath)
     }
 
     /// Strip YAML frontmatter (content between leading `---` delimiters).
@@ -39,7 +41,7 @@ public struct MarkdownRenderer: Sendable {
     }
 
     /// Wrap HTML body content in a full document with CSS theme.
-    private static func wrapInDocument(_ bodyHTML: String, isDark: Bool?, fontSize: Int, hasMermaid: Bool = false) -> String {
+    private static func wrapInDocument(_ bodyHTML: String, isDark: Bool?, fontSize: Int, hasMermaid: Bool = false, hasMath: Bool = false) -> String {
         let themeClassAttr: String
         if let isDark {
             themeClassAttr = " class=\"\(isDark ? "dark" : "light")\""
@@ -57,7 +59,7 @@ public struct MarkdownRenderer: Sendable {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>\(css)</style>\(fontSizeOverride)
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">\(hasMath ? "\n            <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css\">" : "")
         </head>
         <body>
             <div class="gloss-content">
@@ -73,6 +75,7 @@ public struct MarkdownRenderer: Sendable {
             </script>
             \(copyButtonScript)
             \(hasMermaid ? mermaidScript : "")
+            \(hasMath ? katexScript : "")
             \(keyboardNavScript)
             \(findInPageScript)
         </body>
@@ -122,6 +125,26 @@ public struct MarkdownRenderer: Sendable {
             pre.textContent = text;
         });
         await mermaid.run();
+    })();
+    </script>
+    """
+
+    /// KaTeX math rendering — CDN scripts + auto-render initialization.
+    private static let katexScript = """
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+    <script>
+    (function() {
+        if (typeof renderMathInElement === 'undefined') return;
+        renderMathInElement(document.querySelector('.gloss-content'), {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false},
+                {left: '\\\\(', right: '\\\\)', display: false},
+                {left: '\\\\[', right: '\\\\]', display: true}
+            ],
+            throwOnError: false
+        });
     })();
     </script>
     """

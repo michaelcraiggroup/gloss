@@ -1,0 +1,83 @@
+import Testing
+@testable import GlossKit
+
+@Suite("KaTeX Math Rendering")
+struct KaTeXTests {
+
+    @Test("KaTeX CDN included when source has $$ display math")
+    func katexCDNForDisplayMath() {
+        let source = """
+        # Math
+
+        $$E = mc^2$$
+        """
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("KaTeX/0.16.9/katex.min.js"))
+        #expect(html.contains("KaTeX/0.16.9/contrib/auto-render.min.js"))
+    }
+
+    @Test("KaTeX CDN included when source has $\\command$ inline math")
+    func katexCDNForInlineMath() {
+        let source = "The value is $\\alpha + \\beta$."
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("KaTeX/0.16.9/katex.min.js"))
+    }
+
+    @Test("KaTeX CDN included when source has \\( delimiter")
+    func katexCDNForParenDelimiter() {
+        let source = "Inline math: \\(x^2\\)"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("KaTeX/0.16.9/katex.min.js"))
+    }
+
+    @Test("KaTeX CDN included when source has \\[ delimiter")
+    func katexCDNForBracketDelimiter() {
+        let source = "Display math: \\[\\int_0^1 x\\,dx\\]"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("KaTeX/0.16.9/katex.min.js"))
+    }
+
+    @Test("KaTeX CDN NOT included for plain text or currency")
+    func katexCDNExcludedForCurrency() {
+        let source = "The price is $10 and $20."
+        let html = MarkdownRenderer.render(source)
+        #expect(!html.contains("katex.min.js"))
+    }
+
+    @Test("Auto-render init script present with correct delimiters")
+    func autoRenderInitScript() {
+        let source = "$$x^2$$"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("renderMathInElement"))
+        #expect(html.contains("display: true"))
+        #expect(html.contains("display: false"))
+    }
+
+    @Test("Graceful offline fallback guard")
+    func offlineFallback() {
+        let source = "$$x$$"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("typeof renderMathInElement === 'undefined'"))
+    }
+
+    @Test("KaTeX CSS link present when math detected")
+    func katexCSSLink() {
+        let source = "$$E = mc^2$$"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains("KaTeX/0.16.9/katex.min.css"))
+    }
+
+    @Test("KaTeX CSS link absent when no math detected")
+    func katexCSSLinkAbsent() {
+        let source = "# Hello World"
+        let html = MarkdownRenderer.render(source)
+        #expect(!html.contains("katex.min.css"))
+    }
+
+    @Test("Color inheritance CSS present in theme")
+    func colorInheritanceCSS() {
+        let source = "$$x$$"
+        let html = MarkdownRenderer.render(source)
+        #expect(html.contains(".katex { color: inherit; }"))
+    }
+}

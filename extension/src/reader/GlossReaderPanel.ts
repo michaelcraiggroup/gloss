@@ -167,15 +167,17 @@ export class GlossReaderPanel {
     const config = vscode.workspace.getConfiguration('gloss');
     const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
     const hasMermaid = markdown.includes('```mermaid');
+    const hasMath = markdown.includes('$$') || markdown.includes('$\\')
+      || markdown.includes('\\(') || markdown.includes('\\[');
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; img-src ${webview.cspSource} https: data:;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; img-src ${webview.cspSource} https: data:; font-src https://cdnjs.cloudflare.com;">
 	<title>${fileName}</title>
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${isDark ? 'github-dark' : 'github'}.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${isDark ? 'github-dark' : 'github'}.min.css">${hasMath ? '\n\t<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">' : ''}
 	<style>
 		${this._getStyles(isDark)}
 	</style>
@@ -202,7 +204,7 @@ export class GlossReaderPanel {
 	<article class="gloss-content">
 		${htmlContent}
 	</article>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>${hasMermaid ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.0/mermaid.min.js"></script>' : ''}
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>${hasMermaid ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.0/mermaid.min.js"></script>' : ''}${hasMath ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>' : ''}
 	<script>
 		const vscode = acquireVsCodeApi();
 		
@@ -260,6 +262,20 @@ export class GlossReaderPanel {
 				pre.textContent = text;
 			});
 			await mermaid.run();
+		})();
+
+		// Initialize KaTeX math rendering
+		(function() {
+			if (typeof renderMathInElement === 'undefined') return;
+			renderMathInElement(document.querySelector('.gloss-content'), {
+				delimiters: [
+					{left: '$$', right: '$$', display: true},
+					{left: '$', right: '$', display: false},
+					{left: '\\\\(', right: '\\\\)', display: false},
+					{left: '\\\\[', right: '\\\\]', display: true}
+				],
+				throwOnError: false
+			});
 		})();
 
 		// Handle anchor links (TOC navigation)
@@ -612,6 +628,10 @@ export class GlossReaderPanel {
 				height: auto;
 			}
 
+			/* KaTeX math rendering */
+			.katex { color: inherit; }
+			.katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+
 			/* Override highlight.js background to match our theme */
 			.hljs {
 				background: ${codeBg} !important;
@@ -697,6 +717,7 @@ export class GlossReaderPanel {
 				body { background: white; color: black; }
 				pre { break-inside: avoid; }
 				pre.mermaid { break-inside: avoid; }
+				.katex-display { break-inside: avoid; }
 				a { color: inherit; text-decoration: underline; }
 				h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 			}

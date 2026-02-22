@@ -230,6 +230,10 @@ pre.mermaid svg {
     height: auto;
 }
 
+/* KaTeX math rendering */
+.katex { color: inherit; }
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+
 /* Override highlight.js background to match our theme */
 .hljs {
     background: var(--code-bg) !important;
@@ -340,6 +344,10 @@ pre.mermaid svg {
     }
 
     pre.mermaid {
+        break-inside: avoid;
+    }
+
+    .katex-display {
         break-inside: avoid;
     }
 
