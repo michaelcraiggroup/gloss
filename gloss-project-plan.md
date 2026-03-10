@@ -225,9 +225,13 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] Dual build: SPM + Xcode both work
 - [x] In-app purchase gate (StoreKit 2) — free/paid tier split
 - [x] Feature gate enforcement (wire paywall checks into views)
-- [ ] Developer ID signing + notarization
-- [ ] App Store Connect product setup (group.michaelcraig.gloss.full)
-- [ ] App Store assets (5 screenshots, description, keywords)
+- [x] StoreKit test configuration (GlossStore.storekit for local paywall testing)
+- [x] App Store metadata draft (AppStoreMetadata.md — name, description, keywords)
+- [x] Version set to 1.0.0 (MARKETING_VERSION + CURRENT_PROJECT_VERSION)
+- [x] Xcode build verified with signing (Apple Development certificate)
+- [ ] App Store Connect product setup (group.michaelcraig.gloss.full — $4.99 non-consumable)
+- [ ] Developer ID signing + notarization (for direct distribution)
+- [ ] App Store screenshots (5 required)
 - [ ] "Coming soon" link in VS Code extension
 - [ ] TestFlight beta
 - [ ] App Store submission
