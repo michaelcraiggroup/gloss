@@ -1,5 +1,23 @@
 import Foundation
 import Markdown
+import Yams
+
+/// A heading extracted from a markdown document, with its level, text, and generated anchor ID.
+public struct HeadingInfo: Sendable, Equatable {
+    public let level: Int
+    public let text: String
+    public let id: String
+}
+
+/// Parsed frontmatter data from a markdown document.
+public struct FrontmatterData: Sendable, Equatable {
+    public let raw: String
+    public let fields: [(key: String, value: String)]
+
+    public static func == (lhs: FrontmatterData, rhs: FrontmatterData) -> Bool {
+        lhs.raw == rhs.raw
+    }
+}
 
 /// Converts markdown source text into a full HTML document with Gloss theming.
 /// Shared library used by both the Gloss app and Quick Look extension.
@@ -11,15 +29,81 @@ public struct MarkdownRenderer: Sendable {
     ///   - isDark: Whether to apply dark theme class. When nil, omits html class
     ///     so `prefers-color-scheme` CSS media query drives appearance (used by Quick Look).
     ///   - fontSize: Base font size in pixels (default 16).
+    ///   - resolveWikiLink: Optional closure to resolve `[[wiki-link]]` targets to file paths.
     /// - Returns: Full HTML document string
-    public static func render(_ source: String, isDark: Bool? = nil, fontSize: Int = 16) -> String {
+    public static func render(
+        _ source: String,
+        isDark: Bool? = nil,
+        fontSize: Int = 16,
+        resolveWikiLink: ((String) -> String?)? = nil
+    ) -> String {
         let stripped = stripFrontmatter(source)
-        let document = Document(parsing: stripped, options: [.parseBlockDirectives, .parseSymbolLinks])
-        let bodyHTML = HTMLFormatter.format(document)
+        let preprocessed = resolveWikiLink != nil
+            ? preprocessWikiLinks(stripped, resolver: resolveWikiLink!)
+            : stripped
+        let document = Document(parsing: preprocessed, options: [.parseBlockDirectives, .parseSymbolLinks])
+        var bodyHTML = HTMLFormatter.format(document)
+        bodyHTML = addHeadingIDs(bodyHTML)
         let hasMermaid = source.contains("```mermaid")
         let hasMath = source.contains("$$") || source.contains("$\\")
             || source.contains("\\(") || source.contains("\\[")
         return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize, hasMermaid: hasMermaid, hasMath: hasMath)
+    }
+
+    /// Extract headings from markdown source for TOC generation.
+    public static func extractHeadings(_ source: String) -> [HeadingInfo] {
+        let stripped = stripFrontmatter(source)
+        let document = Document(parsing: stripped, options: [.parseBlockDirectives, .parseSymbolLinks])
+        var headings: [HeadingInfo] = []
+        var slugCounts: [String: Int] = [:]
+        for child in document.children {
+            if let heading = child as? Heading {
+                let text = heading.plainText
+                let baseSlug = generateSlug(text)
+                let count = slugCounts[baseSlug, default: 0]
+                let slug = count == 0 ? baseSlug : "\(baseSlug)-\(count)"
+                slugCounts[baseSlug] = count + 1
+                headings.append(HeadingInfo(level: heading.level, text: text, id: slug))
+            }
+        }
+        return headings
+    }
+
+    /// Parse frontmatter YAML from a markdown document.
+    public static func extractFrontmatter(_ source: String) -> FrontmatterData? {
+        guard let raw = extractRawFrontmatter(source) else { return nil }
+        guard let parsed = try? Yams.load(yaml: raw), let dict = parsed as? [String: Any] else {
+            return FrontmatterData(raw: raw, fields: [])
+        }
+        let fields: [(key: String, value: String)] = dict.sorted(by: { $0.key < $1.key }).map { key, value in
+            (key: key, value: formatYamlValue(value))
+        }
+        return FrontmatterData(raw: raw, fields: fields)
+    }
+
+    /// Extract the raw YAML frontmatter string (without delimiters).
+    static func extractRawFrontmatter(_ source: String) -> String? {
+        guard source.hasPrefix("---\n") || source.hasPrefix("---\r\n") else { return nil }
+        let startIndex = source.index(source.startIndex, offsetBy: 3)
+        let rest = source[startIndex...]
+        guard let closingRange = rest.range(of: "\n---\n") ?? rest.range(of: "\r\n---\r\n") ?? rest.range(of: "\n---") else {
+            return nil
+        }
+        let yaml = rest[rest.startIndex..<closingRange.lowerBound]
+        let trimmed = yaml.trimmingCharacters(in: .newlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// Format a YAML value for display.
+    private static func formatYamlValue(_ value: Any) -> String {
+        switch value {
+        case let array as [Any]:
+            return array.map { formatYamlValue($0) }.joined(separator: ", ")
+        case let dict as [String: Any]:
+            return dict.map { "\($0.key): \(formatYamlValue($0.value))" }.joined(separator: ", ")
+        default:
+            return String(describing: value)
+        }
     }
 
     /// Strip YAML frontmatter (content between leading `---` delimiters).
@@ -38,6 +122,72 @@ public struct MarkdownRenderer: Sendable {
             return ""
         }
         return String(source[closingRange.upperBound...])
+    }
+
+    // MARK: - Heading IDs
+
+    /// Generate a URL-friendly slug from heading text.
+    static func generateSlug(_ text: String) -> String {
+        text.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_" }
+            .reduce(into: "") { $0.append(String($1)) }
+    }
+
+    /// Post-process HTML to add `id` attributes to heading tags.
+    static func addHeadingIDs(_ html: String) -> String {
+        var result = html
+        var slugCounts: [String: Int] = [:]
+        let pattern = #"<(h[1-6])>(.*?)</h[1-6]>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) else {
+            return html
+        }
+        let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
+        // Process in reverse to preserve ranges
+        for match in matches.reversed() {
+            guard let tagRange = Range(match.range(at: 1), in: result),
+                  let contentRange = Range(match.range(at: 2), in: result),
+                  let fullRange = Range(match.range, in: result) else { continue }
+            let tag = String(result[tagRange])
+            let content = String(result[contentRange])
+            let plainText = content.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+            let baseSlug = generateSlug(plainText)
+            let count = slugCounts[baseSlug, default: 0]
+            let slug = count == 0 ? baseSlug : "\(baseSlug)-\(count)"
+            slugCounts[baseSlug] = count + 1
+            let replacement = "<\(tag) id=\"\(slug)\">\(content)</\(tag)>"
+            result.replaceSubrange(fullRange, with: replacement)
+        }
+        return result
+    }
+
+    // MARK: - Wiki-Links
+
+    /// Pre-process wiki-links `[[target]]` and `[[target|display]]` into standard markdown links.
+    static func preprocessWikiLinks(_ source: String, resolver: (String) -> String?) -> String {
+        let pattern = #"\[\[([^\]]+)\]\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
+        var result = source
+        let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range, in: result),
+                  let innerRange = Range(match.range(at: 1), in: result) else { continue }
+            let inner = String(result[innerRange])
+            let parts = inner.split(separator: "|", maxSplits: 1)
+            let target = String(parts[0]).trimmingCharacters(in: .whitespaces)
+            let display = parts.count > 1
+                ? String(parts[1]).trimmingCharacters(in: .whitespaces)
+                : target
+            if let resolved = resolver(target) {
+                let link = "[\(display)](\(resolved))"
+                result.replaceSubrange(fullRange, with: link)
+            } else {
+                // Unresolved — render as styled span
+                let span = "[\(display)](#)"
+                result.replaceSubrange(fullRange, with: span)
+            }
+        }
+        return result
     }
 
     /// Wrap HTML body content in a full document with CSS theme.
@@ -74,6 +224,7 @@ public struct MarkdownRenderer: Sendable {
             });
             </script>
             \(copyButtonScript)
+            \(headingAnchorScript)
             \(hasMermaid ? mermaidScript : "")
             \(hasMath ? katexScript : "")
             \(keyboardNavScript)
@@ -100,6 +251,20 @@ public struct MarkdownRenderer: Sendable {
             });
         });
         pre.appendChild(btn);
+    });
+    </script>
+    """
+
+    /// JavaScript to add anchor links to headings with IDs.
+    private static let headingAnchorScript = """
+    <script>
+    document.querySelectorAll('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]').forEach(function(h) {
+        var a = document.createElement('a');
+        a.className = 'heading-anchor';
+        a.href = '#' + h.id;
+        a.textContent = '#';
+        a.setAttribute('aria-hidden', 'true');
+        h.prepend(a);
     });
     </script>
     """

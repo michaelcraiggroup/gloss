@@ -32,17 +32,20 @@ gloss/
 │   │   │   ├── RecentDocument.swift # SwiftData recent docs + favorites
 │   │   │   └── ContentSearchResult.swift # Content search result model
 │   │   ├── Views/
-│   │   │   ├── ContentView.swift   # NavigationSplitView layout + FocusedValues
-│   │   │   ├── DocumentView.swift  # File loading + live reload
+│   │   │   ├── ContentView.swift   # NavigationSplitView layout + inspector + FocusedValues
+│   │   │   ├── DocumentView.swift  # File loading + live reload + wiki-link resolution
+│   │   │   ├── InspectorView.swift # TOC sidebar + frontmatter display
+│   │   │   ├── PaywallView.swift   # StoreKit 2 purchase UI
 │   │   │   ├── SidebarView.swift   # File tree + search scopes + favorites + recents
 │   │   │   ├── SettingsView.swift  # Editor/Appearance/Reading sections
 │   │   │   └── Components/
-│   │   │       ├── WebView.swift   # WKWebView wrapper (first responder)
+│   │   │       ├── WebView.swift   # WKWebView wrapper + link interception + PDF export
 │   │   │       └── FileTreeRow.swift # Tree row with icon
 │   │   ├── Services/
 │   │   │   ├── EditorLauncher.swift    # External editor launch
 │   │   │   ├── FileWatcher.swift       # DispatchSource file watcher
-│   │   │   └── ContentSearchService.swift # Async full-text content search
+│   │   │   ├── ContentSearchService.swift # Async full-text content search
+│   │   │   └── StoreManager.swift     # StoreKit 2 IAP management
 │   │   └── Resources/
 │   │       └── AppIcon.icns        # App icon
 │   ├── project.yml         # xcodegen spec → generates Gloss.xcodeproj
@@ -51,7 +54,7 @@ gloss/
 │   ├── GlossQLExtension/   # Quick Look extension
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 98 tests
+│   └── Tests/GlossTests/   # 122 tests
 └── gloss-project-plan.md   # Full product plan
 ```
 
@@ -124,10 +127,14 @@ npm run package      # Creates .vsix file
 The macOS app uses **GlossKit**, a shared library also used by the Quick Look extension:
 
 1. `GlossKit.MarkdownRenderer.render()` — parses markdown with `swift-markdown`, converts to HTML via `HTMLFormatter.format()`, wraps in themed document
-2. HTML includes: CSS theme (custom properties), highlight.js, copy buttons (JS), vim-style keyboard navigation (JS)
-3. Renders in `WKWebView` via `NSViewRepresentable` (first responder for keyboard nav)
-4. `isDark: Bool?` — explicit class for app, `nil` for Quick Look (uses `prefers-color-scheme`)
-5. `fontSize: Int` — injectable via CSS variable override (`--font-size`)
+2. HTML post-processing: heading IDs (slug generation), wiki-link resolution, anchor links
+3. HTML includes: CSS theme (custom properties), highlight.js, copy buttons (JS), heading anchors (JS), vim-style keyboard navigation (JS)
+4. Renders in `WKWebView` via `NSViewRepresentable` (first responder for keyboard nav)
+5. `isDark: Bool?` — explicit class for app, `nil` for Quick Look (uses `prefers-color-scheme`)
+6. `fontSize: Int` — injectable via CSS variable override (`--font-size`)
+7. `resolveWikiLink` — optional closure for `[[wiki-link]]` resolution
+8. Inspector sidebar: `extractHeadings()` walks markdown AST, `extractFrontmatter()` parses YAML via Yams
+9. StoreKit 2: `StoreManager` manages IAP, `PaywallView` for purchase UI, `PaidFeature` enum for gating
 
 Theme CSS uses CSS custom properties with `prefers-color-scheme` and explicit `html.dark`/`html.light` class overrides for app-controlled appearance.
 

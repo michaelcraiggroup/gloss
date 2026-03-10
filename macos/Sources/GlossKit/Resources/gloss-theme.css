@@ -80,6 +80,34 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.3;
 }
 
+h1, h2, h3, h4, h5, h6 {
+    position: relative;
+}
+
+h1:hover .heading-anchor,
+h2:hover .heading-anchor,
+h3:hover .heading-anchor,
+h4:hover .heading-anchor,
+h5:hover .heading-anchor,
+h6:hover .heading-anchor {
+    opacity: 1;
+}
+
+.heading-anchor {
+    position: absolute;
+    left: -1.2em;
+    color: var(--accent-light);
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    font-weight: normal;
+}
+
+.heading-anchor:hover {
+    text-decoration: none;
+    color: var(--accent);
+}
+
 h1 {
     font-size: 2em;
     border-bottom: 2px solid var(--accent-light);
@@ -333,7 +361,8 @@ pre.mermaid svg {
     }
 
     .gloss-find-bar,
-    .copy-btn {
+    .copy-btn,
+    .heading-anchor {
         display: none !important;
     }
 

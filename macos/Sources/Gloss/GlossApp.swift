@@ -13,7 +13,9 @@ struct GlossApp: App {
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
     @State private var contentSearch = ContentSearchService()
+    @State private var store = StoreManager()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
+    @FocusedValue(\.toggleInspector) var toggleInspector
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
@@ -22,6 +24,7 @@ struct GlossApp: App {
                 .environmentObject(settings)
                 .environment(fileTree)
                 .environment(contentSearch)
+                .environment(store)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
@@ -76,6 +79,12 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("p", modifiers: .command)
                 .disabled(settings.currentFileURL == nil)
+
+                Button("Export as PDF…") {
+                    NotificationCenter.default.post(name: .glossExportPDF, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: [.command])
+                .disabled(settings.currentFileURL == nil)
             }
         }
 
@@ -107,6 +116,12 @@ struct GlossApp: App {
                     withAnimation { settings.isZenMode.toggle() }
                 }
                 .keyboardShortcut("\\", modifiers: .command)
+
+                Button("Toggle Inspector") {
+                    toggleInspector?()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .disabled(toggleInspector == nil)
             }
         }
 

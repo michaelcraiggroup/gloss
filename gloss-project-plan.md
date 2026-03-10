@@ -18,7 +18,7 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 
 **VS Code Extension (v0.2.2)** — Published on marketplace. Custom webview reader with syntax highlighting, mermaid diagrams, KaTeX math, find-in-page, print, copy buttons, YAML frontmatter stripping, and image rendering. Zero telemetry.
 
-**macOS App (v0.10.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math. 98 tests passing. Pending: signing, notarization, App Store submission.
+**macOS App (v0.11.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, StoreKit 2 paywall. 122 tests passing. Pending: feature gate enforcement, signing, notarization, App Store submission.
 
 ---
 
@@ -207,12 +207,26 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] KaTeX 0.16.9 CDN, auto-render, conditional loading (both platforms)
 - [x] 98 tests passing
 
+#### Phase 5.5: Pre-Launch Features (Complete)
+- [x] Heading IDs + anchor links (slug generation, `id` attrs, hover anchor CSS/JS)
+- [x] Yams dependency + frontmatter extraction (`FrontmatterData` model, YAML parsing)
+- [x] Heading extraction API (`HeadingInfo` model, AST walking)
+- [x] Inspector sidebar (SwiftUI `.inspector()`, TOC with click-to-jump, frontmatter display)
+- [x] Wiki-link rendering (`[[target]]` + `[[target|display]]` pre-processing, BFS resolution)
+- [x] Wiki-link navigation (WKWebView link interception, file tree search)
+- [x] PDF export (`WKWebView.createPDF()`, File > Export as PDF menu command)
+- [x] External link handling (opens in default browser)
+- [x] StoreKit 2 paywall (`StoreManager`, `PaywallView`, `PaidFeature` enum)
+- [x] 122 tests passing
+
 #### Phase 5: Release (In Progress)
 - [x] Xcode project wrapper via xcodegen (`project.yml` → `Gloss.xcodeproj`)
 - [x] App sandbox entitlements, Quick Look extension embeds in app bundle
 - [x] Dual build: SPM + Xcode both work
-- [ ] In-app purchase gate (StoreKit 2) — free/paid tier split
+- [x] In-app purchase gate (StoreKit 2) — free/paid tier split
+- [ ] Feature gate enforcement (wire paywall checks into views)
 - [ ] Developer ID signing + notarization
+- [ ] App Store Connect product setup (group.michaelcraig.gloss.full)
 - [ ] App Store assets (5 screenshots, description, keywords)
 - [ ] "Coming soon" link in VS Code extension
 - [ ] TestFlight beta
@@ -233,7 +247,9 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 
 - **md+ (Extended Markdown)** — Vision for executable markdown with live code blocks, data queries, and interactive widgets. See [MD+ Specification](docs/MD_PLUS_SPEC.md).
 - **iOS companion** — Natural extension, deferred until macOS app proves demand.
-- **Obsidian vault compatibility** — Optional `[[wiki-links]]` rendering for Obsidian users.
+- **v1.1 "The Vault Update"** — Multiple root folders, backlinks panel, tag extraction + filtering
+- **v1.2 "The Polish Update"** — Custom CSS themes, Spotlight integration, reading position memory, tabs
+- **v1.3 "The Power Update"** — md+ block rendering, URL scheme / CLI, link graph visualization
 
 ---
 

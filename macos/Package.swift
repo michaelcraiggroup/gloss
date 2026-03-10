@@ -12,13 +12,15 @@ let package = Package(
         .library(name: "GlossKit", targets: ["GlossKit"])
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0")
+        .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.0")
     ],
     targets: [
         .target(
             name: "GlossKit",
             dependencies: [
-                .product(name: "Markdown", package: "swift-markdown")
+                .product(name: "Markdown", package: "swift-markdown"),
+                .product(name: "Yams", package: "Yams")
             ],
             resources: [
                 .process("Resources")

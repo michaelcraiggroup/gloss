@@ -4,10 +4,10 @@ import Testing
 @Suite("MarkdownRenderer")
 struct MarkdownRendererTests {
 
-    @Test("Renders heading")
+    @Test("Renders heading with ID")
     func heading() {
         let html = MarkdownRenderer.render("# Hello World", isDark: false)
-        #expect(html.contains("<h1>"))
+        #expect(html.contains("<h1 id=\"hello-world\">"))
         #expect(html.contains("Hello World"))
     }
 
@@ -72,7 +72,7 @@ struct MarkdownRendererTests {
     func stripsFrontmatter() {
         let source = "---\ntitle: Hello\ndate: 2026-01-01\n---\n# Heading"
         let html = MarkdownRenderer.render(source, isDark: false)
-        #expect(html.contains("<h1>"))
+        #expect(html.contains("<h1 id=\"heading\">"))
         #expect(html.contains("Heading"))
         #expect(!html.contains("title: Hello"))
     }
@@ -81,7 +81,7 @@ struct MarkdownRendererTests {
     func noFrontmatter() {
         let source = "# Just a heading\n\nSome text."
         let html = MarkdownRenderer.render(source, isDark: false)
-        #expect(html.contains("<h1>"))
+        #expect(html.contains("<h1 id=\"just-a-heading\">"))
         #expect(html.contains("Just a heading"))
     }
 

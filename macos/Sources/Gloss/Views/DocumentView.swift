@@ -6,6 +6,7 @@ struct DocumentView: View {
     let fileURL: URL?
     var highlightQuery: String?
     @EnvironmentObject private var settings: AppSettings
+    @Environment(FileTreeModel.self) private var fileTree
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
     @State private var fileWatcher = FileWatcher()
@@ -14,7 +15,14 @@ struct DocumentView: View {
         Group {
             if let url = fileURL {
                 if let content = fileContent {
-                    let html = MarkdownRenderer.render(content, isDark: colorScheme == .dark, fontSize: settings.fontSize)
+                    let html = MarkdownRenderer.render(
+                        content,
+                        isDark: colorScheme == .dark,
+                        fontSize: settings.fontSize,
+                        resolveWikiLink: { target in
+                            resolveWikiLink(target, from: url)
+                        }
+                    )
                     WebView(htmlContent: html, baseURL: url.deletingLastPathComponent(), highlightQuery: highlightQuery)
                 } else {
                     errorState(message: "Could not read file:\n\(url.lastPathComponent)")
@@ -28,6 +36,12 @@ struct DocumentView: View {
         }
         .onAppear {
             loadAndWatch()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossNavigateWikiLink)) { notification in
+            if let url = notification.object as? URL {
+                settings.currentFileURL = url
+                settings.lastOpenedFile = url.path
+            }
         }
     }
 
@@ -74,10 +88,70 @@ struct DocumentView: View {
             return
         }
         fileContent = try? String(contentsOf: url, encoding: .utf8)
+        if let content = fileContent {
+            NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+        }
         fileWatcher.watch(url: url) {
             Task { @MainActor [url] in
                 fileContent = try? String(contentsOf: url, encoding: .utf8)
+                if let content = fileContent {
+                    NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+                }
             }
         }
+    }
+
+    // MARK: - Wiki-Link Resolution
+
+    /// Resolve a wiki-link target to a file URL, searching from the current file's directory.
+    private func resolveWikiLink(_ target: String, from currentFile: URL) -> String? {
+        let directory = currentFile.deletingLastPathComponent()
+        let candidates = wikiLinkCandidates(for: target)
+
+        // Same folder first
+        for candidate in candidates {
+            let url = directory.appendingPathComponent(candidate)
+            if FileManager.default.fileExists(atPath: url.path) {
+                return url.absoluteString
+            }
+        }
+
+        // Search within open folder tree
+        if let rootNode = fileTree.rootNode {
+            if let found = searchTree(rootNode, for: candidates) {
+                return found.absoluteString
+            }
+        }
+
+        return nil
+    }
+
+    /// Generate candidate filenames for a wiki-link target.
+    private func wikiLinkCandidates(for target: String) -> [String] {
+        let trimmed = target.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasSuffix(".md") || trimmed.hasSuffix(".markdown") {
+            return [trimmed]
+        }
+        return ["\(trimmed).md", "\(trimmed).markdown", trimmed]
+    }
+
+    /// Breadth-first search through file tree for a matching filename.
+    private func searchTree(_ node: FileTreeNode, for candidates: [String]) -> URL? {
+        var queue: [FileTreeNode] = [node]
+        while !queue.isEmpty {
+            let current = queue.removeFirst()
+            if current.isDirectory {
+                if current.children == nil { current.loadChildren() }
+                for child in current.children ?? [] {
+                    if !child.isDirectory, candidates.contains(child.name) {
+                        return child.url
+                    }
+                    if child.isDirectory {
+                        queue.append(child)
+                    }
+                }
+            }
+        }
+        return nil
     }
 }

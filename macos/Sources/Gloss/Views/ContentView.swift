@@ -1,14 +1,18 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import GlossKit
 
-/// Main window layout with sidebar file browser and document detail pane.
+/// Main window layout with sidebar file browser, document detail, and inspector.
 struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(ContentSearchService.self) private var contentSearch
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var inspectorIsShown = false
+    @State private var headings: [HeadingInfo] = []
+    @State private var frontmatter: FrontmatterData?
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -47,6 +51,15 @@ struct ContentView: View {
                             .help("Open in \(settings.editor.displayName) (⇧⌘E)")
                             .disabled(settings.currentFileURL == nil)
                         }
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                withAnimation { inspectorIsShown.toggle() }
+                            } label: {
+                                Label("Toggle Inspector", systemImage: "sidebar.trailing")
+                            }
+                            .help("Toggle Inspector (⌥⌘I)")
+                            .disabled(settings.currentFileURL == nil)
+                        }
                         if settings.currentFileURL != nil {
                             ToolbarItem(placement: .status) {
                                 Text("j/k to scroll")
@@ -56,14 +69,40 @@ struct ContentView: View {
                         }
                     }
                 }
+                .inspector(isPresented: $inspectorIsShown) {
+                    InspectorView(
+                        headings: headings,
+                        frontmatter: frontmatter,
+                        onHeadingTap: { headingID in
+                            NotificationCenter.default.post(
+                                name: .glossScrollToHeading,
+                                object: headingID
+                            )
+                        }
+                    )
+                    .inspectorColumnWidth(min: 200, ideal: 250, max: 350)
+                }
                 .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
                 .navigationSubtitle(settings.isZenMode ? "" : (settings.currentFileURL != nil ? "Reading Mode" : ""))
         }
         .focusedSceneValue(\.toggleFavorite, toggleFavoriteForCurrentFile)
+        .focusedSceneValue(\.toggleInspector, { withAnimation { inspectorIsShown.toggle() } })
         .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
             if let url = notification.object as? URL {
                 settings.currentFileURL = url
                 settings.lastOpenedFile = url.path
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossDocumentLoaded)) { notification in
+            if let content = notification.object as? String {
+                headings = MarkdownRenderer.extractHeadings(content)
+                frontmatter = MarkdownRenderer.extractFrontmatter(content)
+            }
+        }
+        .onChange(of: settings.currentFileURL) {
+            if settings.currentFileURL == nil {
+                headings = []
+                frontmatter = nil
             }
         }
         .onChange(of: settings.isZenMode) {
@@ -129,9 +168,18 @@ struct FavoriteToggleKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+struct InspectorToggleKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var toggleFavorite: (() -> Void)? {
         get { self[FavoriteToggleKey.self] }
         set { self[FavoriteToggleKey.self] = newValue }
+    }
+
+    var toggleInspector: (() -> Void)? {
+        get { self[InspectorToggleKey.self] }
+        set { self[InspectorToggleKey.self] = newValue }
     }
 }
