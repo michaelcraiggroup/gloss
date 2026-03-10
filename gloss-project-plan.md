@@ -224,7 +224,7 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] App sandbox entitlements, Quick Look extension embeds in app bundle
 - [x] Dual build: SPM + Xcode both work
 - [x] In-app purchase gate (StoreKit 2) — free/paid tier split
-- [ ] Feature gate enforcement (wire paywall checks into views)
+- [x] Feature gate enforcement (wire paywall checks into views)
 - [ ] Developer ID signing + notarization
 - [ ] App Store Connect product setup (group.michaelcraig.gloss.full)
 - [ ] App Store assets (5 screenshots, description, keywords)
