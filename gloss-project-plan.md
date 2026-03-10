@@ -116,14 +116,46 @@ This isn't a privacy policy, it's the architecture. There's no server to send da
 
 **VS Code Extension:** Free / Open Source (MIT)
 
-The extension is a trust-builder for the portfolio, not a revenue product. A free, well-crafted extension demonstrates the "sharp tools that don't spy on you" principle.
+The extension is a trust-builder and lead generator for the macOS app. A free, well-crafted extension demonstrates the "sharp tools that don't spy on you" principle and funnels developers to the native app.
 
-**macOS App:** Paid (one-time purchase, ~$9.99)
+**macOS App:** Free download with $4.99 in-app purchase unlock (StoreKit 2)
 
-| Tier | Price | Features |
-|------|-------|----------|
-| **Free** | $0 | Single-file viewing, basic rendering, "Open in Editor" |
-| **Full** | $9.99 | Folder browsing, search, favorites, Quick Look integration, custom themes |
+### Free Tier (Taste the Quality)
+
+| Feature | Included |
+|---------|----------|
+| Open individual files (File > Open, drag-and-drop) | ✅ |
+| Full rendered preview (syntax highlighting, mermaid, KaTeX) | ✅ |
+| Open in Editor (Cmd+E) | ✅ |
+| Dark/light theme | ✅ |
+| Quick Look extension | ✅ |
+| Live reload | ✅ |
+| Keyboard navigation | ✅ |
+| Copy buttons on code blocks | ✅ |
+
+### Paid: Gloss Full ($4.99 one-time)
+
+| Feature | Description |
+|---------|-------------|
+| **Folder sidebar** | Browse any directory as a library |
+| **Full-text search** | Search across all files in a folder |
+| **Favorites** | Star documents, Cmd+D toggle |
+| **Recents** | Recently opened files list |
+| **Find-in-page** | Cmd+F search within rendered view |
+| **Print** | Cmd+P with optimized layout |
+| **Font size control** | Customize reading experience (12-24px) |
+
+### Pricing Rationale
+
+- **$4.99 is the impulse-buy threshold.** Under $5 removes deliberation for the App Store audience. Developer tools are price-sensitive but willing to pay for things that work.
+- **The paywall sits at the commitment moment.** Free users open individual files — paid users use Gloss as their markdown browser. The upgrade triggers when someone wants folder browsing, not single-file preview.
+- **Quick Look stays free as the viral hook.** Every spacebar press on a `.md` file in Finder is a free ad for Gloss. Gating it would kill the best organic growth mechanism.
+- **No subscription, ever.** There's no ongoing service cost. A subscription would feel extractive for a 100% local app. One-time purchase is a brand promise.
+- **No ads, ever.** MCG principle. Non-negotiable.
+
+### Revenue Context
+
+Gloss is a **credibility builder** and **funnel opener**, not a primary revenue driver. Its value to the MCG portfolio exceeds direct revenue — every Gloss user is a potential Merrily/Rumpus/Jotto customer who already trusts MCG's taste and privacy commitment.
 
 **Why charge for the macOS app:**
 - Native app development has higher maintenance cost
@@ -179,10 +211,21 @@ The extension is a trust-builder for the portfolio, not a revenue product. A fre
 - [x] Xcode project wrapper via xcodegen (`project.yml` → `Gloss.xcodeproj`)
 - [x] App sandbox entitlements, Quick Look extension embeds in app bundle
 - [x] Dual build: SPM + Xcode both work
+- [ ] In-app purchase gate (StoreKit 2) — free/paid tier split
 - [ ] Developer ID signing + notarization
-- [ ] App Store assets (screenshots, description)
+- [ ] App Store assets (5 screenshots, description, keywords)
+- [ ] "Coming soon" link in VS Code extension
 - [ ] TestFlight beta
 - [ ] App Store submission
+
+#### Phase 6: Launch & Marketing
+- [ ] Landing page on michaelcraig.group/products/gloss
+- [ ] Blog post: "Why I built a markdown reader that doesn't edit"
+- [ ] Product Hunt launch
+- [ ] Show HN post
+- [ ] Social media campaign (Twitter/X, Mastodon, LinkedIn)
+- [ ] Submit to macOS utility directories
+- [ ] Pricing iteration based on conversion data (Month 1-3)
 
 ---
 
