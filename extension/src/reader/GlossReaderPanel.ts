@@ -164,7 +164,6 @@ export class GlossReaderPanel {
     // Resolve local image paths to webview URIs
     const htmlContent = this._resolveImagePaths(rawHtml, webview);
     const fileName = path.basename(this._uri.fsPath);
-    const config = vscode.workspace.getConfiguration('gloss');
     const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
     const hasMermaid = markdown.includes('```mermaid');
     const hasMath = markdown.includes('$$') || markdown.includes('$\\')
@@ -221,8 +220,8 @@ export class GlossReaderPanel {
 			if (!heading.id) {
 				const slug = heading.textContent
 					.toLowerCase()
-					.replace(/[^\w\s-]/g, '')
-					.replace(/\s+/g, '-')
+					.replace(/[^\\w\\s-]/g, '')
+					.replace(/\\s+/g, '-')
 					.replace(/^-+|-+$/g, '');
 				heading.id = slug;
 			}
