@@ -1,10 +1,16 @@
-import QuickLookUI
+import Cocoa
+@preconcurrency import Quartz
 import GlossKit
 
-class PreviewProvider: QLPreviewProvider {
-    func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
+class PreviewViewController: NSViewController, QLPreviewingController {
+
+    override func loadView() {
+        self.view = NSView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+    }
+
+    nonisolated func providePreview(for request: QLFilePreviewRequest) async throws -> QLPreviewReply {
         let source = try String(contentsOf: request.fileURL, encoding: .utf8)
-        let html = MarkdownRenderer.render(source) // isDark=nil, uses prefers-color-scheme
+        let html = MarkdownRenderer.render(source)
         return QLPreviewReply(dataOfContentType: .html, contentSize: CGSize(width: 800, height: 600)) { _ in
             html.data(using: .utf8)!
         }

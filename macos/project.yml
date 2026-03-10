@@ -14,6 +14,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: JTL9F365FN
 
 targets:
   Gloss:
@@ -72,11 +74,12 @@ targets:
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
-          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewProvider"
-          QLSupportedContentTypes:
-            - net.daringfireball.markdown
-            - public.plain-text
-          QLSupportsSearchableItems: true
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewViewController"
+          NSExtensionAttributes:
+            QLIsDataBasedPreview: true
+            QLSupportedContentTypes:
+              - net.daringfireball.markdown
+            QLSupportsSearchableItems: true
     entitlements:
       path: GlossQL.entitlements
       properties:
