@@ -11,6 +11,7 @@ extension Notification.Name {
     static let glossScrollToHeading = Notification.Name("glossScrollToHeading")
     static let glossDocumentLoaded = Notification.Name("glossDocumentLoaded")
     static let glossNavigateWikiLink = Notification.Name("glossNavigateWikiLink")
+    static let glossShowPaywall = Notification.Name("glossShowPaywall")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.

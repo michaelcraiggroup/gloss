@@ -6,6 +6,7 @@ struct SidebarView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreManager.self) private var store
     @Query(sort: \RecentDocument.lastOpened, order: .reverse)
     private var recentDocuments: [RecentDocument]
     @Query(filter: #Predicate<RecentDocument> { $0.isFavorite },
@@ -123,6 +124,11 @@ struct SidebarView: View {
             }
         }
         .onChange(of: searchScope) { _, scope in
+            if scope == .content && !store.isUnlocked {
+                searchScope = .filename
+                _ = store.gate(.fullTextSearch)
+                return
+            }
             fileTree.searchScope = scope
             if scope == .content && !searchText.isEmpty {
                 contentSearch.search(query: searchText, rootURL: fileTree.activeNode?.url)
@@ -134,6 +140,7 @@ struct SidebarView: View {
         .toolbar {
             ToolbarItem {
                 Button {
+                    guard store.gate(.folderSidebar) else { return }
                     openFolderFromSidebar()
                 } label: {
                     Label("Open Folder", systemImage: "folder.badge.plus")

@@ -93,14 +93,16 @@ final class StoreManager {
         }
     }
 
-    /// Whether a specific feature requires the paid tier.
-    static func requiresPaid(_ feature: PaidFeature) -> Bool {
-        true // All paid features are gated the same way
+    /// Gate a paid feature. Returns true if unlocked. If locked, posts paywall notification.
+    func gate(_ feature: PaidFeature) -> Bool {
+        if isUnlocked { return true }
+        NotificationCenter.default.post(name: .glossShowPaywall, object: feature)
+        return false
     }
 }
 
 /// Features that require Gloss Full purchase.
-enum PaidFeature: String, CaseIterable {
+enum PaidFeature: String, CaseIterable, Identifiable {
     case folderSidebar = "Folder Sidebar"
     case inspector = "Inspector (TOC & Frontmatter)"
     case fullTextSearch = "Full-Text Search"
@@ -109,4 +111,6 @@ enum PaidFeature: String, CaseIterable {
     case wikiLinks = "Wiki-Link Navigation"
     case printExport = "Print & PDF Export"
     case fontSizeControl = "Font Size Control"
+
+    var id: String { rawValue }
 }

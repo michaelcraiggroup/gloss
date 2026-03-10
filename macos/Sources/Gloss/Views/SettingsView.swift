@@ -33,10 +33,26 @@ struct SettingsView: View {
             GridRow {
                 Text("Font size:")
                     .gridColumnAlignment(.trailing)
-                Stepper("\(settings.fontSize)px", value: $settings.fontSize, in: 12...24, step: 2)
+                FontSizeStepper(fontSize: $settings.fontSize)
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+}
+
+/// Font size stepper that gates behind paid tier.
+struct FontSizeStepper: View {
+    @Binding var fontSize: Int
+    @Environment(StoreManager.self) private var store
+
+    var body: some View {
+        Stepper("\(fontSize)px", value: $fontSize, in: 12...24, step: 2)
+            .onChange(of: fontSize) { oldValue, newValue in
+                if newValue != 16 && !store.isUnlocked {
+                    fontSize = oldValue
+                    _ = store.gate(.fontSizeControl)
+                }
+            }
     }
 }

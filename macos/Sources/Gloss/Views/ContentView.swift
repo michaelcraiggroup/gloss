@@ -8,11 +8,13 @@ struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(ContentSearchService.self) private var contentSearch
+    @Environment(StoreManager.self) private var store
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var inspectorIsShown = false
     @State private var headings: [HeadingInfo] = []
     @State private var frontmatter: FrontmatterData?
+    @State private var paywallFeature: PaidFeature?
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -31,6 +33,7 @@ struct ContentView: View {
                         if settings.currentFileURL != nil {
                             ToolbarItem(placement: .primaryAction) {
                                 Button {
+                                    guard store.gate(.favorites) else { return }
                                     toggleFavoriteForCurrentFile()
                                 } label: {
                                     Label(
@@ -53,6 +56,7 @@ struct ContentView: View {
                         }
                         ToolbarItem(placement: .primaryAction) {
                             Button {
+                                guard store.gate(.inspector) else { return }
                                 withAnimation { inspectorIsShown.toggle() }
                             } label: {
                                 Label("Toggle Inspector", systemImage: "sidebar.trailing")
@@ -85,8 +89,23 @@ struct ContentView: View {
                 .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
                 .navigationSubtitle(settings.isZenMode ? "" : (settings.currentFileURL != nil ? "Reading Mode" : ""))
         }
-        .focusedSceneValue(\.toggleFavorite, toggleFavoriteForCurrentFile)
-        .focusedSceneValue(\.toggleInspector, { withAnimation { inspectorIsShown.toggle() } })
+        .focusedSceneValue(\.toggleFavorite, {
+            guard store.gate(.favorites) else { return }
+            toggleFavoriteForCurrentFile()
+        })
+        .focusedSceneValue(\.toggleInspector, {
+            guard store.gate(.inspector) else { return }
+            withAnimation { inspectorIsShown.toggle() }
+        })
+        .sheet(item: $paywallFeature) { feature in
+            PaywallView(feature: feature)
+                .environment(store)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossShowPaywall)) { notification in
+            if let feature = notification.object as? PaidFeature {
+                paywallFeature = feature
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
             if let url = notification.object as? URL {
                 settings.currentFileURL = url

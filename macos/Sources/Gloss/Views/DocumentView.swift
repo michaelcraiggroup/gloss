@@ -7,6 +7,7 @@ struct DocumentView: View {
     var highlightQuery: String?
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
+    @Environment(StoreManager.self) private var store
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
     @State private var fileWatcher = FileWatcher()
@@ -38,6 +39,7 @@ struct DocumentView: View {
             loadAndWatch()
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossNavigateWikiLink)) { notification in
+            guard store.gate(.wikiLinks) else { return }
             if let url = notification.object as? URL {
                 settings.currentFileURL = url
                 settings.lastOpenedFile = url.path

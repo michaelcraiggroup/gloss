@@ -42,6 +42,7 @@ struct GlossApp: App {
                 .keyboardShortcut("o", modifiers: .command)
 
                 Button("Open Folder…") {
+                    guard store.gate(.folderSidebar) else { return }
                     openFolderPanel()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
@@ -75,12 +76,14 @@ struct GlossApp: App {
                 Divider()
 
                 Button("Print…") {
+                    guard store.gate(.printExport) else { return }
                     NotificationCenter.default.post(name: .glossPrint, object: nil)
                 }
                 .keyboardShortcut("p", modifiers: .command)
                 .disabled(settings.currentFileURL == nil)
 
                 Button("Export as PDF…") {
+                    guard store.gate(.printExport) else { return }
                     NotificationCenter.default.post(name: .glossExportPDF, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command])
@@ -97,16 +100,19 @@ struct GlossApp: App {
             }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
+                    guard store.gate(.findInPage) else { return }
                     NotificationCenter.default.post(name: .glossFindInPage, object: nil)
                 }
                 .keyboardShortcut("f", modifiers: .command)
 
                 Button("Find Next") {
+                    guard store.gate(.findInPage) else { return }
                     NotificationCenter.default.post(name: .glossFindNext, object: nil)
                 }
                 .keyboardShortcut("g", modifiers: .command)
 
                 Button("Find Previous") {
+                    guard store.gate(.findInPage) else { return }
                     NotificationCenter.default.post(name: .glossFindPrevious, object: nil)
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
@@ -118,7 +124,7 @@ struct GlossApp: App {
                 .keyboardShortcut("\\", modifiers: .command)
 
                 Button("Toggle Inspector") {
-                    toggleInspector?()
+                    toggleInspector?() // gate is in ContentView's focusedSceneValue
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(toggleInspector == nil)
@@ -128,6 +134,7 @@ struct GlossApp: App {
         Window("Gloss Settings", id: "settings") {
             SettingsView()
                 .environmentObject(settings)
+                .environment(store)
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 320, height: 140)
@@ -171,6 +178,7 @@ struct GlossApp: App {
     }
 
     private func restoreFolder() {
+        guard store.isUnlocked else { return }
         let path = settings.rootFolderPath
         guard !path.isEmpty else { return }
         let url = URL(fileURLWithPath: path)
