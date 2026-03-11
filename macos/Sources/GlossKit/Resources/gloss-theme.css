@@ -182,21 +182,16 @@ li {
 
 li > input[type="checkbox"] {
     margin-right: 0.4em;
-    margin-top: 0.35em;
-    vertical-align: top;
-    flex-shrink: 0;
+    vertical-align: baseline;
 }
 
 /* Task list items: checkbox + text on same line */
 li:has(> input[type="checkbox"]) {
-    display: flex;
-    align-items: flex-start;
     list-style: none;
 }
 
 li:has(> input[type="checkbox"]) > p {
-    margin: 0;
-    flex: 1;
+    display: inline;
 }
 
 table {

@@ -12,9 +12,14 @@ final class StoreManager {
     private var transactionListener: Task<Void, Never>?
 
     init() {
+        #if !XCODE_BUILD
+        // Local/SPM builds bypass StoreKit — unlock all features
+        isUnlocked = true
+        #else
         transactionListener = listenForTransactions()
         Task { await loadProduct() }
         Task { await checkEntitlement() }
+        #endif
     }
 
     nonisolated deinit {

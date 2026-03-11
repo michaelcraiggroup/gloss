@@ -18,7 +18,7 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 
 **VS Code Extension (v0.2.2)** — Published on marketplace. Custom webview reader with syntax highlighting, mermaid diagrams, KaTeX math, find-in-page, print, copy buttons, YAML frontmatter stripping, and image rendering. Zero telemetry.
 
-**macOS App (v0.11.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, StoreKit 2 paywall. 122 tests passing. Pending: feature gate enforcement, signing, notarization, App Store submission.
+**macOS App (v0.12.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, print, StoreKit 2 paywall, navigation history (back/forward), custom editor picker. 125 tests passing. Pending: signing, notarization, App Store submission.
 
 ---
 
@@ -219,7 +219,7 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] PDF export (`WKWebView.createPDF()`, File > Export as PDF menu command)
 - [x] External link handling (opens in default browser)
 - [x] StoreKit 2 paywall (`StoreManager`, `PaywallView`, `PaidFeature` enum)
-- [x] 122 tests passing
+- [x] 125 tests passing
 
 #### Phase 5: Release (In Progress)
 - [x] Xcode project wrapper via xcodegen (`project.yml` → `Gloss.xcodeproj`)
