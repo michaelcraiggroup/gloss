@@ -107,9 +107,7 @@ enum PaidFeature: String, CaseIterable, Identifiable {
     case inspector = "Inspector (TOC & Frontmatter)"
     case fullTextSearch = "Full-Text Search"
     case favorites = "Favorites & Recents"
-    case findInPage = "Find in Page"
     case wikiLinks = "Wiki-Link Navigation"
-    case printExport = "Print & PDF Export"
     case fontSizeControl = "Font Size Control"
 
     var id: String { rawValue }

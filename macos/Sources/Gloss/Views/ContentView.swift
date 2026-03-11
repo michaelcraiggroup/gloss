@@ -77,6 +77,7 @@ struct ContentView: View {
                     InspectorView(
                         headings: headings,
                         frontmatter: frontmatter,
+                        hasDocument: settings.currentFileURL != nil,
                         onHeadingTap: { headingID in
                             NotificationCenter.default.post(
                                 name: .glossScrollToHeading,
@@ -84,7 +85,7 @@ struct ContentView: View {
                             )
                         }
                     )
-                    .inspectorColumnWidth(min: 200, ideal: 250, max: 350)
+                    .inspectorColumnWidth(min: 250, ideal: 280, max: 400)
                 }
                 .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
                 .navigationSubtitle(settings.isZenMode ? "" : (settings.currentFileURL != nil ? "Reading Mode" : ""))

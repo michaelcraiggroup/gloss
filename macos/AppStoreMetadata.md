@@ -23,6 +23,8 @@ FREE FEATURES:
 - Copy code blocks with one click
 - Open in your editor (Cursor, VS Code, Zed, Sublime, and more)
 - Heading anchor links for in-document navigation
+- Find in page (Cmd+F)
+- Print and PDF export
 
 GLOSS FULL ($4.99 one-time):
 - Folder sidebar with file tree browser
@@ -31,8 +33,6 @@ GLOSS FULL ($4.99 one-time):
 - Wiki-link navigation ([[links]] between your notes)
 - Full-text content search across all files
 - Favorites and recent documents
-- Find in page (Cmd+F)
-- Print and PDF export
 - Font size control
 
 NO SUBSCRIPTION. NO ADS. NO TRACKING. EVER.

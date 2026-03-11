@@ -17,6 +17,9 @@ extension Notification.Name {
 /// WKWebView subclass that intercepts markdown file drops.
 @MainActor
 class DropAcceptingWebView: WKWebView {
+    /// Shared reference for direct print/export access from menu commands.
+    static weak var current: DropAcceptingWebView?
+
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
         registerForDraggedTypes([.fileURL])
@@ -79,7 +82,9 @@ struct WebView: NSViewRepresentable {
         let webView = DropAcceptingWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
         context.coordinator.webView = webView
+        DropAcceptingWebView.current = webView
         return webView
     }
 
@@ -97,7 +102,7 @@ struct WebView: NSViewRepresentable {
         }
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, @unchecked Sendable {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, @unchecked Sendable {
         weak var webView: WKWebView?
         var lastHTML: String?
         var pendingHighlight: String?
@@ -122,23 +127,6 @@ struct WebView: NSViewRepresentable {
                     }
                 )
             }
-            observers.append(
-                NotificationCenter.default.addObserver(
-                    forName: .glossPrint, object: nil, queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated {
-                        guard let webView = self?.webView else { return }
-                        let printInfo = NSPrintInfo.shared
-                        printInfo.isHorizontallyCentered = true
-                        printInfo.isVerticallyCentered = false
-                        let op = webView.printOperation(with: printInfo)
-                        op.showsPrintPanel = true
-                        op.showsProgressPanel = true
-                        op.runModal(for: webView.window ?? NSApp.keyWindow ?? NSWindow(),
-                                    delegate: nil, didRun: nil, contextInfo: nil)
-                    }
-                }
-            )
             // Scroll to heading (from inspector TOC click)
             observers.append(
                 NotificationCenter.default.addObserver(
@@ -234,11 +222,13 @@ struct WebView: NSViewRepresentable {
             guard panel.runModal() == .OK, let saveURL = panel.url else { return }
 
             webView.createPDF { result in
-                switch result {
-                case .success(let data):
-                    try? data.write(to: saveURL)
-                case .failure:
-                    break
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let data):
+                        try? data.write(to: saveURL)
+                    case .failure:
+                        break
+                    }
                 }
             }
         }

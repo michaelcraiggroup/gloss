@@ -132,6 +132,8 @@ The extension is a trust-builder and lead generator for the macOS app. A free, w
 | Live reload | ✅ |
 | Keyboard navigation | ✅ |
 | Copy buttons on code blocks | ✅ |
+| Find-in-page (Cmd+F) | ✅ |
+| Print & PDF export | ✅ |
 
 ### Paid: Gloss Full ($4.99 one-time)
 
@@ -141,8 +143,8 @@ The extension is a trust-builder and lead generator for the macOS app. A free, w
 | **Full-text search** | Search across all files in a folder |
 | **Favorites** | Star documents, Cmd+D toggle |
 | **Recents** | Recently opened files list |
-| **Find-in-page** | Cmd+F search within rendered view |
-| **Print** | Cmd+P with optimized layout |
+| **Inspector sidebar** | TOC + frontmatter metadata |
+| **Wiki-link navigation** | [[links]] between your notes |
 | **Font size control** | Customize reading experience (12-24px) |
 
 ### Pricing Rationale

@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import PDFKit
+import WebKit
 
 class GlossAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -73,17 +75,65 @@ struct GlossApp: App {
                 .keyboardShortcut("d", modifiers: .command)
                 .disabled(toggleFavorite == nil)
 
-                Divider()
+            }
+        }
 
+        .commands {
+            CommandGroup(replacing: .printItem) {
                 Button("Print…") {
-                    guard store.gate(.printExport) else { return }
-                    NotificationCenter.default.post(name: .glossPrint, object: nil)
+                    guard let webView = DropAcceptingWebView.current else { return }
+                    let printInfo = NSPrintInfo.shared
+                    let paperWidth = printInfo.paperSize.width - printInfo.leftMargin - printInfo.rightMargin
+                    let config = WKWebViewConfiguration()
+                    let printWebView = WKWebView(frame: NSRect(x: 0, y: 0, width: paperWidth, height: 800), configuration: config)
+                    printWebView.setValue(false, forKey: "drawsBackground")
+                    objc_setAssociatedObject(webView, "printHelper", printWebView, .OBJC_ASSOCIATION_RETAIN)
+                    webView.evaluateJavaScript("document.documentElement.outerHTML") { htmlResult, _ in
+                        guard let html = htmlResult as? String else { return }
+                        DispatchQueue.main.async {
+                            // Force light theme and tighten margins for print
+                            var printHTML = html
+                                .replacingOccurrences(of: "class=\"dark\"", with: "class=\"light\"")
+                                .replacingOccurrences(of: "<html>", with: "<html class=\"light\">")
+                            let printStyle = "<style>body { margin: 0 !important; padding: 0 !important; } .gloss-content { padding: 0 !important; margin: 0 !important; max-width: none !important; } h1:first-child, h2:first-child, h3:first-child { margin-top: 0 !important; } .heading-anchor { display: none !important; }</style></head>"
+                            printHTML = printHTML.replacingOccurrences(of: "</head>", with: printStyle)
+                            class PrintDelegate: NSObject, WKNavigationDelegate {
+                                let printWebView: WKWebView
+                                let parentWebView: WKWebView
+                                init(_ wv: WKWebView, parent: WKWebView) { self.printWebView = wv; self.parentWebView = parent }
+                                func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+                                    webView.createPDF { result in
+                                        DispatchQueue.main.async {
+                                            defer {
+                                                objc_setAssociatedObject(self.parentWebView, "printHelper", nil, .OBJC_ASSOCIATION_RETAIN)
+                                                objc_setAssociatedObject(self.parentWebView, "printDelegate", nil, .OBJC_ASSOCIATION_RETAIN)
+                                            }
+                                            guard case .success(let data) = result,
+                                                  let pdfImageRep = NSPDFImageRep(data: data) else { return }
+                                            let image = NSImage()
+                                            image.addRepresentation(pdfImageRep)
+                                            let imageView = NSImageView()
+                                            imageView.image = image
+                                            imageView.frame = NSRect(origin: .zero, size: pdfImageRep.bounds.size)
+                                            let op = NSPrintOperation(view: imageView)
+                                            op.showsPrintPanel = true
+                                            op.showsProgressPanel = true
+                                            op.run()
+                                        }
+                                    }
+                                }
+                            }
+                            let delegate = PrintDelegate(printWebView, parent: webView)
+                            objc_setAssociatedObject(webView, "printDelegate", delegate, .OBJC_ASSOCIATION_RETAIN)
+                            printWebView.navigationDelegate = delegate
+                            printWebView.loadHTMLString(printHTML, baseURL: nil)
+                        }
+                    }
                 }
                 .keyboardShortcut("p", modifiers: .command)
                 .disabled(settings.currentFileURL == nil)
 
                 Button("Export as PDF…") {
-                    guard store.gate(.printExport) else { return }
                     NotificationCenter.default.post(name: .glossExportPDF, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command])
@@ -100,19 +150,16 @@ struct GlossApp: App {
             }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
-                    guard store.gate(.findInPage) else { return }
                     NotificationCenter.default.post(name: .glossFindInPage, object: nil)
                 }
                 .keyboardShortcut("f", modifiers: .command)
 
                 Button("Find Next") {
-                    guard store.gate(.findInPage) else { return }
                     NotificationCenter.default.post(name: .glossFindNext, object: nil)
                 }
                 .keyboardShortcut("g", modifiers: .command)
 
                 Button("Find Previous") {
-                    guard store.gate(.findInPage) else { return }
                     NotificationCenter.default.post(name: .glossFindPrevious, object: nil)
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
