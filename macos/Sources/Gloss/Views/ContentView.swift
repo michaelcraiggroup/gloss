@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var headings: [HeadingInfo] = []
     @State private var frontmatter: FrontmatterData?
     @State private var paywallFeature: PaidFeature?
+    @State private var navHistory = NavigationHistory()
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -30,6 +31,27 @@ struct ContentView: View {
                 .toolbar(settings.isZenMode ? .hidden : .automatic)
                 .toolbar {
                     if !settings.isZenMode {
+                        ToolbarItemGroup(placement: .navigation) {
+                            Button {
+                                if let url = navHistory.goBack(from: settings.currentFileURL) {
+                                    settings.currentFileURL = url
+                                }
+                            } label: {
+                                Label("Back", systemImage: "chevron.left")
+                            }
+                            .disabled(!navHistory.canGoBack)
+                            .help("Back (⌘[)")
+
+                            Button {
+                                if let url = navHistory.goForward(from: settings.currentFileURL) {
+                                    settings.currentFileURL = url
+                                }
+                            } label: {
+                                Label("Forward", systemImage: "chevron.right")
+                            }
+                            .disabled(!navHistory.canGoForward)
+                            .help("Forward (⌘])")
+                        }
                         if settings.currentFileURL != nil {
                             ToolbarItem(placement: .primaryAction) {
                                 Button {
@@ -98,6 +120,16 @@ struct ContentView: View {
             guard store.gate(.inspector) else { return }
             withAnimation { inspectorIsShown.toggle() }
         })
+        .focusedSceneValue(\.goBack, {
+            if let url = navHistory.goBack(from: settings.currentFileURL) {
+                settings.currentFileURL = url
+            }
+        })
+        .focusedSceneValue(\.goForward, {
+            if let url = navHistory.goForward(from: settings.currentFileURL) {
+                settings.currentFileURL = url
+            }
+        })
         .sheet(item: $paywallFeature) { feature in
             PaywallView(feature: feature)
                 .environment(store)
@@ -119,8 +151,10 @@ struct ContentView: View {
                 frontmatter = MarkdownRenderer.extractFrontmatter(content)
             }
         }
-        .onChange(of: settings.currentFileURL) {
-            if settings.currentFileURL == nil {
+        .onChange(of: settings.currentFileURL) { oldValue, newValue in
+            if let newValue {
+                navHistory.navigate(to: newValue, from: oldValue)
+            } else {
                 headings = []
                 frontmatter = nil
             }
@@ -165,7 +199,7 @@ struct ContentView: View {
 
     private func openInEditor() {
         guard let url = settings.currentFileURL else { return }
-        EditorLauncher.open(fileAt: url.path, with: settings.editor)
+        EditorLauncher.open(fileAt: url.path, with: settings.editor, customAppPath: settings.customEditorPath)
     }
 
     // MARK: - Drop
@@ -192,6 +226,14 @@ struct InspectorToggleKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+struct GoBackKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+struct GoForwardKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var toggleFavorite: (() -> Void)? {
         get { self[FavoriteToggleKey.self] }
@@ -201,5 +243,15 @@ extension FocusedValues {
     var toggleInspector: (() -> Void)? {
         get { self[InspectorToggleKey.self] }
         set { self[InspectorToggleKey.self] = newValue }
+    }
+
+    var goBack: (() -> Void)? {
+        get { self[GoBackKey.self] }
+        set { self[GoBackKey.self] = newValue }
+    }
+
+    var goForward: (() -> Void)? {
+        get { self[GoForwardKey.self] }
+        set { self[GoForwardKey.self] = newValue }
     }
 }

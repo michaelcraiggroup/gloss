@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Preferences window for configuring editor, appearance, and reading settings.
 struct SettingsView: View {
@@ -9,13 +10,33 @@ struct SettingsView: View {
             GridRow {
                 Text("Open files in:")
                     .gridColumnAlignment(.trailing)
-                Picker("", selection: $settings.preferredEditor) {
-                    ForEach(Editor.allCases) { editor in
-                        Text(editor.displayName).tag(editor.rawValue)
+                HStack(spacing: 8) {
+                    Picker("", selection: $settings.preferredEditor) {
+                        ForEach(Editor.allCases.filter { $0 != .custom }) { editor in
+                            Text(editor.displayName).tag(editor.rawValue)
+                        }
+                        Divider()
+                        if settings.editor == .custom, let name = customAppName {
+                            Text(name).tag(Editor.custom.rawValue)
+                        } else {
+                            Text("Custom App…").tag(Editor.custom.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .onChange(of: settings.preferredEditor) { _, newValue in
+                        if newValue == Editor.custom.rawValue && settings.customEditorPath.isEmpty {
+                            browseForApp()
+                        }
+                    }
+
+                    if settings.editor == .custom {
+                        Button("Change…") {
+                            browseForApp()
+                        }
+                        .controlSize(.small)
                     }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
             }
 
             GridRow {
@@ -38,6 +59,28 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    private var customAppName: String? {
+        guard !settings.customEditorPath.isEmpty else { return nil }
+        let url = URL(fileURLWithPath: settings.customEditorPath)
+        return url.deletingPathExtension().lastPathComponent
+    }
+
+    private func browseForApp() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Editor Application"
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.customEditorPath = url.path
+            settings.preferredEditor = Editor.custom.rawValue
+        } else if settings.customEditorPath.isEmpty {
+            // User cancelled without selecting — revert to previous editor
+            settings.preferredEditor = Editor.cursor.rawValue
+        }
     }
 }
 

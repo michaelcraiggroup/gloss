@@ -8,6 +8,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("appearance") var appearance: String = Appearance.system.rawValue
     @AppStorage("rootFolderPath") var rootFolderPath: String = ""
     @AppStorage("fontSize") var fontSize: Int = 16
+    @AppStorage("customEditorPath") var customEditorPath: String = ""
 
     @Published var currentFileURL: URL?
     @Published var isZenMode: Bool = false

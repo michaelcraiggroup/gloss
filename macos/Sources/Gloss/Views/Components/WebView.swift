@@ -225,11 +225,34 @@ struct WebView: NSViewRepresentable {
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let data):
-                        try? data.write(to: saveURL)
+                        do {
+                            try data.write(to: saveURL)
+                            self.showExportConfirmation(for: saveURL)
+                        } catch {
+                            // Write failed silently
+                        }
                     case .failure:
                         break
                     }
                 }
+            }
+        }
+
+        private func showExportConfirmation(for url: URL) {
+            let alert = NSAlert()
+            alert.messageText = "PDF Exported"
+            alert.informativeText = url.lastPathComponent
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Open PDF")
+            alert.addButton(withTitle: "Reveal in Finder")
+            alert.addButton(withTitle: "OK")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                NSWorkspace.shared.open(url)
+            case .alertSecondButtonReturn:
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            default:
+                break
             }
         }
 

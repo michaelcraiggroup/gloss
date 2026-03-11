@@ -18,6 +18,8 @@ struct GlossApp: App {
     @State private var store = StoreManager()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
+    @FocusedValue(\.goBack) var goBack
+    @FocusedValue(\.goForward) var goForward
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
@@ -61,7 +63,7 @@ struct GlossApp: App {
 
                 Button("Open in Editor") {
                     if let url = settings.currentFileURL {
-                        EditorLauncher.open(fileAt: url.path, with: settings.editor)
+                        EditorLauncher.open(fileAt: url.path, with: settings.editor, customAppPath: settings.customEditorPath)
                     }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -163,6 +165,21 @@ struct GlossApp: App {
                     NotificationCenter.default.post(name: .glossFindPrevious, object: nil)
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
+            }
+            CommandGroup(before: .toolbar) {
+                Button("Back") {
+                    goBack?()
+                }
+                .keyboardShortcut("[", modifiers: .command)
+                .disabled(goBack == nil)
+
+                Button("Forward") {
+                    goForward?()
+                }
+                .keyboardShortcut("]", modifiers: .command)
+                .disabled(goForward == nil)
+
+                Divider()
             }
             CommandGroup(after: .toolbar) {
                 Button(settings.isZenMode ? "Exit Zen Mode" : "Enter Zen Mode") {
