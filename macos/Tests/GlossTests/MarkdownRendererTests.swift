@@ -92,4 +92,30 @@ struct MarkdownRendererTests {
         #expect(html.contains("Title"))
         #expect(html.contains("More content"))
     }
+
+    @Test("Escapes angle brackets in inline code")
+    func inlineCodeAngleBrackets() {
+        let html = MarkdownRenderer.render("Use `<temperature>` for values", isDark: false)
+        #expect(html.contains("&lt;temperature&gt;"))
+        #expect(!html.contains("<temperature>"))
+    }
+
+    @Test("Escapes angle brackets in code blocks")
+    func codeBlockAngleBrackets() {
+        let source = """
+        ```
+        List<String> items = new ArrayList<>();
+        ```
+        """
+        let html = MarkdownRenderer.render(source, isDark: false)
+        #expect(html.contains("&lt;String&gt;"))
+    }
+
+    @Test("Renders task list checkboxes")
+    func taskListCheckboxes() {
+        let source = "- [ ] Unchecked\n- [x] Checked"
+        let html = MarkdownRenderer.render(source, isDark: false)
+        #expect(html.contains("<input type=\"checkbox\" disabled=\"\""))
+        #expect(html.contains("checked=\"\""))
+    }
 }

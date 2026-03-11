@@ -43,6 +43,7 @@ public struct MarkdownRenderer: Sendable {
             : stripped
         let document = Document(parsing: preprocessed, options: [.parseBlockDirectives, .parseSymbolLinks])
         var bodyHTML = HTMLFormatter.format(document)
+        bodyHTML = escapeCodeContent(bodyHTML)
         bodyHTML = addHeadingIDs(bodyHTML)
         let hasMermaid = source.contains("```mermaid")
         let hasMath = source.contains("$$") || source.contains("$\\")
@@ -122,6 +123,31 @@ public struct MarkdownRenderer: Sendable {
             return ""
         }
         return String(source[closingRange.upperBound...])
+    }
+
+    // MARK: - Code Content Escaping
+
+    /// Escape HTML entities inside `<code>` tags. swift-markdown's HTMLFormatter
+    /// does not escape angle brackets in InlineCode or CodeBlock nodes.
+    static func escapeCodeContent(_ html: String) -> String {
+        let pattern = #"<code(?:\s[^>]*)?>(.+?)</code>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) else {
+            return html
+        }
+        var result = html
+        let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
+        for match in matches.reversed() {
+            guard let contentRange = Range(match.range(at: 1), in: result) else { continue }
+            let content = String(result[contentRange])
+            // Only process if there are unescaped angle brackets
+            guard content.contains("<") || content.contains(">") else { continue }
+            let escaped = content
+                .replacingOccurrences(of: "&", with: "&amp;")
+                .replacingOccurrences(of: "<", with: "&lt;")
+                .replacingOccurrences(of: ">", with: "&gt;")
+            result.replaceSubrange(contentRange, with: escaped)
+        }
+        return result
     }
 
     // MARK: - Heading IDs
