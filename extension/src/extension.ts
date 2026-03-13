@@ -21,7 +21,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gloss.editFile', editCurrentFile),
     vscode.commands.registerCommand('gloss.toggleEnabled', toggleEnabled),
-    vscode.commands.registerCommand('gloss.openInReadingMode', openInReadingMode)
+    vscode.commands.registerCommand('gloss.openInReadingMode', openInReadingMode),
+    vscode.commands.registerCommand('gloss.print', printCurrentPanel)
   );
 
   // Listen for document opens
@@ -157,6 +158,16 @@ function toggleEnabled() {
   updateStatusBar();
 
   vscode.window.showInformationMessage(`Gloss reading mode ${!current ? 'enabled' : 'disabled'}`);
+}
+
+function printCurrentPanel() {
+  // Find the active (visible) Gloss panel and trigger print
+  for (const panel of GlossReaderPanel.currentPanels.values()) {
+    if (panel.isActive) {
+      panel.print();
+      return;
+    }
+  }
 }
 
 async function openInReadingMode(uri?: vscode.Uri) {

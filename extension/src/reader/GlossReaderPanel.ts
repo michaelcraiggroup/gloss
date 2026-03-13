@@ -11,6 +11,11 @@ export class GlossReaderPanel {
   private readonly _uri: vscode.Uri;
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
+  private _isActive = false;
+
+  public get isActive(): boolean {
+    return this._isActive;
+  }
 
   public static createOrShow(extensionUri: vscode.Uri, uri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
@@ -72,9 +77,24 @@ export class GlossReaderPanel {
     // Handle panel disposal
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
+    // Track active state
+    this._isActive = this._panel.active;
+    this._panel.onDidChangeViewState(
+      (e) => { this._isActive = e.webviewPanel.active; },
+      null,
+      this._disposables
+    );
+
+    // Re-render when theme changes
+    vscode.window.onDidChangeActiveColorTheme(
+      () => this._update(),
+      null,
+      this._disposables
+    );
+
     // Handle messages from webview
     this._panel.webview.onDidReceiveMessage(
-      (message) => {
+      async (message) => {
         switch (message.command) {
           case 'edit':
             this._openInEditor();
@@ -82,6 +102,9 @@ export class GlossReaderPanel {
           case 'copyCode':
             vscode.env.clipboard.writeText(message.code);
             vscode.window.showInformationMessage('Code copied to clipboard');
+            break;
+          case 'print':
+            await this._printContent();
             break;
         }
       },
@@ -103,6 +126,26 @@ export class GlossReaderPanel {
     // Open in editor
     const doc = await vscode.workspace.openTextDocument(this._uri);
     await vscode.window.showTextDocument(doc);
+  }
+
+  public async print() {
+    await this._printContent();
+  }
+
+  private async _printContent() {
+    try {
+      const content = await fs.promises.readFile(this._uri.fsPath, 'utf8');
+      const html = await this._getHtmlForWebview(this._panel.webview, content, true);
+      const tmpDir = path.join(require('os').tmpdir(), 'gloss-print');
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+      const tmpFile = path.join(tmpDir, `${path.basename(this._uri.fsPath, '.md')}.html`);
+      await fs.promises.writeFile(tmpFile, html, 'utf8');
+      await vscode.env.openExternal(vscode.Uri.file(tmpFile));
+    } catch (error) {
+      vscode.window.showErrorMessage(`Print failed: ${error}`);
+    }
   }
 
   public dispose() {
@@ -176,6 +219,20 @@ export class GlossReaderPanel {
     });
   }
 
+  private _resolveImagePathsForPrint(html: string): string {
+    const fileDir = path.dirname(this._uri.fsPath);
+    return html.replace(/<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g, (match, pre, src, post) => {
+      if (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://')) {
+        return match;
+      }
+      const decodedSrc = decodeURIComponent(src);
+      const absolutePath = path.isAbsolute(decodedSrc)
+        ? decodedSrc
+        : path.resolve(fileDir, decodedSrc);
+      return `<img ${pre}src="file://${absolutePath}"${post}>`;
+    });
+  }
+
   /**
    * Protect LaTeX math expressions from markdown processing.
    * Escaped underscores in LaTeX (e.g. \_) get interpreted as markdown emphasis
@@ -235,7 +292,7 @@ export class GlossReaderPanel {
     }).join('');
   }
 
-  private async _getHtmlForWebview(webview: vscode.Webview, markdown: string): Promise<string> {
+  private async _getHtmlForWebview(webview: vscode.Webview, markdown: string, forPrint = false): Promise<string> {
     // Dynamic import for ESM module
     const { marked } = await import('marked');
 
@@ -262,11 +319,70 @@ export class GlossReaderPanel {
     // Restore math blocks after markdown processing
     const restoredHtml = hasMath ? this._restoreMathBlocks(rawHtml, mathBlocks) : rawHtml;
 
-    // Resolve local image paths to webview URIs
-    const htmlContent = this._resolveImagePaths(restoredHtml, webview);
+    // Resolve local image paths
+    const htmlContent = forPrint
+      ? this._resolveImagePathsForPrint(restoredHtml)
+      : this._resolveImagePaths(restoredHtml, webview);
     const fileName = path.basename(this._uri.fsPath);
-    const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
+    const isDark = forPrint ? false : vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
     const hasMermaid = markdown.includes('```mermaid');
+
+    if (forPrint) {
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>${fileName}</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">${hasMath ? '\n\t<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">' : ''}
+	<style>
+		${this._getStyles(false)}
+		.gloss-content { max-width: 100%; padding: 16px 32px; }
+	</style>
+</head>
+<body>
+	<article class="gloss-content">
+		${htmlContent}
+	</article>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>${hasMermaid ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.0/mermaid.min.js"></script>' : ''}${hasMath ? '\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>\n\t<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>' : ''}
+	<script>
+		document.querySelectorAll('pre code').forEach(function(block) {
+			if (!block.classList.contains('language-mermaid')) hljs.highlightElement(block);
+		});
+		${hasMermaid ? `(async function() {
+			if (typeof mermaid === 'undefined') return;
+			mermaid.initialize({ startOnLoad: false, theme: 'default' });
+			document.querySelectorAll('pre code.language-mermaid').forEach(function(code) {
+				var pre = code.parentElement;
+				pre.className = 'mermaid';
+				pre.textContent = code.textContent;
+			});
+			await mermaid.run();
+		})();` : ''}
+		${hasMath ? `(function() {
+			function doRender() {
+				if (typeof renderMathInElement === 'undefined') return false;
+				renderMathInElement(document.querySelector('.gloss-content'), {
+					delimiters: [
+						{left: '$$', right: '$$', display: true},
+						{left: '$', right: '$', display: false},
+						{left: '\\\\(', right: '\\\\)', display: false},
+						{left: '\\\\[', right: '\\\\]', display: true}
+					],
+					throwOnError: false
+				});
+				return true;
+			}
+			if (!doRender()) {
+				var interval = setInterval(function() { if (doRender()) clearInterval(interval); }, 50);
+				setTimeout(function() { clearInterval(interval); }, 5000);
+			}
+		})();` : ''}
+		// Auto-trigger print after rendering completes
+		setTimeout(function() { window.print(); }, ${hasMermaid || hasMath ? '1500' : '500'});
+	</script>
+</body>
+</html>`;
+    }
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -311,20 +427,29 @@ export class GlossReaderPanel {
 		}
 
 		function printContent() {
-			window.print();
+			vscode.postMessage({ command: 'print' });
 		}
 
 		// Generate heading IDs for anchor navigation (marked v5+ removed built-in IDs)
-		document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
-			if (!heading.id) {
-				const slug = heading.textContent
-					.toLowerCase()
-					.replace(/[^\\w\\s-]/g, '')
-					.replace(/\\s+/g, '-')
-					.replace(/^-+|-+$/g, '');
-				heading.id = slug;
-			}
-		});
+		(function() {
+			var usedIds = {};
+			document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(function(heading) {
+				if (!heading.id) {
+					var slug = heading.textContent
+						.toLowerCase()
+						.replace(/[^\\w\\s-]/g, '')
+						.replace(/\\s+/g, '-')
+						.replace(/^-+|-+$/g, '');
+					if (usedIds[slug]) {
+						heading.id = slug + '-' + usedIds[slug];
+						usedIds[slug]++;
+					} else {
+						heading.id = slug;
+						usedIds[slug] = 1;
+					}
+				}
+			});
+		})();
 
 		// Add anchor links to headings (parity with macOS app)
 		document.querySelectorAll('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]').forEach((h) => {
@@ -508,6 +633,9 @@ export class GlossReaderPanel {
 				} else if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
 					e.preventDefault();
 					if (!bar.hidden) navigateMatch(e.shiftKey ? -1 : 1);
+				} else if (e.key === 'Escape' && !bar.hidden) {
+					e.preventDefault();
+					closeFindBar();
 				}
 			});
 		})();

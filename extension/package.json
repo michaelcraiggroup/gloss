@@ -2,7 +2,7 @@
   "name": "gloss",
   "displayName": "Gloss",
   "description": "Distraction-free markdown reading — open to read, explicitly switch to edit.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "publisher": "michaelcraiggroup",
   "license": "MIT",
   "repository": {
@@ -55,6 +55,12 @@
         "command": "gloss.openInReadingMode",
         "title": "Open in Reading Mode",
         "category": "Gloss"
+      },
+      {
+        "command": "gloss.print",
+        "title": "Print",
+        "category": "Gloss",
+        "icon": "$(output)"
       }
     ],
     "configuration": {
@@ -106,7 +112,13 @@
         "command": "gloss.editFile",
         "key": "ctrl+shift+e",
         "mac": "cmd+shift+e",
-        "when": "markdownPreviewFocus"
+        "when": "activeWebviewPanelId == 'glossReader'"
+      },
+      {
+        "command": "gloss.print",
+        "key": "ctrl+p",
+        "mac": "cmd+p",
+        "when": "activeWebviewPanelId == 'glossReader'"
       }
     ]
   },
