@@ -1,6 +1,6 @@
 # Gloss macOS App — Manual Testing Guide
 
-> Version 1.0.0 | Last updated: 2026-03-10
+> Version 1.1.0 | Last updated: 2026-03-11
 
 ## Prerequisites
 
@@ -75,49 +75,71 @@
 | 3.10 | Fenced code block (```swift) | Syntax highlighted with language colors | |
 | 3.11 | Hover over code block | Copy button appears in top-right corner | |
 | 3.12 | Click copy button | Code copied to clipboard (paste to verify) | |
+| 3.13 | Inline code with angle brackets `` `List<String>` `` | Renders as literal `<String>`, not swallowed as HTML | |
+| 3.14 | Code block with angle brackets (e.g. `<temperature>`) | Angle brackets escaped, shown as text | |
+
+### 3b-2. Task Lists
+
+| # | Test | Expected | ✅ |
+|---|------|----------|----|
+| 3.15 | `- [ ] unchecked item` | Checkbox + text on same line, no bullet | |
+| 3.16 | `- [x] checked item` | Checked checkbox + text on same line, no bullet | |
+| 3.17 | Mixed task list and normal list | Task items lack bullets, normal items keep them | |
 
 ### 3c. Mermaid Diagrams
 
 | # | Test | Expected | ✅ |
 |---|------|----------|----|
-| 3.13 | Open a file with ` ```mermaid ` block | Diagram renders as SVG (not raw text) | |
-| 3.14 | Flowchart, sequence, gantt | Various diagram types render | |
-| 3.15 | Dark mode mermaid | Diagram adapts to dark theme | |
+| 3.18 | Open a file with ` ```mermaid ` block | Diagram renders as SVG (not raw text) | |
+| 3.19 | Flowchart, sequence, gantt | Various diagram types render | |
+| 3.20 | Dark mode mermaid | Diagram adapts to dark theme | |
 
 ### 3d. KaTeX Math
 
 | # | Test | Expected | ✅ |
 |---|------|----------|----|
-| 3.16 | Inline math `$E = mc^2$` | Renders as formatted equation inline | |
-| 3.17 | Display math `$$\int_0^1 x^2 dx$$` | Renders as centered block equation | |
+| 3.21 | Inline math `$E = mc^2$` | Renders as formatted equation inline | |
+| 3.22 | Display math `$$\int_0^1 x^2 dx$$` | Renders as centered block equation | |
+| 3.23 | Escaped underscores `$x\_1 + x\_2$` | Renders literal underscores, NOT subscripts | |
+| 3.24 | Display math with escaped underscores | `$$F\_n = F\_{n-1}$$` — literal underscores preserved | |
 
 ### 3e. Heading Anchors
 
 | # | Test | Expected | ✅ |
 |---|------|----------|----|
-| 3.18 | Hover over any heading | `#` anchor link appears to the left | |
-| 3.19 | Click the `#` anchor | Page scrolls/jumps to that heading (URL updates) | |
+| 3.25 | Hover over any heading | `#` anchor link appears to the left | |
+| 3.26 | Click the `#` anchor | Page scrolls/jumps to that heading (URL updates) | |
+| 3.27 | Anchor hidden in print | Cmd+P → anchors not visible in print output | |
 
 ### 3f. Frontmatter
 
 | # | Test | Expected | ✅ |
 |---|------|----------|----|
-| 3.20 | Open file with YAML frontmatter (`---` block) | Frontmatter is NOT shown in rendered output | |
-| 3.21 | Verify frontmatter is parsed | Inspector sidebar shows frontmatter data (paid) | |
+| 3.28 | Open file with YAML frontmatter (`---` block) | Frontmatter is NOT shown in rendered output | |
+| 3.29 | Verify frontmatter is parsed | Inspector sidebar shows frontmatter data (paid) | |
 
 ### 3g. Wiki-Links
 
 | # | Test | Expected | ✅ |
 |---|------|----------|----|
-| 3.22 | Open file with `[[target]]` syntax | Renders as clickable link with text "target" | |
-| 3.23 | `[[target\|display text]]` | Renders as clickable link with text "display text" | |
-| 3.24 | Click a wiki-link (paid feature) | Navigates to target file if found in folder | |
+| 3.30 | Open file with `[[target]]` syntax | Renders as clickable link with text "target" | |
+| 3.31 | `[[target\|display text]]` | Renders as clickable link with text "display text" | |
+| 3.32 | Click a wiki-link (paid feature) | Navigates to target file if found in folder | |
 
-### 3h. External Links
+### 3h. HTML Comments
 
 | # | Test | Expected | ✅ |
 |---|------|----------|----|
-| 3.25 | Click an `http://` or `https://` link | Opens in default browser, NOT in Gloss | |
+| 3.33 | `<!-- comment -->` with preceding blank line | Comment hidden (not rendered) | |
+| 3.34 | `<!-- comment -->` WITHOUT preceding blank line | Comment still hidden (not rendered as text) | |
+| 3.35 | `<!-- \newpage -->` page-break token inline | Invisible — acts as hidden directive | |
+| 3.36 | Comment inside fenced code block | Comment shown as literal text (not stripped) | |
+
+### 3i. External Links
+
+| # | Test | Expected | ✅ |
+|---|------|----------|----|
+| 3.37 | Click an `http://` or `https://` link | Opens in default browser, NOT in Gloss | |
 
 ---
 
@@ -310,6 +332,10 @@
 | 19.5 | Wiki-link to non-existent file | Link renders but navigation fails gracefully | |
 | 19.6 | Rapid file switching in sidebar | No crashes, correct file always shown | |
 | 19.7 | Quit and relaunch | Last state partially restored | |
+| 19.8 | File with many duplicate heading names | Anchor IDs are deduplicated (`heading`, `heading-1`, …) | |
+| 19.9 | Deeply nested HTML comments `<!-- <!-- inner --> -->` | Outer comment stripped, no leftover text | |
+| 19.10 | Math block spanning many lines with `\_` throughout | All escaped underscores preserved through rendering | |
+| 19.11 | Code block containing `<!-- comment -->` syntax | Comment text shown literally inside code (not stripped) | |
 
 ---
 

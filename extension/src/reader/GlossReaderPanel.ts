@@ -37,7 +37,11 @@ export class GlossReaderPanel {
           vscode.Uri.joinPath(extensionUri, 'media'),
           vscode.Uri.joinPath(extensionUri, 'node_modules'),
           vscode.Uri.file(path.dirname(uri.fsPath)),
-          ...(vscode.workspace.workspaceFolders?.map(f => f.uri) || [])
+          // Include workspace folders so relative paths (../images/) resolve correctly
+          ...(vscode.workspace.workspaceFolders?.map(f => f.uri) || [
+            // Fallback: if no workspace open, allow the file's drive/volume root
+            vscode.Uri.file(path.parse(uri.fsPath).root)
+          ])
         ],
         retainContextWhenHidden: true
       }
@@ -147,11 +151,88 @@ export class GlossReaderPanel {
       if (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://')) {
         return match;
       }
-      // Resolve relative path to webview URI
-      const absolutePath = path.resolve(fileDir, src);
+      // Decode URL-encoded characters (e.g. %20 for spaces)
+      const decodedSrc = decodeURIComponent(src);
+      // Resolve relative path against the markdown file's directory
+      const absolutePath = path.isAbsolute(decodedSrc)
+        ? decodedSrc
+        : path.resolve(fileDir, decodedSrc);
+      // Verify the file exists before converting to webview URI
+      if (!fs.existsSync(absolutePath)) {
+        // Try workspace folder roots as fallback
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders) {
+          for (const folder of workspaceFolders) {
+            const wsPath = path.resolve(folder.uri.fsPath, decodedSrc);
+            if (fs.existsSync(wsPath)) {
+              const webviewUri = webview.asWebviewUri(vscode.Uri.file(wsPath));
+              return `<img ${pre}src="${webviewUri}"${post}>`;
+            }
+          }
+        }
+      }
       const webviewUri = webview.asWebviewUri(vscode.Uri.file(absolutePath));
       return `<img ${pre}src="${webviewUri}"${post}>`;
     });
+  }
+
+  /**
+   * Protect LaTeX math expressions from markdown processing.
+   * Escaped underscores in LaTeX (e.g. \_) get interpreted as markdown emphasis
+   * markers by marked.js, breaking math rendering. We replace math blocks with
+   * placeholders, then restore them after marked processes the rest.
+   */
+  private _protectMathBlocks(source: string): { text: string; blocks: string[] } {
+    const blocks: string[] = [];
+    let text = source;
+
+    // Protect display math ($$...$$) first
+    text = text.replace(/\$\$[\s\S]*?\$\$/g, (match) => {
+      blocks.push(match);
+      return `%%MATH_BLOCK_${blocks.length - 1}%%`;
+    });
+
+    // Protect inline math ($...$) — but not lone $ signs
+    text = text.replace(/\$(?!\s)([^\$\n]+?)(?<!\s)\$/g, (match) => {
+      blocks.push(match);
+      return `%%MATH_BLOCK_${blocks.length - 1}%%`;
+    });
+
+    // Protect \(...\) and \[...\]
+    text = text.replace(/\\\([\s\S]*?\\\)/g, (match) => {
+      blocks.push(match);
+      return `%%MATH_BLOCK_${blocks.length - 1}%%`;
+    });
+    text = text.replace(/\\\[[\s\S]*?\\\]/g, (match) => {
+      blocks.push(match);
+      return `%%MATH_BLOCK_${blocks.length - 1}%%`;
+    });
+
+    return { text, blocks };
+  }
+
+  private _restoreMathBlocks(html: string, blocks: string[]): string {
+    let result = html;
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      result = result.replace(`%%MATH_BLOCK_${i}%%`, blocks[i]);
+    }
+    return result;
+  }
+
+  /**
+   * Strip HTML comments from markdown source so they don't render as text.
+   * Comments like <!-- ... --> should be invisible regardless of surrounding blank lines.
+   * Marked only treats them as HTML blocks when preceded by a blank line.
+   * Preserves comments inside fenced code blocks.
+   */
+  private _stripHtmlComments(source: string): string {
+    // Split on fenced code blocks to avoid stripping comments inside them
+    const parts = source.split(/(^```[\s\S]*?^```)/gm);
+    return parts.map((part, i) => {
+      // Odd-indexed parts are code blocks — leave them alone
+      if (i % 2 === 1) return part;
+      return part.replace(/<!--[\s\S]*?-->/g, '');
+    }).join('');
   }
 
   private async _getHtmlForWebview(webview: vscode.Webview, markdown: string): Promise<string> {
@@ -160,14 +241,32 @@ export class GlossReaderPanel {
 
     // Strip YAML frontmatter before parsing
     const stripped = this._stripFrontmatter(markdown);
-    const rawHtml = await marked.parse(stripped);
+    // Strip HTML comments so they're always hidden (not rendered as text)
+    const noComments = this._stripHtmlComments(stripped);
+
+    // Detect math before any processing
+    const hasMath = markdown.includes('$$') || markdown.includes('$\\')
+      || markdown.includes('\\(') || markdown.includes('\\[');
+
+    // Protect math blocks from markdown processing (prevents \_  being eaten)
+    let toProcess = noComments;
+    let mathBlocks: string[] = [];
+    if (hasMath) {
+      const result = this._protectMathBlocks(noComments);
+      toProcess = result.text;
+      mathBlocks = result.blocks;
+    }
+
+    const rawHtml = await marked.parse(toProcess);
+
+    // Restore math blocks after markdown processing
+    const restoredHtml = hasMath ? this._restoreMathBlocks(rawHtml, mathBlocks) : rawHtml;
+
     // Resolve local image paths to webview URIs
-    const htmlContent = this._resolveImagePaths(rawHtml, webview);
+    const htmlContent = this._resolveImagePaths(restoredHtml, webview);
     const fileName = path.basename(this._uri.fsPath);
     const isDark = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
     const hasMermaid = markdown.includes('```mermaid');
-    const hasMath = markdown.includes('$$') || markdown.includes('$\\')
-      || markdown.includes('\\(') || markdown.includes('\\[');
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -225,6 +324,16 @@ export class GlossReaderPanel {
 					.replace(/^-+|-+$/g, '');
 				heading.id = slug;
 			}
+		});
+
+		// Add anchor links to headings (parity with macOS app)
+		document.querySelectorAll('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]').forEach((h) => {
+			const a = document.createElement('a');
+			a.className = 'heading-anchor';
+			a.href = '#' + h.id;
+			a.textContent = '#';
+			a.setAttribute('aria-hidden', 'true');
+			h.prepend(a);
 		});
 
 		// Apply syntax highlighting (skip mermaid blocks)
@@ -492,6 +601,31 @@ export class GlossReaderPanel {
 				margin-bottom: 0.5em;
 				font-weight: 600;
 				line-height: 1.3;
+				position: relative;
+			}
+
+			h1:hover .heading-anchor,
+			h2:hover .heading-anchor,
+			h3:hover .heading-anchor,
+			h4:hover .heading-anchor,
+			h5:hover .heading-anchor,
+			h6:hover .heading-anchor {
+				opacity: 1;
+			}
+
+			.heading-anchor {
+				position: absolute;
+				left: -1.2em;
+				color: ${accentLight};
+				text-decoration: none;
+				opacity: 0;
+				transition: opacity 0.15s ease;
+				font-weight: normal;
+			}
+
+			.heading-anchor:hover {
+				text-decoration: none;
+				color: ${accent};
 			}
 
 			h1 {
@@ -587,6 +721,20 @@ export class GlossReaderPanel {
 
 			li {
 				margin: 0.3em 0;
+			}
+
+			li > input[type="checkbox"] {
+				margin-right: 0.4em;
+				vertical-align: baseline;
+			}
+
+			/* Task list items: checkbox + text on same line */
+			li:has(> input[type="checkbox"]) {
+				list-style: none;
+			}
+
+			li:has(> input[type="checkbox"]) > p {
+				display: inline;
 			}
 
 			table {
@@ -721,6 +869,7 @@ export class GlossReaderPanel {
 				.gloss-toolbar { display: none; }
 				.gloss-find-bar { display: none; }
 				.copy-button { display: none; }
+				.heading-anchor { display: none !important; }
 				.gloss-content { max-width: 100%; padding: 16px 0; }
 				body { background: white; color: black; }
 				pre { break-inside: avoid; }
