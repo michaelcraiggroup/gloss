@@ -35,6 +35,11 @@ struct GlossApp: App {
                     setAppIcon()
                     restoreFolder()
                 }
+                .onOpenURL { url in
+                    guard ["md", "markdown"].contains(url.pathExtension.lowercased()) else { return }
+                    settings.currentFileURL = url
+                    settings.lastOpenedFile = url.path
+                }
         }
         .modelContainer(for: RecentDocument.self)
         .defaultSize(width: 1000, height: 700)
