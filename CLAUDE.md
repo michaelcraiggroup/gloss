@@ -30,11 +30,14 @@ gloss/
 │   │   │   ├── FileTreeNode.swift  # Lazy file tree node (@Observable)
 │   │   │   ├── FileTreeModel.swift # Sidebar state + search + SearchScope
 │   │   │   ├── RecentDocument.swift # SwiftData recent docs + favorites
-│   │   │   └── ContentSearchResult.swift # Content search result model
+│   │   │   ├── ContentSearchResult.swift # Content search result model
+│   │   │   ├── LinkType.swift      # Typed link relationships (8 types)
+│   │   │   ├── IndexedLink.swift   # Resolved link from index
+│   │   │   └── BacklinkGroup.swift # Grouped backlinks by type
 │   │   ├── Views/
 │   │   │   ├── ContentView.swift   # NavigationSplitView layout + inspector + FocusedValues
 │   │   │   ├── DocumentView.swift  # File loading + live reload + wiki-link resolution
-│   │   │   ├── InspectorView.swift # TOC sidebar + frontmatter display
+│   │   │   ├── InspectorView.swift # TOC sidebar + frontmatter + backlinks
 │   │   │   ├── PaywallView.swift   # StoreKit 2 purchase UI
 │   │   │   ├── SidebarView.swift   # File tree + search scopes + favorites + recents
 │   │   │   ├── SettingsView.swift  # Editor/Appearance/Reading sections
@@ -46,7 +49,9 @@ gloss/
 │   │   │   ├── EditorLauncher.swift    # External editor launch
 │   │   │   ├── FileWatcher.swift       # DispatchSource file watcher
 │   │   │   ├── ContentSearchService.swift # Async full-text content search
-│   │   │   └── StoreManager.swift     # StoreKit 2 IAP management
+│   │   │   ├── StoreManager.swift     # StoreKit 2 IAP management
+│   │   │   ├── LinkDatabase.swift     # GRDB SQLite link index persistence
+│   │   │   └── LinkIndex.swift        # @Observable indexing orchestrator
 │   │   └── Resources/
 │   │       ├── AppIcon.icns        # App icon
 │   │       └── editor.html         # CodeMirror 6 live preview editor template
@@ -56,7 +61,7 @@ gloss/
 │   ├── GlossQLExtension/   # Quick Look extension
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 122 tests
+│   └── Tests/GlossTests/   # 171 tests
 └── gloss-project-plan.md   # Full product plan
 ```
 
@@ -151,6 +156,20 @@ DocumentView supports read/edit toggle (Cmd+Shift+E):
 5. **Swift ↔ JS bridge**: `WKScriptMessageHandler` receives `ready`, `save`, `dirty` messages; Swift calls `glossEditor.setContent()` / `getContent()` / `markClean()`
 6. **Auto-save**: on mode switch (edit → read) and Cmd+S
 7. **File operations**: `FileTreeModel.createFile()`, `renameItem()`, `deleteItem()` with sidebar context menus
+
+### Link Index (Phase 8)
+
+Persistent link index for knowledge management:
+
+1. **GRDB.swift** dependency (Gloss app target only, not GlossKit)
+2. **SQLite schema** at `.gloss/index.sqlite` in vault root — `files`, `links`, `tags` tables
+3. **`LinkDatabase`** — `Sendable` struct wrapping `DatabaseQueue`, all CRUD + queries
+4. **`LinkIndex`** — `@Observable @MainActor` orchestrator, builds full index on folder open
+5. **Typed wiki-links**: `[[target::supports]]`, `[[target::type|display]]` — 8 link types
+6. **`extractLinks()`** / **`extractTags()`** — GlossKit public APIs for parsing wiki-links and frontmatter tags
+7. **Backlinks** in inspector: grouped by `LinkType` with `DisclosureGroup`, click navigates to source file
+8. **Incremental updates**: re-indexes on editor save, file create/rename/delete
+9. **Path standardization**: uses `URL.standardizedFileURL.path` to avoid symlink mismatches
 
 ### Reading Mode
 
