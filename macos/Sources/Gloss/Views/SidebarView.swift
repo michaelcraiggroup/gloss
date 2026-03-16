@@ -13,6 +13,7 @@ struct SidebarView: View {
            sort: \RecentDocument.title)
     private var favoriteDocuments: [RecentDocument]
     @Environment(ContentSearchService.self) private var contentSearch
+    @Environment(LinkIndex.self) private var linkIndex
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
     @State private var showingRenameAlert = false
@@ -400,6 +401,7 @@ struct SidebarView: View {
     private func performRename() {
         guard let url = contextMenuTargetURL else { return }
         if let newURL = fileTree.renameItem(at: url, to: renameFileName) {
+            linkIndex.handleRename(oldURL: url, newURL: newURL)
             // Update selection if the renamed file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = newURL
@@ -412,6 +414,7 @@ struct SidebarView: View {
     private func performDelete() {
         guard let url = contextMenuTargetURL else { return }
         if fileTree.deleteItem(at: url) {
+            linkIndex.removeFromIndex(url: url)
             // Clear selection if the deleted file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = nil
@@ -430,6 +433,7 @@ struct SidebarView: View {
         if panel.runModal() == .OK, let url = panel.url {
             fileTree.openFolder(url)
             settings.rootFolderPath = url.path
+            linkIndex.buildIndex(rootURL: url)
         }
     }
 }

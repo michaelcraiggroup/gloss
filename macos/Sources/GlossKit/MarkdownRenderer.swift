@@ -9,6 +9,14 @@ public struct HeadingInfo: Sendable, Equatable {
     public let id: String
 }
 
+/// A wiki-link extracted from markdown source, with target, type, display text, and line number.
+public struct ExtractedLink: Sendable, Equatable {
+    public let target: String
+    public let linkType: String
+    public let displayText: String?
+    public let lineNumber: Int
+}
+
 /// Parsed frontmatter data from a markdown document.
 public struct FrontmatterData: Sendable, Equatable {
     public let raw: String
@@ -189,7 +197,26 @@ public struct MarkdownRenderer: Sendable {
 
     // MARK: - Wiki-Links
 
-    /// Pre-process wiki-links `[[target]]` and `[[target|display]]` into standard markdown links.
+    /// Parse the inner content of a wiki-link into (target, type, display).
+    /// Supports: `[[target]]`, `[[target|display]]`, `[[target::type]]`, `[[target::type|display]]`
+    public static func parseWikiLinkInner(_ inner: String) -> (target: String, linkType: String, display: String?) {
+        let parts = inner.split(separator: "|", maxSplits: 1)
+        let leftSide = String(parts[0]).trimmingCharacters(in: .whitespaces)
+        let displayText = parts.count > 1
+            ? String(parts[1]).trimmingCharacters(in: .whitespaces)
+            : nil
+
+        let typeParts = leftSide.split(separator: "::", maxSplits: 1)
+        let target = String(typeParts[0]).trimmingCharacters(in: .whitespaces)
+        let linkType = typeParts.count > 1
+            ? String(typeParts[1]).trimmingCharacters(in: .whitespaces).lowercased()
+            : "related"
+
+        return (target, linkType, displayText)
+    }
+
+    /// Pre-process wiki-links `[[target]]`, `[[target|display]]`, `[[target::type]]`,
+    /// and `[[target::type|display]]` into standard markdown links.
     static func preprocessWikiLinks(_ source: String, resolver: (String) -> String?) -> String {
         let pattern = #"\[\[([^\]]+)\]\]"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
@@ -199,12 +226,9 @@ public struct MarkdownRenderer: Sendable {
             guard let fullRange = Range(match.range, in: result),
                   let innerRange = Range(match.range(at: 1), in: result) else { continue }
             let inner = String(result[innerRange])
-            let parts = inner.split(separator: "|", maxSplits: 1)
-            let target = String(parts[0]).trimmingCharacters(in: .whitespaces)
-            let display = parts.count > 1
-                ? String(parts[1]).trimmingCharacters(in: .whitespaces)
-                : target
-            if let resolved = resolver(target) {
+            let parsed = parseWikiLinkInner(inner)
+            let display = parsed.display ?? parsed.target
+            if let resolved = resolver(parsed.target) {
                 let link = "[\(display)](\(resolved))"
                 result.replaceSubrange(fullRange, with: link)
             } else {
@@ -214,6 +238,50 @@ public struct MarkdownRenderer: Sendable {
             }
         }
         return result
+    }
+
+    // MARK: - Link & Tag Extraction
+
+    /// Extract all wiki-links from markdown source, with target, type, display text, and line number.
+    public static func extractLinks(_ source: String) -> [ExtractedLink] {
+        let pattern = #"\[\[([^\]]+)\]\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let lines = source.components(separatedBy: .newlines)
+        var links: [ExtractedLink] = []
+
+        for (lineIndex, line) in lines.enumerated() {
+            let matches = regex.matches(in: line, range: NSRange(line.startIndex..., in: line))
+            for match in matches {
+                guard let innerRange = Range(match.range(at: 1), in: line) else { continue }
+                let inner = String(line[innerRange])
+                let parsed = parseWikiLinkInner(inner)
+                links.append(ExtractedLink(
+                    target: parsed.target,
+                    linkType: parsed.linkType,
+                    displayText: parsed.display,
+                    lineNumber: lineIndex + 1
+                ))
+            }
+        }
+        return links
+    }
+
+    /// Extract tags from YAML frontmatter. Supports both list and comma-separated formats.
+    public static func extractTags(_ source: String) -> [String] {
+        guard let raw = extractRawFrontmatter(source) else { return [] }
+        guard let parsed = try? Yams.load(yaml: raw), let dict = parsed as? [String: Any] else { return [] }
+        guard let tagsValue = dict["tags"] else { return [] }
+
+        if let tagArray = tagsValue as? [Any] {
+            return tagArray.compactMap { ($0 as? String)?.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        if let tagString = tagsValue as? String {
+            return tagString.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        return []
     }
 
     /// Wrap HTML body content in a full document with CSS theme.

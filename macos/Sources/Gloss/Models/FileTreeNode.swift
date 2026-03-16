@@ -19,7 +19,7 @@ final class FileTreeNode: Identifiable {
     static let markdownExtensions: Set<String> = ["md", "markdown"]
     static let excludedNames: Set<String> = [
         "node_modules", ".git", ".build", ".swiftpm", "__pycache__",
-        ".DS_Store", "Thumbs.db"
+        ".DS_Store", "Thumbs.db", ".gloss"
     ]
 
     init(url: URL, isDirectory: Bool, parentFolderName: String = "") {

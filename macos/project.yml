@@ -9,6 +9,9 @@ options:
 packages:
   GlossPackage:
     path: .
+  GRDB:
+    url: https://github.com/groue/GRDB.swift.git
+    from: "7.0.0"
 
 settings:
   base:
@@ -61,6 +64,8 @@ targets:
     dependencies:
       - package: GlossPackage
         product: GlossKit
+      - package: GRDB
+        product: GRDB
       - target: GlossQL
         embed: true
     scheme:

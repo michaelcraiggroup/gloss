@@ -16,6 +16,7 @@ struct GlossApp: App {
     @State private var fileTree = FileTreeModel()
     @State private var contentSearch = ContentSearchService()
     @State private var store = StoreManager()
+    @State private var linkIndex = LinkIndex()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
     @FocusedValue(\.goBack) var goBack
@@ -33,6 +34,7 @@ struct GlossApp: App {
                 .environment(fileTree)
                 .environment(contentSearch)
                 .environment(store)
+                .environment(linkIndex)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
@@ -256,6 +258,7 @@ struct GlossApp: App {
         if panel.runModal() == .OK, let url = panel.url {
             fileTree.openFolder(url)
             settings.rootFolderPath = url.path
+            linkIndex.buildIndex(rootURL: url)
         }
     }
 
@@ -281,6 +284,7 @@ struct GlossApp: App {
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
             fileTree.openFolder(url)
+            linkIndex.buildIndex(rootURL: url)
         }
     }
 }

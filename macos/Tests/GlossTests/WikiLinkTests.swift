@@ -43,4 +43,41 @@ struct WikiLinkTests {
         let html = MarkdownRenderer.render("See [[test]]", isDark: false, resolveWikiLink: { _ in "test.md" })
         #expect(html.contains("<a href=\"test.md\">test</a>"))
     }
+
+    // MARK: - Typed Links
+
+    @Test("Typed wiki-link strips type for rendering")
+    func typedLinkRendering() {
+        let result = MarkdownRenderer.preprocessWikiLinks("See [[note::supports]]", resolver: { _ in "note.md" })
+        #expect(result == "See [note](note.md)")
+    }
+
+    @Test("Typed wiki-link with display text")
+    func typedLinkWithDisplay() {
+        let result = MarkdownRenderer.preprocessWikiLinks("[[note::supports|evidence]]", resolver: { _ in "note.md" })
+        #expect(result == "[evidence](note.md)")
+    }
+
+    @Test("parseWikiLinkInner handles all forms")
+    func parseWikiLinkInner() {
+        let simple = MarkdownRenderer.parseWikiLinkInner("target")
+        #expect(simple.target == "target")
+        #expect(simple.linkType == "related")
+        #expect(simple.display == nil)
+
+        let withDisplay = MarkdownRenderer.parseWikiLinkInner("target|Show This")
+        #expect(withDisplay.target == "target")
+        #expect(withDisplay.linkType == "related")
+        #expect(withDisplay.display == "Show This")
+
+        let typed = MarkdownRenderer.parseWikiLinkInner("target::supports")
+        #expect(typed.target == "target")
+        #expect(typed.linkType == "supports")
+        #expect(typed.display == nil)
+
+        let full = MarkdownRenderer.parseWikiLinkInner("target::contradicts|counter-argument")
+        #expect(full.target == "target")
+        #expect(full.linkType == "contradicts")
+        #expect(full.display == "counter-argument")
+    }
 }

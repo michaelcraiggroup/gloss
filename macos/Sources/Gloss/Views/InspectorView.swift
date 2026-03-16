@@ -1,15 +1,17 @@
 import SwiftUI
 import GlossKit
 
-/// Inspector sidebar showing table of contents and frontmatter metadata.
+/// Inspector sidebar showing table of contents, frontmatter, and backlinks.
 struct InspectorView: View {
     let headings: [HeadingInfo]
     let frontmatter: FrontmatterData?
+    let backlinks: [BacklinkGroup]
     var hasDocument: Bool = false
     var onHeadingTap: ((String) -> Void)?
+    var onBacklinkTap: ((String) -> Void)?
 
     private var hasContent: Bool {
-        !headings.isEmpty || (frontmatter != nil && !frontmatter!.fields.isEmpty)
+        !headings.isEmpty || (frontmatter != nil && !frontmatter!.fields.isEmpty) || !backlinks.isEmpty
     }
 
     var body: some View {
@@ -43,6 +45,42 @@ struct InspectorView: View {
                                 Text(field.value)
                                     .font(.caption)
                                     .lineLimit(3)
+                            }
+                        }
+                    }
+                }
+
+                if !backlinks.isEmpty {
+                    Section("Backlinks") {
+                        ForEach(backlinks) { group in
+                            DisclosureGroup {
+                                ForEach(group.links) { link in
+                                    Button {
+                                        onBacklinkTap?(link.sourcePath)
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(link.sourceTitle)
+                                                .font(.caption)
+                                                .foregroundStyle(.primary)
+                                                .lineLimit(1)
+                                            if let line = link.lineNumber {
+                                                Text("Line \(line)")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.tertiary)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            } label: {
+                                Label {
+                                    Text("\(group.linkType.displayName) (\(group.links.count))")
+                                        .font(.caption)
+                                } icon: {
+                                    Image(systemName: group.linkType.icon)
+                                        .font(.caption2)
+                                }
                             }
                         }
                     }

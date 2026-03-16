@@ -9,6 +9,7 @@ struct ContentView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(ContentSearchService.self) private var contentSearch
     @Environment(StoreManager.self) private var store
+    @Environment(LinkIndex.self) private var linkIndex
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var inspectorIsShown = false
@@ -78,9 +79,18 @@ struct ContentView: View {
         .onChange(of: settings.currentFileURL) { oldValue, newValue in
             if let newValue {
                 navHistory.navigate(to: newValue, from: oldValue)
+                linkIndex.refreshBacklinks(for: newValue)
             } else {
                 headings = []
                 frontmatter = nil
+                linkIndex.refreshBacklinks(for: nil)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossEditorSaved)) { notification in
+            if let url = notification.object as? URL {
+                linkIndex.updateIndex(for: url)
+            } else if let currentURL = settings.currentFileURL {
+                linkIndex.updateIndex(for: currentURL)
             }
         }
         .onChange(of: settings.isZenMode) {
@@ -111,12 +121,18 @@ struct ContentView: View {
             InspectorView(
                 headings: headings,
                 frontmatter: frontmatter,
+                backlinks: linkIndex.backlinks,
                 hasDocument: settings.currentFileURL != nil,
                 onHeadingTap: { headingID in
                     NotificationCenter.default.post(
                         name: .glossScrollToHeading,
                         object: headingID
                     )
+                },
+                onBacklinkTap: { sourcePath in
+                    let url = URL(fileURLWithPath: sourcePath)
+                    settings.currentFileURL = url
+                    settings.lastOpenedFile = url.path
                 }
             )
             .inspectorColumnWidth(min: 250, ideal: 280, max: 400)
@@ -298,6 +314,7 @@ struct ContentView: View {
         do {
             try "".write(to: fileURL, atomically: true, encoding: .utf8)
             fileTree.refreshAfterFileChange()
+            linkIndex.updateIndex(for: fileURL)
             settings.currentFileURL = fileURL
             settings.lastOpenedFile = fileURL.path
             isEditing = true

@@ -13,7 +13,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0"),
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.0")
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.0"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0")
     ],
     targets: [
         .target(
@@ -28,7 +29,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "Gloss",
-            dependencies: ["GlossKit"],
+            dependencies: [
+                "GlossKit",
+                .product(name: "GRDB", package: "GRDB.swift")
+            ],
             path: "Sources/Gloss",
             resources: [
                 .process("Resources")
@@ -36,7 +40,11 @@ let package = Package(
         ),
         .testTarget(
             name: "GlossTests",
-            dependencies: ["Gloss", "GlossKit"]
+            dependencies: [
+                "Gloss",
+                "GlossKit",
+                .product(name: "GRDB", package: "GRDB.swift")
+            ]
         )
     ]
 )
