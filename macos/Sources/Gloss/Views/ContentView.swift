@@ -16,6 +16,10 @@ struct ContentView: View {
     @State private var frontmatter: FrontmatterData?
     @State private var paywallFeature: PaidFeature?
     @State private var navHistory = NavigationHistory()
+    @State private var isEditing = false
+    @State private var isEditorDirty = false
+    @State private var showingNewFileAlert = false
+    @State private var newFileName = ""
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -24,94 +28,14 @@ struct ContentView: View {
                     handleDropProviders(providers)
                 }
         } detail: {
-            DocumentView(
-                fileURL: settings.currentFileURL,
-                highlightQuery: fileTree.searchScope == .content ? fileTree.searchQuery : nil
-            )
-                .toolbar(settings.isZenMode ? .hidden : .automatic)
-                .toolbar {
-                    if !settings.isZenMode {
-                        ToolbarItemGroup(placement: .navigation) {
-                            Button {
-                                if let url = navHistory.goBack(from: settings.currentFileURL) {
-                                    settings.currentFileURL = url
-                                }
-                            } label: {
-                                Label("Back", systemImage: "chevron.left")
-                            }
-                            .disabled(!navHistory.canGoBack)
-                            .help("Back (⌘[)")
-
-                            Button {
-                                if let url = navHistory.goForward(from: settings.currentFileURL) {
-                                    settings.currentFileURL = url
-                                }
-                            } label: {
-                                Label("Forward", systemImage: "chevron.right")
-                            }
-                            .disabled(!navHistory.canGoForward)
-                            .help("Forward (⌘])")
-                        }
-                        if settings.currentFileURL != nil {
-                            ToolbarItem(placement: .primaryAction) {
-                                Button {
-                                    guard store.gate(.favorites) else { return }
-                                    toggleFavoriteForCurrentFile()
-                                } label: {
-                                    Label(
-                                        "Toggle Favorite",
-                                        systemImage: isCurrentFileFavorited ? "star.fill" : "star"
-                                    )
-                                }
-                                .foregroundStyle(isCurrentFileFavorited ? .yellow : .secondary)
-                                .help("Toggle Favorite (⌘D)")
-                            }
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {
-                                openInEditor()
-                            } label: {
-                                Label("Open in Editor", systemImage: "pencil.and.outline")
-                            }
-                            .help("Open in \(settings.editor.displayName) (⇧⌘E)")
-                            .disabled(settings.currentFileURL == nil)
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {
-                                guard store.gate(.inspector) else { return }
-                                withAnimation { inspectorIsShown.toggle() }
-                            } label: {
-                                Label("Toggle Inspector", systemImage: "sidebar.trailing")
-                            }
-                            .help("Toggle Inspector (⌥⌘I)")
-                            .disabled(settings.currentFileURL == nil)
-                        }
-                        if settings.currentFileURL != nil {
-                            ToolbarItem(placement: .status) {
-                                Text("j/k to scroll")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-                }
-                .inspector(isPresented: $inspectorIsShown) {
-                    InspectorView(
-                        headings: headings,
-                        frontmatter: frontmatter,
-                        hasDocument: settings.currentFileURL != nil,
-                        onHeadingTap: { headingID in
-                            NotificationCenter.default.post(
-                                name: .glossScrollToHeading,
-                                object: headingID
-                            )
-                        }
-                    )
-                    .inspectorColumnWidth(min: 250, ideal: 280, max: 400)
-                }
-                .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
-                .navigationSubtitle(settings.isZenMode ? "" : (settings.currentFileURL != nil ? "Reading Mode" : ""))
+            detailView
         }
+        .modifier(FocusedEditValues(
+            toggleEditMode: { toggleEditMode() },
+            saveDocument: { GlossEditorWebView.current?.saveCurrentContent() },
+            createNewFile: { newFileName = ""; showingNewFileAlert = true },
+            isEditing: isEditing
+        ))
         .focusedSceneValue(\.toggleFavorite, {
             guard store.gate(.favorites) else { return }
             toggleFavoriteForCurrentFile()
@@ -162,6 +86,141 @@ struct ContentView: View {
         .onChange(of: settings.isZenMode) {
             columnVisibility = settings.isZenMode ? .detailOnly : .automatic
         }
+        .alert("New File", isPresented: $showingNewFileAlert) {
+            TextField("Filename", text: $newFileName)
+            Button("Create") { createNewFile() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Enter a name for the new markdown file.")
+        }
+    }
+
+    // MARK: - Detail View
+
+    @ViewBuilder
+    private var detailView: some View {
+        DocumentView(
+            fileURL: settings.currentFileURL,
+            highlightQuery: fileTree.searchScope == .content ? fileTree.searchQuery : nil,
+            isEditing: $isEditing,
+            isEditorDirty: $isEditorDirty
+        )
+        .toolbar(settings.isZenMode ? .hidden : .automatic)
+        .toolbar { toolbarContent }
+        .inspector(isPresented: $inspectorIsShown) {
+            InspectorView(
+                headings: headings,
+                frontmatter: frontmatter,
+                hasDocument: settings.currentFileURL != nil,
+                onHeadingTap: { headingID in
+                    NotificationCenter.default.post(
+                        name: .glossScrollToHeading,
+                        object: headingID
+                    )
+                }
+            )
+            .inspectorColumnWidth(min: 250, ideal: 280, max: 400)
+        }
+        .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
+        .navigationSubtitle(navigationSubtitle)
+    }
+
+    private var navigationSubtitle: String {
+        if settings.isZenMode { return "" }
+        guard settings.currentFileURL != nil else { return "" }
+        return isEditing ? "Edit Mode" : "Reading Mode"
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        if !settings.isZenMode {
+            ToolbarItemGroup(placement: .navigation) {
+                Button {
+                    if let url = navHistory.goBack(from: settings.currentFileURL) {
+                        settings.currentFileURL = url
+                    }
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .disabled(!navHistory.canGoBack)
+                .help("Back (⌘[)")
+
+                Button {
+                    if let url = navHistory.goForward(from: settings.currentFileURL) {
+                        settings.currentFileURL = url
+                    }
+                } label: {
+                    Label("Forward", systemImage: "chevron.right")
+                }
+                .disabled(!navHistory.canGoForward)
+                .help("Forward (⌘])")
+            }
+
+            if settings.currentFileURL != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        guard store.gate(.favorites) else { return }
+                        toggleFavoriteForCurrentFile()
+                    } label: {
+                        Label(
+                            "Toggle Favorite",
+                            systemImage: isCurrentFileFavorited ? "star.fill" : "star"
+                        )
+                    }
+                    .foregroundStyle(isCurrentFileFavorited ? .yellow : .secondary)
+                    .help("Toggle Favorite (⌘D)")
+                }
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    toggleEditMode()
+                } label: {
+                    Label(
+                        isEditing ? "Reading Mode" : "Edit Mode",
+                        systemImage: isEditing ? "book" : "pencil"
+                    )
+                }
+                .help(isEditing ? "Switch to Reading Mode (⇧⌘E)" : "Switch to Edit Mode (⇧⌘E)")
+                .disabled(settings.currentFileURL == nil)
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    guard store.gate(.inspector) else { return }
+                    withAnimation { inspectorIsShown.toggle() }
+                } label: {
+                    Label("Toggle Inspector", systemImage: "sidebar.trailing")
+                }
+                .help("Toggle Inspector (⌥⌘I)")
+                .disabled(settings.currentFileURL == nil)
+            }
+
+            if settings.currentFileURL != nil {
+                ToolbarItem(placement: .status) {
+                    statusText
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusText: some View {
+        if isEditing && isEditorDirty {
+            Text("Modified")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        } else if isEditing {
+            Text("Editing")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        } else {
+            Text("j/k to scroll")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
     }
 
     // MARK: - Favorites
@@ -195,11 +254,57 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Editor
+    // MARK: - Edit Mode
 
-    private func openInEditor() {
+    private func toggleEditMode() {
+        guard settings.currentFileURL != nil else { return }
+        if isEditing && isEditorDirty {
+            GlossEditorWebView.current?.saveCurrentContent { _ in
+                isEditing = false
+                isEditorDirty = false
+            }
+        } else {
+            isEditing.toggle()
+            isEditorDirty = false
+        }
+    }
+
+    private func openInExternalEditor() {
         guard let url = settings.currentFileURL else { return }
         EditorLauncher.open(fileAt: url.path, with: settings.editor, customAppPath: settings.customEditorPath)
+    }
+
+    // MARK: - New File
+
+    private func createNewFile() {
+        var name = newFileName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        if !name.hasSuffix(".md") && !name.hasSuffix(".markdown") {
+            name += ".md"
+        }
+
+        let folderURL: URL
+        if let activeNode = fileTree.activeNode {
+            folderURL = activeNode.url
+        } else if let currentFile = settings.currentFileURL {
+            folderURL = currentFile.deletingLastPathComponent()
+        } else {
+            return
+        }
+
+        let fileURL = folderURL.appendingPathComponent(name)
+        guard !FileManager.default.fileExists(atPath: fileURL.path) else { return }
+
+        do {
+            try "".write(to: fileURL, atomically: true, encoding: .utf8)
+            fileTree.refreshAfterFileChange()
+            settings.currentFileURL = fileURL
+            settings.lastOpenedFile = fileURL.path
+            isEditing = true
+            isEditorDirty = false
+        } catch {
+            // File creation failed silently
+        }
     }
 
     // MARK: - Drop
@@ -213,6 +318,24 @@ struct ContentView: View {
             }
         }
         return true
+    }
+}
+
+// MARK: - FocusedEditValues ViewModifier
+
+/// Groups editor-related FocusedSceneValues to reduce body complexity.
+struct FocusedEditValues: ViewModifier {
+    var toggleEditMode: () -> Void
+    var saveDocument: () -> Void
+    var createNewFile: () -> Void
+    var isEditing: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focusedSceneValue(\.toggleEditMode, toggleEditMode)
+            .focusedSceneValue(\.saveDocument, saveDocument)
+            .focusedSceneValue(\.createNewFile, createNewFile)
+            .focusedSceneValue(\.isEditingDocument, isEditing)
     }
 }
 
@@ -234,6 +357,22 @@ struct GoForwardKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+struct EditModeToggleKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+struct SaveDocumentKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+struct CreateNewFileKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+struct IsEditingDocumentKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
 extension FocusedValues {
     var toggleFavorite: (() -> Void)? {
         get { self[FavoriteToggleKey.self] }
@@ -253,5 +392,25 @@ extension FocusedValues {
     var goForward: (() -> Void)? {
         get { self[GoForwardKey.self] }
         set { self[GoForwardKey.self] = newValue }
+    }
+
+    var toggleEditMode: (() -> Void)? {
+        get { self[EditModeToggleKey.self] }
+        set { self[EditModeToggleKey.self] = newValue }
+    }
+
+    var saveDocument: (() -> Void)? {
+        get { self[SaveDocumentKey.self] }
+        set { self[SaveDocumentKey.self] = newValue }
+    }
+
+    var createNewFile: (() -> Void)? {
+        get { self[CreateNewFileKey.self] }
+        set { self[CreateNewFileKey.self] = newValue }
+    }
+
+    var isEditingDocument: Bool? {
+        get { self[IsEditingDocumentKey.self] }
+        set { self[IsEditingDocumentKey.self] = newValue }
     }
 }

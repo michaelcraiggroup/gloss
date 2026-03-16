@@ -2,9 +2,12 @@ import SwiftUI
 import GlossKit
 
 /// Loads and renders a markdown file, responding to theme changes and file modifications.
+/// Supports read mode (rendered HTML) and edit mode (CodeMirror 6 editor).
 struct DocumentView: View {
     let fileURL: URL?
     var highlightQuery: String?
+    @Binding var isEditing: Bool
+    @Binding var isEditorDirty: Bool
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(StoreManager.self) private var store
@@ -15,7 +18,13 @@ struct DocumentView: View {
     var body: some View {
         Group {
             if let url = fileURL {
-                if let content = fileContent {
+                if isEditing {
+                    EditorWebView(
+                        fileURL: url,
+                        isDark: colorScheme == .dark,
+                        fontSize: settings.fontSize
+                    )
+                } else if let content = fileContent {
                     let html = MarkdownRenderer.render(
                         content,
                         isDark: colorScheme == .dark,
@@ -33,7 +42,17 @@ struct DocumentView: View {
             }
         }
         .onChange(of: fileURL) {
-            loadAndWatch()
+            if isEditing && isEditorDirty {
+                GlossEditorWebView.current?.saveCurrentContent { _ in
+                    isEditing = false
+                    isEditorDirty = false
+                    loadAndWatch()
+                }
+            } else {
+                isEditing = false
+                isEditorDirty = false
+                loadAndWatch()
+            }
         }
         .onAppear {
             loadAndWatch()
@@ -43,6 +62,20 @@ struct DocumentView: View {
             if let url = notification.object as? URL {
                 settings.currentFileURL = url
                 settings.lastOpenedFile = url.path
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossEditorDirtyChanged)) { notification in
+            if let dirty = notification.object as? NSNumber {
+                isEditorDirty = dirty.boolValue
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossEditorSaved)) { _ in
+            // Reload content after editor save so read mode reflects changes
+            if let url = fileURL {
+                fileContent = try? String(contentsOf: url, encoding: .utf8)
+                if let content = fileContent {
+                    NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+                }
             }
         }
     }

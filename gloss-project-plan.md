@@ -247,6 +247,41 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [ ] Submit to macOS utility directories
 - [ ] Pricing iteration based on conversion data (Month 1-3)
 
+#### Phase 7: Editor Integration (In Progress)
+- [x] CodeMirror 6 live preview editor (Obsidian-style inline rendering via CM6 decorations)
+- [x] `editor.html` template with CM6 loaded from CDN (ESM imports)
+- [x] `EditorWebView.swift` — WKWebView wrapper with WKScriptMessageHandler bridge
+- [x] Read/edit mode toggle in DocumentView (Cmd+Shift+E)
+- [x] JS ↔ Swift bridge: ready, save, dirty state messages
+- [x] Auto-save on mode switch (edit → read) and Cmd+S
+- [x] File creation (Cmd+N) — creates blank .md in current folder
+- [x] FileTreeModel: createFile, renameItem, deleteItem (move to trash)
+- [x] SidebarView context menus: rename, delete for files and folders
+- [x] Dirty state indicator in toolbar (Modified/Editing)
+- [x] Live preview decorations: heading sizing, bold/italic mark hiding, link preview, HR widgets, interactive checkboxes, blockquote borders, inline code, image preview
+- [x] Menu commands: New File, Toggle Edit Mode, Save, Open in External Editor
+- [x] FocusedValues for editor state (toggleEditMode, saveDocument, createNewFile, isEditingDocument)
+- [x] 136 tests passing (11 new file operations tests)
+- [ ] Bundled CM6 (replace CDN with local bundle for offline support)
+- [ ] Wiki-link autocomplete in editor
+
+#### Phase 8: Link Index + Backlinks (Planned)
+- [ ] LinkIndex service — scan vault, extract wiki-links + tags + frontmatter
+- [ ] SQLite persistence (`.gloss/index.sqlite`)
+- [ ] Typed link syntax `[[target::type]]`
+- [ ] BacklinksView in InspectorView
+- [ ] Incremental re-indexing
+
+#### Phase 9: Graph Visualization (Planned)
+- [ ] D3.js force-directed graph in WKWebView tab
+- [ ] Filter by link type, tag, depth, document type
+- [ ] Node navigation and hover preview
+
+#### Phase 10: Conventions & Templates (Planned)
+- [ ] `.gloss/conventions.yaml` parser
+- [ ] Template system (Cmd+N template picker)
+- [ ] CM6 autocomplete for wiki-links and link types
+
 ---
 
 ## Future Work

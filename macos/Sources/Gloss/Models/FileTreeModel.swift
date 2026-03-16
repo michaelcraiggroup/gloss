@@ -118,6 +118,64 @@ final class FileTreeModel {
         }
     }
 
+    // MARK: - File Operations
+
+    /// Create a new markdown file in the given directory.
+    @discardableResult
+    func createFile(named name: String, in directory: URL) -> URL? {
+        var fileName = name.trimmingCharacters(in: .whitespaces)
+        guard !fileName.isEmpty else { return nil }
+        if !fileName.hasSuffix(".md") && !fileName.hasSuffix(".markdown") {
+            fileName += ".md"
+        }
+        let fileURL = directory.appendingPathComponent(fileName)
+        guard !FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        do {
+            try "".write(to: fileURL, atomically: true, encoding: .utf8)
+            refreshAfterFileChange()
+            return fileURL
+        } catch {
+            return nil
+        }
+    }
+
+    /// Rename a file or folder.
+    func renameItem(at url: URL, to newName: String) -> URL? {
+        let trimmed = newName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+        let newURL = url.deletingLastPathComponent().appendingPathComponent(trimmed)
+        guard newURL != url else { return nil }
+        guard !FileManager.default.fileExists(atPath: newURL.path) else { return nil }
+        do {
+            try FileManager.default.moveItem(at: url, to: newURL)
+            refreshAfterFileChange()
+            return newURL
+        } catch {
+            return nil
+        }
+    }
+
+    /// Move a file to trash.
+    func deleteItem(at url: URL) -> Bool {
+        do {
+            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+            refreshAfterFileChange()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Force refresh the tree after a file system change.
+    func refreshAfterFileChange() {
+        if let root = rootNode {
+            refreshNode(root)
+        }
+        if let scoped = scopedNode {
+            refreshNode(scoped)
+        }
+    }
+
     // MARK: - Directory Polling
 
     private func startPolling() {

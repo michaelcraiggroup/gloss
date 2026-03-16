@@ -20,6 +20,10 @@ struct GlossApp: App {
     @FocusedValue(\.toggleInspector) var toggleInspector
     @FocusedValue(\.goBack) var goBack
     @FocusedValue(\.goForward) var goForward
+    @FocusedValue(\.toggleEditMode) var toggleEditMode
+    @FocusedValue(\.saveDocument) var saveDocument
+    @FocusedValue(\.createNewFile) var createNewFile
+    @FocusedValue(\.isEditingDocument) var isEditingDocument
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
@@ -45,6 +49,14 @@ struct GlossApp: App {
         .defaultSize(width: 1000, height: 700)
         .commands {
             CommandGroup(replacing: .newItem) {
+                Button("New File") {
+                    createNewFile?()
+                }
+                .keyboardShortcut("n", modifiers: .command)
+                .disabled(createNewFile == nil || (!fileTree.hasFolder && settings.currentFileURL == nil))
+
+                Divider()
+
                 Button("Open…") {
                     openFilePanel()
                 }
@@ -66,12 +78,17 @@ struct GlossApp: App {
 
                 Divider()
 
-                Button("Open in Editor") {
+                Button(isEditingDocument == true ? "Switch to Reading Mode" : "Switch to Edit Mode") {
+                    toggleEditMode?()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(settings.currentFileURL == nil)
+
+                Button("Open in External Editor") {
                     if let url = settings.currentFileURL {
                         EditorLauncher.open(fileAt: url.path, with: settings.editor, customAppPath: settings.customEditorPath)
                     }
                 }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(settings.currentFileURL == nil)
 
                 Divider()
@@ -82,6 +99,16 @@ struct GlossApp: App {
                 .keyboardShortcut("d", modifiers: .command)
                 .disabled(toggleFavorite == nil)
 
+            }
+        }
+
+        .commands {
+            CommandGroup(replacing: .saveItem) {
+                Button("Save") {
+                    saveDocument?()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(isEditingDocument != true)
             }
         }
 

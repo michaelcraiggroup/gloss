@@ -15,6 +15,10 @@ struct SidebarView: View {
     @Environment(ContentSearchService.self) private var contentSearch
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
+    @State private var showingRenameAlert = false
+    @State private var showingDeleteConfirmation = false
+    @State private var renameFileName = ""
+    @State private var contextMenuTargetURL: URL?
 
     var body: some View {
         List(selection: Binding(
@@ -148,6 +152,29 @@ struct SidebarView: View {
                 .help("Open Folder (⇧⌘O)")
             }
         }
+        .alert("Rename", isPresented: $showingRenameAlert) {
+            TextField("Name", text: $renameFileName)
+            Button("Rename") {
+                performRename()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Enter a new name.")
+        }
+        .confirmationDialog(
+            "Move to Trash?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Move to Trash", role: .destructive) {
+                performDelete()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            if let url = contextMenuTargetURL {
+                Text("\"\(url.lastPathComponent)\" will be moved to the Trash.")
+            }
+        }
     }
 
     // MARK: - Content Result Row
@@ -261,6 +288,20 @@ struct SidebarView: View {
                             } label: {
                                 Label("Open in Sidebar", systemImage: "folder")
                             }
+                            Divider()
+                            Button {
+                                contextMenuTargetURL = node.url
+                                renameFileName = node.name
+                                showingRenameAlert = true
+                            } label: {
+                                Label("Rename…", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                contextMenuTargetURL = node.url
+                                showingDeleteConfirmation = true
+                            } label: {
+                                Label("Move to Trash", systemImage: "trash")
+                            }
                         }
                 }
             )
@@ -285,6 +326,20 @@ struct SidebarView: View {
                 favorited ? "Remove from Favorites" : "Add to Favorites",
                 systemImage: favorited ? "star.slash" : "star"
             )
+        }
+        Divider()
+        Button {
+            contextMenuTargetURL = url
+            renameFileName = url.lastPathComponent
+            showingRenameAlert = true
+        } label: {
+            Label("Rename…", systemImage: "pencil")
+        }
+        Button(role: .destructive) {
+            contextMenuTargetURL = url
+            showingDeleteConfirmation = true
+        } label: {
+            Label("Move to Trash", systemImage: "trash")
         }
     }
 
@@ -340,6 +395,30 @@ struct SidebarView: View {
             let doc = RecentDocument(path: path, title: title, documentType: docType.rawValue)
             modelContext.insert(doc)
         }
+    }
+
+    private func performRename() {
+        guard let url = contextMenuTargetURL else { return }
+        if let newURL = fileTree.renameItem(at: url, to: renameFileName) {
+            // Update selection if the renamed file was selected
+            if settings.currentFileURL == url {
+                settings.currentFileURL = newURL
+                settings.lastOpenedFile = newURL.path
+            }
+        }
+        contextMenuTargetURL = nil
+    }
+
+    private func performDelete() {
+        guard let url = contextMenuTargetURL else { return }
+        if fileTree.deleteItem(at: url) {
+            // Clear selection if the deleted file was selected
+            if settings.currentFileURL == url {
+                settings.currentFileURL = nil
+                settings.lastOpenedFile = ""
+            }
+        }
+        contextMenuTargetURL = nil
     }
 
     private func openFolderFromSidebar() {

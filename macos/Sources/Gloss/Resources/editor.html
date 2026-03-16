@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #ffffff;
+            --fg: #333333;
+            --code-bg: #f5f5f5;
+            --border: #e0e0e0;
+            --accent: #0d9488;
+            --selection: rgba(13, 148, 136, 0.2);
+            --gutter-bg: #f8f8f8;
+            --gutter-fg: #999999;
+            --cursor: #333333;
+            --line-highlight: rgba(0, 0, 0, 0.04);
+            --font-size: 16px;
+            --quote-border: #0d9488;
+            --hr-color: #e0e0e0;
+        }
+
+        html.dark {
+            --bg: #1e1e1e;
+            --fg: #d4d4d4;
+            --code-bg: #2d2d2d;
+            --border: #404040;
+            --accent: #14b8a6;
+            --selection: rgba(20, 184, 166, 0.3);
+            --gutter-bg: #252525;
+            --gutter-fg: #858585;
+            --cursor: #d4d4d4;
+            --line-highlight: rgba(255, 255, 255, 0.04);
+            --quote-border: #14b8a6;
+            --hr-color: #404040;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #editor { height: 100vh; }
+
+        /* CodeMirror base */
+        .cm-editor { height: 100%; }
+        .cm-editor .cm-scroller {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: var(--font-size);
+            line-height: 1.6;
+            padding: 24px 0;
+        }
+        .cm-editor .cm-content {
+            padding: 0 32px;
+            max-width: 860px;
+        }
+        .cm-editor .cm-gutters {
+            background: var(--gutter-bg);
+            border-right: 1px solid var(--border);
+            color: var(--gutter-fg);
+            font-size: calc(var(--font-size) - 2px);
+        }
+        .cm-editor .cm-activeLineGutter { background: var(--line-highlight); }
+        .cm-editor .cm-activeLine { background: var(--line-highlight); }
+        .cm-editor.cm-focused .cm-selectionBackground,
+        .cm-editor .cm-selectionBackground { background: var(--selection) !important; }
+        .cm-editor .cm-cursor { border-left-color: var(--cursor); }
+        .cm-editor.cm-focused { outline: none; }
+        .cm-editor .cm-line { padding: 0; }
+
+        /* Inline code in content font */
+        .cm-editor .tok-monospace {
+            font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+            background: var(--code-bg);
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-size: 0.9em;
+        }
+
+        /* Fenced code blocks */
+        .cm-editor .cm-line:has(.tok-monospace) {
+            font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+        }
+
+        /* Default syntax token colors */
+        .cm-editor .tok-heading { font-weight: bold; color: var(--fg); }
+        .cm-editor .tok-strong { font-weight: bold; }
+        .cm-editor .tok-emphasis { font-style: italic; }
+        .cm-editor .tok-strikethrough { text-decoration: line-through; }
+        .cm-editor .tok-link { color: var(--accent); }
+        .cm-editor .tok-url { color: var(--accent); opacity: 0.7; }
+        .cm-editor .tok-meta { color: var(--gutter-fg); }
+        .cm-editor .tok-comment { color: var(--gutter-fg); font-style: italic; }
+
+        /* ── Live Preview Decorations ── */
+
+        /* Headings: sized on non-active lines */
+        .cm-preview-h1 { font-size: 2em; font-weight: bold; line-height: 1.3; margin-top: 0.4em; }
+        .cm-preview-h2 { font-size: 1.5em; font-weight: bold; line-height: 1.3; padding-bottom: 0.2em; border-bottom: 1px solid var(--border); }
+        .cm-preview-h3 { font-size: 1.25em; font-weight: bold; line-height: 1.4; }
+        .cm-preview-h4 { font-size: 1.1em; font-weight: bold; }
+        .cm-preview-h5 { font-size: 1.05em; font-weight: bold; }
+        .cm-preview-h6 { font-size: 1em; font-weight: bold; color: var(--gutter-fg); }
+
+        /* Links: accent-colored text on non-active lines */
+        .cm-preview-link {
+            color: var(--accent);
+            text-decoration: underline;
+            text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+            cursor: pointer;
+        }
+
+        /* Horizontal rule widget */
+        .cm-preview-hr {
+            border: none;
+            border-top: 1px solid var(--hr-color);
+            margin: 0.5em 0;
+            display: block;
+        }
+
+        /* Blockquote lines */
+        .cm-preview-blockquote {
+            border-left: 3px solid var(--quote-border);
+            padding-left: 12px !important;
+        }
+
+        /* Interactive checkboxes */
+        .cm-preview-checkbox {
+            cursor: pointer;
+            margin-right: 4px;
+            vertical-align: middle;
+            width: 14px;
+            height: 14px;
+            accent-color: var(--accent);
+        }
+
+        /* Inline image preview */
+        .cm-preview-image-wrap {
+            display: block;
+            margin: 8px 0;
+        }
+        .cm-preview-image-wrap img {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+
+        /* Loading state */
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: var(--fg);
+            opacity: 0.5;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 14px;
+        }
+
+        /* FONT_SIZE_OVERRIDE */
+    </style>
+</head>
+<body>
+    <div id="loading">Loading editor&#8230;</div>
+    <div id="editor" style="display: none;"></div>
+    <script type="module">
+        // ── Imports ──
+        // Individual packages for full control over live preview APIs
+        import {
+            EditorView, ViewPlugin, Decoration, WidgetType,
+            lineNumbers, highlightActiveLineGutter, highlightActiveLine,
+            drawSelection, dropCursor, rectangularSelection, crosshairCursor,
+            highlightSpecialChars, keymap
+        } from 'https://esm.sh/@codemirror/view@6.36.5';
+        import {EditorState} from 'https://esm.sh/@codemirror/state@6.5.2';
+        import {
+            syntaxTree, defaultHighlightStyle, syntaxHighlighting,
+            indentOnInput, bracketMatching, foldGutter, foldKeymap
+        } from 'https://esm.sh/@codemirror/language@6.10.8';
+        import {markdown, markdownLanguage} from 'https://esm.sh/@codemirror/lang-markdown@6.3.1';
+        import {defaultKeymap, history, historyKeymap} from 'https://esm.sh/@codemirror/commands@6.8.0';
+        import {closeBrackets, closeBracketsKeymap} from 'https://esm.sh/@codemirror/autocomplete@6.18.4';
+        import {searchKeymap, highlightSelectionMatches} from 'https://esm.sh/@codemirror/search@6.5.8';
+
+        // ── State ──
+        let isDirty = false;
+        let lastSavedContent = '';
+
+        function postMessage(msg) {
+            window.webkit?.messageHandlers?.glossEditor?.postMessage(JSON.stringify(msg));
+        }
+
+        // ── Live Preview Widgets ──
+
+        class HRWidget extends WidgetType {
+            toDOM() {
+                const hr = document.createElement('hr');
+                hr.className = 'cm-preview-hr';
+                return hr;
+            }
+            eq() { return true; }
+        }
+
+        class CheckboxWidget extends WidgetType {
+            constructor(checked, pos) {
+                super();
+                this.checked = checked;
+                this.pos = pos;
+            }
+            toDOM(view) {
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = this.checked;
+                cb.className = 'cm-preview-checkbox';
+                cb.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    const newText = this.checked ? '[ ]' : '[x]';
+                    view.dispatch({
+                        changes: {from: this.pos, to: this.pos + 3, insert: newText}
+                    });
+                });
+                return cb;
+            }
+            eq(other) { return other.checked === this.checked; }
+        }
+
+        class ImageWidget extends WidgetType {
+            constructor(src, alt) {
+                super();
+                this.src = src;
+                this.alt = alt || '';
+            }
+            toDOM() {
+                const wrap = document.createElement('div');
+                wrap.className = 'cm-preview-image-wrap';
+                const img = document.createElement('img');
+                img.src = this.src;
+                img.alt = this.alt;
+                img.loading = 'lazy';
+                img.onerror = () => { wrap.style.display = 'none'; };
+                wrap.appendChild(img);
+                return wrap;
+            }
+            eq(other) { return other.src === this.src; }
+        }
+
+        // ── Live Preview Plugin ──
+
+        function isLineActive(state, lineFrom, lineTo) {
+            for (const range of state.selection.ranges) {
+                if (range.from <= lineTo && range.to >= lineFrom) return true;
+            }
+            return false;
+        }
+
+        function buildLivePreview(view) {
+            const {state} = view;
+            const decs = [];
+
+            // State for tracking multi-child nodes
+            let linkCtx = null;
+            let imageCtx = null;
+
+            for (const {from, to} of view.visibleRanges) {
+                syntaxTree(state).iterate({
+                    from, to,
+                    enter(node) {
+                        const name = node.type.name;
+                        const line = state.doc.lineAt(node.from);
+                        const active = isLineActive(state, line.from, line.to);
+
+                        // ─ Track link/image child nodes regardless of active state ─
+                        if (name === 'Link') {
+                            linkCtx = active ? null : {marks: [], urlFrom: -1, urlTo: -1};
+                            return;
+                        }
+                        if (name === 'Image') {
+                            imageCtx = active ? null : {marks: [], urlFrom: -1, urlTo: -1, altFrom: -1, altTo: -1};
+                            return;
+                        }
+                        if (linkCtx && (name === 'LinkMark')) {
+                            linkCtx.marks.push({from: node.from, to: node.to});
+                            return;
+                        }
+                        if (linkCtx && name === 'URL') {
+                            linkCtx.urlFrom = node.from;
+                            linkCtx.urlTo = node.to;
+                            return;
+                        }
+                        if (imageCtx && name === 'LinkMark') {
+                            imageCtx.marks.push({from: node.from, to: node.to});
+                            return;
+                        }
+                        if (imageCtx && name === 'URL') {
+                            imageCtx.urlFrom = node.from;
+                            imageCtx.urlTo = node.to;
+                            return;
+                        }
+
+                        // ─ Skip decorations on active line ─
+                        if (active) return;
+
+                        // Heading marks: hide # on non-active lines
+                        if (name === 'HeaderMark') {
+                            const end = Math.min(node.to + 1, line.to);
+                            decs.push(Decoration.replace({}).range(node.from, end));
+                            return;
+                        }
+
+                        // Heading line styling
+                        if (/^ATXHeading[1-6]$/.test(name)) {
+                            const level = name.charAt(name.length - 1);
+                            decs.push(Decoration.line({class: `cm-preview-h${level}`}).range(line.from));
+                            return;
+                        }
+
+                        // Emphasis marks: hide * or _ on non-active lines
+                        if (name === 'EmphasisMark') {
+                            decs.push(Decoration.replace({}).range(node.from, node.to));
+                            return;
+                        }
+
+                        // Strikethrough marks: hide ~~ on non-active lines
+                        if (name === 'StrikethroughMark') {
+                            decs.push(Decoration.replace({}).range(node.from, node.to));
+                            return;
+                        }
+
+                        // Horizontal rule: replace with HR widget
+                        if (name === 'HorizontalRule') {
+                            decs.push(Decoration.replace({widget: new HRWidget()}).range(node.from, node.to));
+                            return;
+                        }
+
+                        // Task marker: replace [ ]/[x] with interactive checkbox
+                        if (name === 'TaskMarker') {
+                            const text = state.doc.sliceString(node.from, node.to);
+                            const checked = text.includes('x') || text.includes('X');
+                            decs.push(Decoration.replace({
+                                widget: new CheckboxWidget(checked, node.from)
+                            }).range(node.from, node.to));
+                            return;
+                        }
+
+                        // Blockquote mark: style line and hide >
+                        if (name === 'QuoteMark') {
+                            decs.push(Decoration.line({class: 'cm-preview-blockquote'}).range(line.from));
+                            decs.push(Decoration.replace({}).range(node.from, Math.min(node.to + 1, line.to)));
+                            return;
+                        }
+
+                        // Inline code: mark decoration keeps backticks hidden
+                        if (name === 'CodeMark' && state.doc.sliceString(node.from, node.to).length <= 2) {
+                            // Only hide single/double backticks (inline code), not triple (fenced)
+                            const markText = state.doc.sliceString(node.from, node.to);
+                            if (markText === '`' || markText === '``') {
+                                decs.push(Decoration.replace({}).range(node.from, node.to));
+                            }
+                            return;
+                        }
+                    },
+                    leave(node) {
+                        const name = node.type.name;
+
+                        // ─ Finalize link decoration ─
+                        if (name === 'Link' && linkCtx) {
+                            const m = linkCtx.marks;
+                            // [text](url) has 4 LinkMarks: [ ] ( )
+                            if (m.length >= 4) {
+                                // Hide opening [
+                                decs.push(Decoration.replace({}).range(m[0].from, m[0].to));
+                                // Style label text
+                                decs.push(Decoration.mark({class: 'cm-preview-link'}).range(m[0].to, m[1].from));
+                                // Hide ](url)
+                                decs.push(Decoration.replace({}).range(m[1].from, m[m.length - 1].to));
+                            }
+                            linkCtx = null;
+                        }
+
+                        // ─ Finalize image decoration ─
+                        if (name === 'Image' && imageCtx) {
+                            if (imageCtx.urlFrom >= 0) {
+                                const url = state.doc.sliceString(imageCtx.urlFrom, imageCtx.urlTo);
+                                if (url) {
+                                    // Find alt text (between first two marks)
+                                    const m = imageCtx.marks;
+                                    let alt = '';
+                                    if (m.length >= 2) {
+                                        alt = state.doc.sliceString(m[0].to, m[1].from);
+                                    }
+                                    decs.push(Decoration.widget({
+                                        widget: new ImageWidget(url, alt),
+                                        side: 1
+                                    }).range(node.to));
+                                }
+                            }
+                            imageCtx = null;
+                        }
+                    }
+                });
+            }
+
+            return Decoration.set(decs, true);
+        }
+
+        const livePreviewPlugin = ViewPlugin.define(
+            (view) => ({
+                decorations: buildLivePreview(view),
+                update(update) {
+                    if (update.docChanged || update.viewportChanged || update.selectionSet) {
+                        this.decorations = buildLivePreview(update.view);
+                    }
+                }
+            }),
+            { decorations: (v) => v.decorations }
+        );
+
+        // ── Change Tracker ──
+        const changeTracker = EditorView.updateListener.of(update => {
+            if (update.docChanged) {
+                const content = update.state.doc.toString();
+                const nowDirty = content !== lastSavedContent;
+                if (nowDirty !== isDirty) {
+                    isDirty = nowDirty;
+                    postMessage({ type: 'dirty', isDirty });
+                }
+            }
+        });
+
+        // ── Theme ──
+        const glossTheme = EditorView.theme({
+            '&': { backgroundColor: 'var(--bg)', color: 'var(--fg)' },
+            '.cm-content': { caretColor: 'var(--cursor)' },
+            '.cm-gutters': {
+                backgroundColor: 'var(--gutter-bg)',
+                color: 'var(--gutter-fg)',
+                borderRight: '1px solid var(--border)',
+            },
+            '.cm-activeLineGutter': { backgroundColor: 'var(--line-highlight)' },
+            '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+                backgroundColor: 'var(--selection)',
+            },
+            '.cm-activeLine': { backgroundColor: 'var(--line-highlight)' },
+        });
+
+        // ── Editor Setup ──
+        const view = new EditorView({
+            state: EditorState.create({
+                doc: '',
+                extensions: [
+                    // Core editing
+                    lineNumbers(),
+                    highlightActiveLineGutter(),
+                    highlightSpecialChars(),
+                    history(),
+                    foldGutter(),
+                    drawSelection(),
+                    dropCursor(),
+                    EditorState.allowMultipleSelections.of(true),
+                    indentOnInput(),
+                    syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
+                    bracketMatching(),
+                    closeBrackets(),
+                    rectangularSelection(),
+                    crosshairCursor(),
+                    highlightActiveLine(),
+                    highlightSelectionMatches(),
+                    keymap.of([
+                        ...closeBracketsKeymap,
+                        ...defaultKeymap,
+                        ...searchKeymap,
+                        ...historyKeymap,
+                        ...foldKeymap,
+                    ]),
+                    EditorView.lineWrapping,
+
+                    // Markdown language
+                    markdown({base: markdownLanguage}),
+
+                    // Gloss theme + live preview
+                    glossTheme,
+                    livePreviewPlugin,
+                    changeTracker,
+                ]
+            }),
+            parent: document.getElementById('editor')
+        });
+
+        // ── Cmd+S Save Handler ──
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                postMessage({ type: 'save' });
+            }
+        });
+
+        // ── Swift Bridge API ──
+        window.glossEditor = {
+            setContent(text) {
+                view.dispatch({
+                    changes: { from: 0, to: view.state.doc.length, insert: text }
+                });
+                lastSavedContent = text;
+                isDirty = false;
+            },
+            getContent() {
+                return view.state.doc.toString();
+            },
+            markClean() {
+                lastSavedContent = view.state.doc.toString();
+                isDirty = false;
+            },
+            setTheme(dark) {
+                document.documentElement.className = dark ? 'dark' : 'light';
+            },
+            focus() {
+                view.focus();
+            }
+        };
+
+        // ── Ready ──
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('editor').style.display = '';
+        view.focus();
+        postMessage({ type: 'ready' });
+    </script>
+</body>
+</html>
