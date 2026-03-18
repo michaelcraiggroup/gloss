@@ -1,56 +1,58 @@
-/* Gloss Theme — Ported from VS Code extension GlossReaderPanel.ts */
+/* Gloss Theme — Night Owl palette (sdras/night-owl-vscode-theme) */
 /* Uses CSS custom properties with prefers-color-scheme for dark/light */
 
+/* Night Owl Light */
 :root {
-    --bg: #ffffff;
-    --fg: #333333;
-    --accent: #0d9488;
-    --accent-light: #0d9488;
-    --code-bg: #f5f5f5;
-    --border: #e0e0e0;
-    --toolbar-bg: #f8f8f8;
-    --btn-hover-bg: #e8e8e8;
-    --row-alt: #fafafa;
+    --bg: #FBFBFB;
+    --fg: #403f53;
+    --accent: #4876d6;
+    --accent-light: #0c969b;
+    --code-bg: #F0F0F0;
+    --border: #E0E0E0;
+    --toolbar-bg: #F0F0F0;
+    --btn-hover-bg: #E5E5E5;
+    --row-alt: #F5F5F5;
     --font-size: 16px;
 }
 
+/* Night Owl Dark */
 @media (prefers-color-scheme: dark) {
     :root {
-        --bg: #1e1e1e;
-        --fg: #d4d4d4;
-        --accent: #0d9488;
-        --accent-light: #14b8a6;
-        --code-bg: #2d2d2d;
-        --border: #404040;
-        --toolbar-bg: #252526;
-        --btn-hover-bg: #3d3d3d;
-        --row-alt: #252525;
+        --bg: #011627;
+        --fg: #d6deeb;
+        --accent: #82AAFF;
+        --accent-light: #7fdbca;
+        --code-bg: #0b253a;
+        --border: #102a44;
+        --toolbar-bg: #001122;
+        --btn-hover-bg: #1d3b53;
+        --row-alt: #0b253a;
     }
 }
 
 /* Explicit theme overrides for app-controlled appearance */
 html.light {
-    --bg: #ffffff;
-    --fg: #333333;
-    --accent: #0d9488;
-    --accent-light: #0d9488;
-    --code-bg: #f5f5f5;
-    --border: #e0e0e0;
-    --toolbar-bg: #f8f8f8;
-    --btn-hover-bg: #e8e8e8;
-    --row-alt: #fafafa;
+    --bg: #FBFBFB;
+    --fg: #403f53;
+    --accent: #4876d6;
+    --accent-light: #0c969b;
+    --code-bg: #F0F0F0;
+    --border: #E0E0E0;
+    --toolbar-bg: #F0F0F0;
+    --btn-hover-bg: #E5E5E5;
+    --row-alt: #F5F5F5;
 }
 
 html.dark {
-    --bg: #1e1e1e;
-    --fg: #d4d4d4;
-    --accent: #0d9488;
-    --accent-light: #14b8a6;
-    --code-bg: #2d2d2d;
-    --border: #404040;
-    --toolbar-bg: #252526;
-    --btn-hover-bg: #3d3d3d;
-    --row-alt: #252525;
+    --bg: #011627;
+    --fg: #d6deeb;
+    --accent: #82AAFF;
+    --accent-light: #7fdbca;
+    --code-bg: #0b253a;
+    --border: #102a44;
+    --toolbar-bg: #001122;
+    --btn-hover-bg: #1d3b53;
+    --row-alt: #0b253a;
 }
 
 * {
