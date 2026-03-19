@@ -230,6 +230,24 @@ struct LinkDatabase: Sendable {
         }
     }
 
+    /// Fetch the most recently modified files from the index.
+    func recentlyChangedFiles(limit: Int = 15) throws -> [(path: String, title: String, modifiedAt: Date)] {
+        try dbQueue.read { db in
+            try Row.fetchAll(
+                db,
+                sql: "SELECT path, title, modifiedAt FROM files ORDER BY modifiedAt DESC LIMIT ?",
+                arguments: [limit]
+            ).map { row in
+                let timestamp: Double = row["modifiedAt"]
+                return (
+                    path: row["path"] as String,
+                    title: row["title"] as String,
+                    modifiedAt: Date(timeIntervalSince1970: timestamp)
+                )
+            }
+        }
+    }
+
     /// Count total indexed files.
     func fileCount() throws -> Int {
         try dbQueue.read { db in

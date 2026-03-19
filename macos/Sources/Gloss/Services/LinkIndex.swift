@@ -7,6 +7,7 @@ import GlossKit
 @MainActor
 final class LinkIndex {
     var backlinks: [BacklinkGroup] = []
+    var recentlyChanged: [(path: String, title: String, modifiedAt: Date)] = []
     var isIndexing: Bool = false
 
     private var database: LinkDatabase?
@@ -40,6 +41,9 @@ final class LinkIndex {
                 // Resolve cross-references
                 try db.resolveAllLinks()
 
+                // Populate recently changed files
+                self.recentlyChanged = (try? db.recentlyChangedFiles()) ?? []
+
                 isIndexing = false
             } catch {
                 isIndexing = false
@@ -57,6 +61,7 @@ final class LinkIndex {
                 try db.resolveAllLinks()
                 // Refresh backlinks if we're viewing a file
                 refreshBacklinks(for: fileURL)
+                recentlyChanged = (try? db.recentlyChangedFiles()) ?? []
             } catch {
                 // Index update failed silently
             }

@@ -88,6 +88,32 @@ struct SidebarView: View {
                     }
                 }
 
+                if !linkIndex.recentlyChanged.isEmpty {
+                    Section("Recently Changed") {
+                        ForEach(linkIndex.recentlyChanged.prefix(10), id: \.path) { item in
+                            let url = URL(fileURLWithPath: item.path)
+                            let parentFolder = url.deletingLastPathComponent().lastPathComponent
+                            let docType = DocumentType.detect(
+                                filename: url.lastPathComponent, folderName: parentFolder
+                            )
+                            HStack {
+                                Label {
+                                    Text(item.title)
+                                        .lineLimit(1)
+                                } icon: {
+                                    Text(docType.icon)
+                                }
+                                Spacer()
+                                Text(relativeDate(item.modifiedAt))
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .tag(url)
+                            .contextMenu { favoriteContextMenu(for: url) }
+                        }
+                    }
+                }
+
                 if !recentDocuments.isEmpty {
                     Section("Recent Documents") {
                         ForEach(recentDocuments.prefix(10)) { doc in
@@ -422,6 +448,12 @@ struct SidebarView: View {
             }
         }
         contextMenuTargetURL = nil
+    }
+
+    private func relativeDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: .now)
     }
 
     private func openFolderFromSidebar() {
