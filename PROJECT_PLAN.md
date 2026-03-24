@@ -2,7 +2,7 @@
 project: "gloss"
 title: "Gloss — Distraction-free markdown reading"
 status: "active"
-phase: "macOS App - Polish & Release"
+phase: "macOS App - Dogfooding & Light Editing"
 progress: 90
 stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
 next_steps:
@@ -10,7 +10,7 @@ next_steps:
   - "DMG packaging or App Store submission"
   - "VS Code integration tests"
   - "Custom CSS theme support"
-last_updated: "2026-02-18"
+last_updated: "2026-03-18"
 ---
 
 # Gloss - Project Plan
@@ -124,6 +124,18 @@ See [gloss-project-plan.md](gloss-project-plan.md) for full product specificatio
 - [x] Sortable file list (Name/Date, ascending/descending)
 - [ ] Code signing + notarization
 - [ ] DMG packaging or App Store submission
+
+---
+
+### macOS Phase 5: Dogfooding — Pitch Reading & Light Editing
+
+_Cross-project pitch: [2026-03-18-dogfooding-pitch-imports.md](../mcg-operations/plans/gloss/2026-03-18-dogfooding-pitch-imports.md)_
+
+- [ ] Code signing + notarization (prerequisite for daily use)
+- [ ] Light editing mode — clean, distraction-free markdown editing (CodeMirror 6)
+- [ ] "Open in Merrily" action — deep link into Merrily pitch import/shaping
+- [ ] Pitch template support — new file from Shape Up pitch template
+- [ ] Operational role: reading/editing LLM-generated pitches before Merrily shaping
 
 ---
 

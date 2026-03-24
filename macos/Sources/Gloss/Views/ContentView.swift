@@ -214,6 +214,18 @@ struct ContentView: View {
                 .disabled(settings.currentFileURL == nil)
             }
 
+            if fileTree.hasFolder {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        fileTree.refreshAfterFileChange()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .help("Refresh file tree (⌘R)")
+                    .keyboardShortcut("r", modifiers: .command)
+                }
+            }
+
             if settings.currentFileURL != nil {
                 ToolbarItem(placement: .status) {
                     statusText
