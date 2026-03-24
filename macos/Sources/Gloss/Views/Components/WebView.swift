@@ -28,6 +28,42 @@ class DropAcceptingWebView: WKWebView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
+    // MARK: - Clipboard Support
+
+    /// Intercept standard clipboard shortcuts so they reach WebKit's internal
+    /// handling instead of being swallowed by the SwiftUI menu bar responder chain.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown,
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           let chars = event.charactersIgnoringModifiers,
+           ["c", "x", "a"].contains(chars) {
+            switch chars {
+            case "c":
+                evaluateJavaScript("window.getSelection()?.toString() ?? ''") { result, _ in
+                    if let text = result as? String, !text.isEmpty {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                }
+                return true
+            case "x":
+                evaluateJavaScript("window.getSelection()?.toString() ?? ''") { result, _ in
+                    if let text = result as? String, !text.isEmpty {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                }
+                return true
+            case "a":
+                evaluateJavaScript("document.execCommand('selectAll')")
+                return true
+            default:
+                break
+            }
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if hasMarkdownFile(sender) { return .copy }
         return super.draggingEntered(sender)

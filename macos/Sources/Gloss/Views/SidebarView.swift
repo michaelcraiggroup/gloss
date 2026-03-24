@@ -169,7 +169,15 @@ struct SidebarView: View {
             }
         }
         .toolbar {
-            ToolbarItem {
+            ToolbarItemGroup {
+                Button {
+                    fileTree.refreshAfterFileChange()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .help("Refresh file tree")
+                .disabled(!fileTree.hasFolder)
+
                 Button {
                     guard store.gate(.folderSidebar) else { return }
                     openFolderFromSidebar()
