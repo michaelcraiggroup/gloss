@@ -57,8 +57,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.1.1"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: "4"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
         INFOPLIST_KEY_CFBundleDisplayName: Gloss
     dependencies:
