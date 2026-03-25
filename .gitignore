@@ -34,3 +34,8 @@ coverage/
 # Temporary
 tmp/
 temp/
+
+# Editor bundling (npm artifacts)
+macos/node_modules/
+macos/package.json
+macos/package-lock.json

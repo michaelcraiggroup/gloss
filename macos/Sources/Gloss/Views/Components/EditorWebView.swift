@@ -96,10 +96,13 @@ struct EditorWebView: NSViewRepresentable {
 
     private func loadTemplate(into webView: WKWebView, context: Context) {
         let templateURL: URL?
+        let bundleURL: URL?
         #if XCODE_BUILD
         templateURL = Bundle.main.url(forResource: "editor", withExtension: "html")
+        bundleURL = Bundle.main.url(forResource: "codemirror-bundle", withExtension: "js")
         #else
         templateURL = Bundle.module.url(forResource: "editor", withExtension: "html")
+        bundleURL = Bundle.module.url(forResource: "codemirror-bundle", withExtension: "js")
         #endif
 
         var html: String
@@ -108,6 +111,15 @@ struct EditorWebView: NSViewRepresentable {
         } else {
             html = "<html><body><p>Failed to load editor template</p></body></html>"
         }
+
+        // Inject CodeMirror 6 bundle inline — avoids CDN/CORS issues entirely
+        let bundleJS: String
+        if let bundleURL, let js = try? String(contentsOf: bundleURL, encoding: .utf8) {
+            bundleJS = js
+        } else {
+            bundleJS = "console.error('Failed to load CodeMirror bundle');"
+        }
+        html = html.replacingOccurrences(of: "/* CODEMIRROR_BUNDLE */", with: bundleJS)
 
         // Inject theme class
         html = html.replacingOccurrences(
@@ -127,19 +139,7 @@ struct EditorWebView: NSViewRepresentable {
         context.coordinator.lastFontSize = fontSize
         context.coordinator.lastFileURL = fileURL
 
-        // Write to a temp file in the same directory as the document so that:
-        // 1. loadFileURL gives a proper file:// origin (not null)
-        // 2. ES module imports from CDN work (CORS needs a real origin)
-        // 3. Relative image paths in markdown resolve correctly
-        let dir = fileURL.deletingLastPathComponent()
-        let tempFile = dir.appendingPathComponent(".gloss-editor-temp.html")
-        do {
-            try html.write(to: tempFile, atomically: true, encoding: .utf8)
-            webView.loadFileURL(tempFile, allowingReadAccessTo: dir)
-        } catch {
-            // Fallback to loadHTMLString if write fails (e.g. read-only directory)
-            webView.loadHTMLString(html, baseURL: dir)
-        }
+        webView.loadHTMLString(html, baseURL: fileURL.deletingLastPathComponent())
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, @unchecked Sendable {

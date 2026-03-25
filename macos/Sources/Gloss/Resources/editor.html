@@ -166,34 +166,22 @@
 <body>
     <div id="loading">Loading editor&#8230;</div>
     <div id="editor" style="display: none;"></div>
+    <script>/* CODEMIRROR_BUNDLE */</script>
     <script>
-    // Timeout: show error if ES modules fail to load from CDN
-    setTimeout(function() {
-        var el = document.getElementById('loading');
-        if (el && el.style.display !== 'none') {
-            el.textContent = 'Editor failed to load \u2014 check network connection';
-            el.style.color = 'orange';
-        }
-    }, 15000);
-    </script>
-    <script type="module">
-        // ── Imports ──
-        // Individual packages for full control over live preview APIs
-        import {
+        // ── Destructure from locally bundled CodeMirror ──
+        const {
             EditorView, ViewPlugin, Decoration, WidgetType,
             lineNumbers, highlightActiveLineGutter, highlightActiveLine,
             drawSelection, dropCursor, rectangularSelection, crosshairCursor,
-            highlightSpecialChars, keymap
-        } from 'https://esm.sh/@codemirror/view@6.36.5';
-        import {EditorState} from 'https://esm.sh/@codemirror/state@6.5.2';
-        import {
+            highlightSpecialChars, keymap,
+            EditorState,
             syntaxTree, defaultHighlightStyle, syntaxHighlighting,
-            indentOnInput, bracketMatching, foldGutter, foldKeymap
-        } from 'https://esm.sh/@codemirror/language@6.10.8';
-        import {markdown, markdownLanguage} from 'https://esm.sh/@codemirror/lang-markdown@6.3.1';
-        import {defaultKeymap, history, historyKeymap} from 'https://esm.sh/@codemirror/commands@6.8.0';
-        import {closeBrackets, closeBracketsKeymap} from 'https://esm.sh/@codemirror/autocomplete@6.18.4';
-        import {searchKeymap, highlightSelectionMatches} from 'https://esm.sh/@codemirror/search@6.5.8';
+            indentOnInput, bracketMatching, foldGutter, foldKeymap,
+            markdown, markdownLanguage,
+            defaultKeymap, history, historyKeymap,
+            closeBrackets, closeBracketsKeymap,
+            searchKeymap, highlightSelectionMatches
+        } = CM;
 
         // ── State ──
         let isDirty = false;
