@@ -54,8 +54,6 @@ struct EditorWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        // Allow ES module imports from HTTPS CDNs when loaded from file:// origin
-        config.preferences.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
         config.userContentController.add(context.coordinator, name: "glossEditor")
 
         let webView = GlossEditorWebView(frame: .zero, configuration: config)
