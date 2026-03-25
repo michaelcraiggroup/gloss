@@ -317,8 +317,12 @@ struct ContentView: View {
             linkIndex.updateIndex(for: fileURL)
             settings.currentFileURL = fileURL
             settings.lastOpenedFile = fileURL.path
-            isEditing = true
             isEditorDirty = false
+            // Defer edit mode to next run loop — onChange(of: fileURL)
+            // resets isEditing = false, so we must set it after that fires.
+            Task { @MainActor in
+                isEditing = true
+            }
         } catch {
             // File creation failed silently
         }
