@@ -54,6 +54,8 @@ struct EditorWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        // Allow ES module imports from HTTPS CDNs when loaded from file:// origin
+        config.preferences.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
         config.userContentController.add(context.coordinator, name: "glossEditor")
 
         let webView = GlossEditorWebView(frame: .zero, configuration: config)
@@ -127,7 +129,19 @@ struct EditorWebView: NSViewRepresentable {
         context.coordinator.lastFontSize = fontSize
         context.coordinator.lastFileURL = fileURL
 
-        webView.loadHTMLString(html, baseURL: fileURL.deletingLastPathComponent())
+        // Write to a temp file in the same directory as the document so that:
+        // 1. loadFileURL gives a proper file:// origin (not null)
+        // 2. ES module imports from CDN work (CORS needs a real origin)
+        // 3. Relative image paths in markdown resolve correctly
+        let dir = fileURL.deletingLastPathComponent()
+        let tempFile = dir.appendingPathComponent(".gloss-editor-temp.html")
+        do {
+            try html.write(to: tempFile, atomically: true, encoding: .utf8)
+            webView.loadFileURL(tempFile, allowingReadAccessTo: dir)
+        } catch {
+            // Fallback to loadHTMLString if write fails (e.g. read-only directory)
+            webView.loadHTMLString(html, baseURL: dir)
+        }
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, @unchecked Sendable {

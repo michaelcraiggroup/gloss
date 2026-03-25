@@ -166,6 +166,16 @@
 <body>
     <div id="loading">Loading editor&#8230;</div>
     <div id="editor" style="display: none;"></div>
+    <script>
+    // Timeout: show error if ES modules fail to load from CDN
+    setTimeout(function() {
+        var el = document.getElementById('loading');
+        if (el && el.style.display !== 'none') {
+            el.textContent = 'Editor failed to load \u2014 check network connection';
+            el.style.color = 'orange';
+        }
+    }, 15000);
+    </script>
     <script type="module">
         // ── Imports ──
         // Individual packages for full control over live preview APIs
