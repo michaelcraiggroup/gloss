@@ -6,35 +6,39 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        /* Night Owl Light — matches gloss-theme.css */
         :root {
-            --bg: #ffffff;
-            --fg: #333333;
-            --code-bg: #f5f5f5;
-            --border: #e0e0e0;
-            --accent: #0d9488;
-            --selection: rgba(13, 148, 136, 0.2);
-            --gutter-bg: #f8f8f8;
-            --gutter-fg: #999999;
-            --cursor: #333333;
+            --bg: #FBFBFB;
+            --fg: #403f53;
+            --code-bg: #F0F0F0;
+            --border: #E0E0E0;
+            --accent: #4876d6;
+            --accent-light: #0c969b;
+            --selection: rgba(72, 118, 214, 0.2);
+            --gutter-bg: #F0F0F0;
+            --gutter-fg: #90a0b7;
+            --cursor: #403f53;
             --line-highlight: rgba(0, 0, 0, 0.04);
             --font-size: 16px;
-            --quote-border: #0d9488;
-            --hr-color: #e0e0e0;
+            --quote-border: #0c969b;
+            --hr-color: #E0E0E0;
         }
 
+        /* Night Owl Dark — matches gloss-theme.css */
         html.dark {
-            --bg: #1e1e1e;
-            --fg: #d4d4d4;
-            --code-bg: #2d2d2d;
-            --border: #404040;
-            --accent: #14b8a6;
-            --selection: rgba(20, 184, 166, 0.3);
-            --gutter-bg: #252525;
-            --gutter-fg: #858585;
-            --cursor: #d4d4d4;
+            --bg: #011627;
+            --fg: #d6deeb;
+            --code-bg: #0b253a;
+            --border: #102a44;
+            --accent: #82AAFF;
+            --accent-light: #7fdbca;
+            --selection: rgba(130, 170, 255, 0.25);
+            --gutter-bg: #001122;
+            --gutter-fg: #4b6479;
+            --cursor: #d6deeb;
             --line-highlight: rgba(255, 255, 255, 0.04);
-            --quote-border: #14b8a6;
-            --hr-color: #404040;
+            --quote-border: #7fdbca;
+            --hr-color: #102a44;
         }
 
         body {
@@ -86,32 +90,34 @@
             font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
         }
 
-        /* Default syntax token colors */
-        .cm-editor .tok-heading { font-weight: bold; color: var(--fg); }
+        /* Syntax token colors — Night Owl palette */
+        .cm-editor .tok-heading { font-weight: 600; color: var(--fg); }
         .cm-editor .tok-strong { font-weight: bold; }
         .cm-editor .tok-emphasis { font-style: italic; }
         .cm-editor .tok-strikethrough { text-decoration: line-through; }
-        .cm-editor .tok-link { color: var(--accent); }
+        .cm-editor .tok-link { color: var(--accent-light); }
         .cm-editor .tok-url { color: var(--accent); opacity: 0.7; }
         .cm-editor .tok-meta { color: var(--gutter-fg); }
         .cm-editor .tok-comment { color: var(--gutter-fg); font-style: italic; }
 
         /* ── Live Preview Decorations ── */
 
-        /* Headings: sized on non-active lines */
-        .cm-preview-h1 { font-size: 2em; font-weight: bold; line-height: 1.3; margin-top: 0.4em; }
-        .cm-preview-h2 { font-size: 1.5em; font-weight: bold; line-height: 1.3; padding-bottom: 0.2em; border-bottom: 1px solid var(--border); }
-        .cm-preview-h3 { font-size: 1.25em; font-weight: bold; line-height: 1.4; }
-        .cm-preview-h4 { font-size: 1.1em; font-weight: bold; }
-        .cm-preview-h5 { font-size: 1.05em; font-weight: bold; }
-        .cm-preview-h6 { font-size: 1em; font-weight: bold; color: var(--gutter-fg); }
+        /* Headings: sized on non-active lines — matches gloss-theme.css */
+        .cm-preview-h1 { font-size: 2em; font-weight: 600; line-height: 1.3; margin-top: 0.4em; padding-bottom: 0.3em; border-bottom: 2px solid var(--accent-light); }
+        .cm-preview-h2 { font-size: 1.5em; font-weight: 600; line-height: 1.3; padding-bottom: 0.2em; border-bottom: 1px solid var(--border); }
+        .cm-preview-h3 { font-size: 1.25em; font-weight: 600; line-height: 1.4; }
+        .cm-preview-h4 { font-size: 1.1em; font-weight: 600; }
+        .cm-preview-h5 { font-size: 1.05em; font-weight: 600; }
+        .cm-preview-h6 { font-size: 1em; font-weight: 600; color: var(--gutter-fg); }
 
-        /* Links: accent-colored text on non-active lines */
+        /* Links: accent-light colored (matches gloss-theme.css a) */
         .cm-preview-link {
-            color: var(--accent);
-            text-decoration: underline;
-            text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+            color: var(--accent-light);
+            text-decoration: none;
             cursor: pointer;
+        }
+        .cm-preview-link:hover {
+            text-decoration: underline;
         }
 
         /* Horizontal rule widget */
@@ -122,10 +128,12 @@
             display: block;
         }
 
-        /* Blockquote lines */
+        /* Blockquote lines — matches gloss-theme.css blockquote */
         .cm-preview-blockquote {
-            border-left: 3px solid var(--quote-border);
-            padding-left: 12px !important;
+            border-left: 4px solid var(--quote-border);
+            padding-left: 16px !important;
+            background: var(--code-bg);
+            border-radius: 0 8px 8px 0;
         }
 
         /* Interactive checkboxes */
