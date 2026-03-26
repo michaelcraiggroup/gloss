@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SwiftData
 
@@ -336,6 +337,11 @@ struct SidebarView: View {
                             } label: {
                                 Label("Copy Path", systemImage: "link")
                             }
+                            Button {
+                                NSWorkspace.shared.activateFileViewerSelecting([node.url])
+                            } label: {
+                                Label("Reveal in Finder", systemImage: "arrow.right.circle")
+                            }
                             Divider()
                             Button {
                                 contextMenuTargetURL = node.url
@@ -387,6 +393,11 @@ struct SidebarView: View {
             NSPasteboard.general.setString(url.path, forType: .string)
         } label: {
             Label("Copy Path", systemImage: "link")
+        }
+        Button {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } label: {
+            Label("Reveal in Finder", systemImage: "arrow.right.circle")
         }
         Divider()
         Button {

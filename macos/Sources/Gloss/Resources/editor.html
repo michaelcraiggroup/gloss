@@ -452,6 +452,46 @@
             '.cm-activeLine': { backgroundColor: 'var(--line-highlight)' },
         });
 
+        // ── Markdown Formatting Commands ──
+
+        function wrapSelection(view, before, after) {
+            const {state} = view;
+            const changes = state.changeByRange(range => {
+                const selected = state.doc.sliceString(range.from, range.to);
+                const insert = before + selected + after;
+                return {
+                    changes: {from: range.from, to: range.to, insert},
+                    range: EditorState.cursor(range.from + before.length + selected.length + after.length)
+                };
+            });
+            view.dispatch(changes);
+            return true;
+        }
+
+        function insertLink(view) {
+            const {state} = view;
+            const changes = state.changeByRange(range => {
+                const selected = state.doc.sliceString(range.from, range.to);
+                const insert = '[' + selected + '](url)';
+                // Place cursor inside (url), selecting "url"
+                const urlStart = range.from + 1 + selected.length + 2;
+                return {
+                    changes: {from: range.from, to: range.to, insert},
+                    range: EditorState.cursor(urlStart + 3)
+                };
+            });
+            view.dispatch(changes);
+            return true;
+        }
+
+        const markdownKeymap = [
+            {key: 'Mod-b', run: (view) => wrapSelection(view, '**', '**')},
+            {key: 'Mod-i', run: (view) => wrapSelection(view, '*', '*')},
+            {key: 'Mod-Shift-x', run: (view) => wrapSelection(view, '~~', '~~')},
+            {key: 'Mod-e', run: (view) => wrapSelection(view, '`', '`')},
+            {key: 'Mod-k', run: (view) => insertLink(view)},
+        ];
+
         // ── Editor Setup ──
         const view = new EditorView({
             state: EditorState.create({
@@ -475,6 +515,7 @@
                     highlightActiveLine(),
                     highlightSelectionMatches(),
                     keymap.of([
+                        ...markdownKeymap,
                         ...closeBracketsKeymap,
                         ...defaultKeymap,
                         ...searchKeymap,
