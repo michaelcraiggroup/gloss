@@ -325,6 +325,19 @@ struct SidebarView: View {
                             }
                             Divider()
                             Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(node.name, forType: .string)
+                            } label: {
+                                Label("Copy Filename", systemImage: "doc.on.doc")
+                            }
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(node.url.path, forType: .string)
+                            } label: {
+                                Label("Copy Path", systemImage: "link")
+                            }
+                            Divider()
+                            Button {
                                 contextMenuTargetURL = node.url
                                 renameFileName = node.name
                                 showingRenameAlert = true
@@ -361,6 +374,19 @@ struct SidebarView: View {
                 favorited ? "Remove from Favorites" : "Add to Favorites",
                 systemImage: favorited ? "star.slash" : "star"
             )
+        }
+        Divider()
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(url.lastPathComponent, forType: .string)
+        } label: {
+            Label("Copy Filename", systemImage: "doc.on.doc")
+        }
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(url.path, forType: .string)
+        } label: {
+            Label("Copy Path", systemImage: "link")
         }
         Divider()
         Button {
