@@ -199,9 +199,11 @@ struct WebView: NSViewRepresentable {
                     forName: .glossGuideDispatchWeb, object: nil, queue: .main
                 ) { [weak self] notification in
                     let step = notification.object as? WebStep
+                    let current = notification.userInfo?["current"] as? Int ?? 1
+                    let total = notification.userInfo?["total"] as? Int ?? 1
                     MainActor.assumeIsolated {
                         guard let step else { return }
-                        self?.dispatchGuideStep(step)
+                        self?.dispatchGuideStep(step, current: current, total: total)
                     }
                 }
             )
@@ -313,7 +315,7 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        private func dispatchGuideStep(_ step: WebStep) {
+        private func dispatchGuideStep(_ step: WebStep, current: Int, total: Int) {
             guard let jsonData = try? JSONSerialization.data(
                 withJSONObject: step.jsonObject, options: []
             ), let jsonString = String(data: jsonData, encoding: .utf8) else {
@@ -325,7 +327,7 @@ struct WebView: NSViewRepresentable {
             (function() {
                 function dispatch() {
                     if (window.glossGuide) {
-                        window.glossGuide.startStep(\(jsonString));
+                        window.glossGuide.startStep(\(jsonString), \(current), \(total));
                     } else {
                         setTimeout(dispatch, 100);
                     }

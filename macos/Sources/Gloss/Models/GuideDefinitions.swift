@@ -59,7 +59,7 @@ extension WalkthroughGuide {
                 type: "spotlight",
                 target: "pre",
                 content: "**Syntax highlighting** \u{2014} code blocks are highlighted automatically. Hover to reveal a one-click copy button.",
-                placement: "bottom"
+                placement: "top"
             )),
 
             // 4. Diagrams & math

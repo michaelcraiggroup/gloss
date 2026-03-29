@@ -34,6 +34,24 @@ struct GuideInjector {
         // The IIFE bundle defines var RabbleGuideModule = (function(exports){...})({}).
         // We assign window.RabbleGuide after the IIFE so the global is available.
         let initScript = """
+        <style>
+        .rg-popover, .rg-popover .rg-popover__content,
+        .rg-popover .rg-popover__content p,
+        .rg-popover .rg-popover__content li,
+        .rg-popover .rg-popover__content h1,
+        .rg-popover .rg-popover__content h2,
+        .rg-popover .rg-popover__content h3 {
+            color: #1a1a2e !important;
+        }
+        .rg-popover .rg-popover__content code {
+            color: #1a1a2e !important;
+            background: rgba(0, 0, 0, 0.06) !important;
+        }
+        .rg-popover .rg-popover__content a {
+            color: var(--rg-primary, #4876d6) !important;
+        }
+        .rg-btn--primary { color: #ffffff !important; }
+        </style>
         <script>\(bundleJS)
         ;window.RabbleGuide=RabbleGuideModule.RabbleGuide;</script>
         <script>
@@ -57,12 +75,18 @@ struct GuideInjector {
                 var suppressStop = false;
 
                 window.glossGuide = {
-                    startStep: function(stepJSON) {
+                    startStep: function(stepJSON, current, total) {
                         stepCounter++;
                         suppressStop = true;
                         sdk.stop();
                         suppressStop = false;
-                        sdk.start({ id: 'gloss-' + stepCounter + '-' + stepJSON.id, name: 'step', version: 1, steps: [stepJSON] });
+                        sdk.start({ id: 'gloss-' + stepCounter + '-' + stepJSON.id, name: 'step', version: 1, steps: [stepJSON] })
+                            .then(function() {
+                                var el = document.querySelector('.rg-popover__progress');
+                                if (el && current && total) {
+                                    el.textContent = current + ' of ' + total;
+                                }
+                            });
                     },
                     stop: function() {
                         suppressStop = true;

@@ -124,7 +124,11 @@ final class GlossGuideService {
     private func dispatchWebStep(_ step: WebStep) {
         NotificationCenter.default.post(
             name: .glossGuideDispatchWeb,
-            object: step
+            object: step,
+            userInfo: [
+                "current": currentStepIndex + 1,
+                "total": activeGuide?.steps.count ?? 0,
+            ]
         )
     }
 
