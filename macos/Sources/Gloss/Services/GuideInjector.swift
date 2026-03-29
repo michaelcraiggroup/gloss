@@ -31,8 +31,9 @@ struct GuideInjector {
 
     private static func injectScript(_ bundleJS: String, into html: String) -> String {
         let post = postGuide
-        // The IIFE bundle defines var RabbleGuideModule = (function(exports){...})({}).
-        // We assign window.RabbleGuide after the IIFE so the global is available.
+        // CSS is injected immediately (non-blocking), but the 70KB SDK bundle and
+        // initialization are deferred with setTimeout(0) so they run after the first
+        // paint — the SDK is inert until startStep() anyway.
         let initScript = """
         <style>
         .rg-popover, .rg-popover .rg-popover__content,
@@ -56,10 +57,11 @@ struct GuideInjector {
         }
         .rg-btn--primary { color: #ffffff !important; }
         </style>
-        <script>\(bundleJS)
-        ;window.RabbleGuide=RabbleGuideModule.RabbleGuide;</script>
         <script>
-        (function() {
+        setTimeout(function() {
+            \(bundleJS)
+            ;window.RabbleGuide=RabbleGuideModule.RabbleGuide;
+
             var post = function(obj) { \(post("JSON.stringify(obj)")); };
             try {
                 if (!window.RabbleGuide) {
@@ -88,7 +90,6 @@ struct GuideInjector {
                         suppressStop = false;
                         sdk.reset(guideId);
 
-                        // Scroll spotlight targets into view first
                         var doStart = function() {
                             sdk.start({ id: guideId, name: 'step', version: 1, steps: [stepJSON] })
                                 .then(function() {
@@ -96,13 +97,16 @@ struct GuideInjector {
                                     if (el && current && total) {
                                         el.textContent = current + ' of ' + total;
                                     }
+                                })
+                                .catch(function(err) {
+                                    post({ type: 'error', message: 'start failed: ' + String(err) });
                                 });
                         };
                         if (stepJSON.target) {
                             var target = document.querySelector(stepJSON.target);
                             if (target) {
                                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                setTimeout(doStart, 400);
+                                setTimeout(doStart, 250);
                             } else { doStart(); }
                         } else { doStart(); }
                     },
@@ -127,7 +131,7 @@ struct GuideInjector {
             } catch(e) {
                 post({ type: 'error', message: String(e) });
             }
-        })();
+        }, 0);
         </script>
         """
 
