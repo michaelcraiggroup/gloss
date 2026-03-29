@@ -68,7 +68,7 @@ extension WalkthroughGuide {
                 type: "spotlight",
                 target: "pre.mermaid",
                 content: "**Diagrams & Math** \u{2014} Mermaid diagrams and LaTeX math (KaTeX) render automatically from standard fenced blocks. No plugins needed.",
-                placement: "top"
+                placement: "bottom"
             )),
 
             // 5. Edit mode — native spotlight
