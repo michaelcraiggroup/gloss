@@ -10,8 +10,10 @@ struct ContentView: View {
     @Environment(ContentSearchService.self) private var contentSearch
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
+    @Environment(GlossGuideService.self) private var guideService
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var spotlightFrames: [SpotlightTarget: CGRect] = [:]
     @State private var inspectorIsShown = false
     @State private var headings: [HeadingInfo] = []
     @State private var frontmatter: FrontmatterData?
@@ -103,6 +105,21 @@ struct ContentView: View {
         } message: {
             Text("Enter a name for the new markdown file.")
         }
+        .overlay {
+            NativeSpotlightOverlay(spotlightFrames: spotlightFrames)
+        }
+        .onPreferenceChange(SpotlightPreferenceKey.self) { frames in
+            spotlightFrames = frames
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossGuideReady)) { _ in
+            guideService.handleWebSDKReady()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossGuideStepComplete)) { _ in
+            guideService.handleWebStepComplete()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossGuideStopped)) { _ in
+            guideService.skip()
+        }
     }
 
     // MARK: - Detail View
@@ -191,6 +208,7 @@ struct ContentView: View {
                     }
                     .foregroundStyle(isCurrentFileFavorited ? .yellow : .secondary)
                     .help("Toggle Favorite (⌘D)")
+                    .spotlightTarget(.toolbarFavorite)
                 }
             }
 
@@ -205,6 +223,7 @@ struct ContentView: View {
                 }
                 .help(isEditing ? "Switch to Reading Mode (⇧⌘E)" : "Switch to Edit Mode (⇧⌘E)")
                 .disabled(settings.currentFileURL == nil)
+                .spotlightTarget(.toolbarEditMode)
             }
 
             ToolbarItem(placement: .primaryAction) {
@@ -216,6 +235,7 @@ struct ContentView: View {
                 }
                 .help("Toggle Inspector (⌥⌘I)")
                 .disabled(settings.currentFileURL == nil)
+                .spotlightTarget(.toolbarInspectorToggle)
             }
 
             if settings.currentFileURL != nil {

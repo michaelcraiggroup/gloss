@@ -71,6 +71,7 @@ struct InspectorView: View {
                             }
                         }
                     }
+                    .spotlightTarget(.inspectorTags)
                 }
 
                 if !backlinks.isEmpty {

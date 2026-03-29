@@ -12,6 +12,11 @@ extension Notification.Name {
     static let glossDocumentLoaded = Notification.Name("glossDocumentLoaded")
     static let glossNavigateWikiLink = Notification.Name("glossNavigateWikiLink")
     static let glossShowPaywall = Notification.Name("glossShowPaywall")
+    static let glossGuideReady = Notification.Name("glossGuideReady")
+    static let glossGuideStepComplete = Notification.Name("glossGuideStepComplete")
+    static let glossGuideStopped = Notification.Name("glossGuideStopped")
+    static let glossGuideDispatchWeb = Notification.Name("glossGuideDispatchWeb")
+    static let glossGuideStopWeb = Notification.Name("glossGuideStopWeb")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.
@@ -114,6 +119,7 @@ struct WebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        config.userContentController.add(context.coordinator, name: "glossGuide")
 
         let webView = DropAcceptingWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
@@ -138,7 +144,7 @@ struct WebView: NSViewRepresentable {
         }
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, @unchecked Sendable {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, @unchecked Sendable {
         weak var webView: WKWebView?
         var lastHTML: String?
         var pendingHighlight: String?
@@ -184,6 +190,31 @@ struct WebView: NSViewRepresentable {
                 ) { [weak self] _ in
                     MainActor.assumeIsolated {
                         self?.exportPDF()
+                    }
+                }
+            )
+            // Dispatch a web guide step
+            observers.append(
+                NotificationCenter.default.addObserver(
+                    forName: .glossGuideDispatchWeb, object: nil, queue: .main
+                ) { [weak self] notification in
+                    let step = notification.object as? WebStep
+                    MainActor.assumeIsolated {
+                        guard let step else { return }
+                        self?.dispatchGuideStep(step)
+                    }
+                }
+            )
+            // Stop web guide
+            observers.append(
+                NotificationCenter.default.addObserver(
+                    forName: .glossGuideStopWeb, object: nil, queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.webView?.evaluateJavaScript(
+                            "window.glossGuide && window.glossGuide.stop()",
+                            completionHandler: nil
+                        )
                     }
                 }
             )
@@ -247,6 +278,43 @@ struct WebView: NSViewRepresentable {
             let escaped = query.replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "'", with: "\\'")
             webView?.evaluateJavaScript("performFind('\(escaped)')", completionHandler: nil)
+        }
+
+        // MARK: - Guide Message Handler
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == "glossGuide",
+                  let body = message.body as? String,
+                  let data = body.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let type = json["type"] as? String else { return }
+
+            MainActor.assumeIsolated {
+                switch type {
+                case "ready":
+                    NotificationCenter.default.post(name: .glossGuideReady, object: nil)
+                case "complete":
+                    NotificationCenter.default.post(name: .glossGuideStepComplete, object: nil)
+                case "skip":
+                    NotificationCenter.default.post(name: .glossGuideStopped, object: nil)
+                default:
+                    break
+                }
+            }
+        }
+
+        private func dispatchGuideStep(_ step: WebStep) {
+            guard let jsonData = try? JSONSerialization.data(
+                withJSONObject: step.jsonObject, options: []
+            ), let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+
+            webView?.evaluateJavaScript(
+                "window.glossGuide && window.glossGuide.startStep(\(jsonString))",
+                completionHandler: nil
+            )
         }
 
         private func exportPDF() {

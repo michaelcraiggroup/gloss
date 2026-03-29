@@ -17,6 +17,7 @@ struct GlossApp: App {
     @State private var contentSearch = ContentSearchService()
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
+    @State private var guideService = GlossGuideService()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
     @FocusedValue(\.goBack) var goBack
@@ -35,6 +36,7 @@ struct GlossApp: App {
                 .environment(contentSearch)
                 .environment(store)
                 .environment(linkIndex)
+                .environment(guideService)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
@@ -226,6 +228,14 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(toggleInspector == nil)
+            }
+            CommandGroup(replacing: .help) {
+                Button("Getting Started Tour") {
+                    guideService.start(guide: .gettingStarted)
+                }
+                Button("What's New: Tags") {
+                    guideService.start(guide: .whatsNewTags)
+                }
             }
         }
 

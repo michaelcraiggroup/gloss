@@ -25,7 +25,7 @@ struct DocumentView: View {
                         fontSize: settings.fontSize
                     )
                 } else if let content = fileContent {
-                    let html = MarkdownRenderer.render(
+                    let rendered = MarkdownRenderer.render(
                         content,
                         isDark: colorScheme == .dark,
                         fontSize: settings.fontSize,
@@ -33,6 +33,7 @@ struct DocumentView: View {
                             resolveWikiLink(target, from: url)
                         }
                     )
+                    let html = GuideInjector.injectGuideSDK(into: rendered)
                     WebView(htmlContent: html, baseURL: url.deletingLastPathComponent(), highlightQuery: highlightQuery)
                 } else {
                     errorState(message: "Could not read file:\n\(url.lastPathComponent)")

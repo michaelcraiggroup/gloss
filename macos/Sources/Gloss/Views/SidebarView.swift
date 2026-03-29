@@ -203,6 +203,7 @@ struct SidebarView: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    .spotlightTarget(.sidebarTagsSection)
                 }
 
                 if !recentDocuments.isEmpty {

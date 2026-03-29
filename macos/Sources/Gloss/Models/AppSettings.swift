@@ -9,6 +9,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("rootFolderPath") var rootFolderPath: String = ""
     @AppStorage("fontSize") var fontSize: Int = 16
     @AppStorage("customEditorPath") var customEditorPath: String = ""
+    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
+    @AppStorage("lastSeenVersion") var lastSeenVersion: String = ""
 
     @Published var currentFileURL: URL?
     @Published var isZenMode: Bool = false

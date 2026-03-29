@@ -18,7 +18,7 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 
 **VS Code Extension (v0.2.2)** — Published on marketplace. Custom webview reader with syntax highlighting, mermaid diagrams, KaTeX math, find-in-page, print, copy buttons, YAML frontmatter stripping, and image rendering. Zero telemetry.
 
-**macOS App (v0.12.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter + tags + backlinks), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, print, StoreKit 2 paywall, navigation history (back/forward), custom editor picker, tag browsing and filtering. 181+ tests passing. Pending: signing, notarization, App Store submission.
+**macOS App (v0.12.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter + tags + backlinks), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, print, StoreKit 2 paywall, navigation history (back/forward), custom editor picker, tag browsing and filtering, interactive feature walkthroughs (Rabble Guide SDK + native overlays). 201 tests passing. Pending: signing, notarization, App Store submission.
 
 ---
 
@@ -281,6 +281,17 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] Tag click filters sidebar in-place (from inspector or sidebar)
 - [x] SearchScope.tags — search/filter tags by name
 - [x] 10 new tests, 181+ tests passing
+
+#### Phase 8.6: Feature Walkthroughs ✅
+- [x] Rabble Guide SDK IIFE bundle (70KB, bundled as SPM resource)
+- [x] WalkthroughStep model + SpotlightTarget enum + SpotlightPreference system
+- [x] GlossGuideService — @Observable @MainActor coordinator, sequences native + web steps
+- [x] GuideInjector — injects Rabble Guide SDK into rendered HTML
+- [x] WebView glossGuide message handler (WKScriptMessageHandler bridge)
+- [x] NativeSpotlightOverlay — SwiftUI full-window overlay with spotlight cutout
+- [x] Guide definitions: "Getting Started" (7 steps) + "What's New: Tags" (3 steps)
+- [x] Help menu integration, onboarding AppStorage tracking
+- [x] 201 tests passing (no regressions)
 
 #### Phase 9: Graph Visualization (Planned)
 - [ ] D3.js force-directed graph in WKWebView tab
