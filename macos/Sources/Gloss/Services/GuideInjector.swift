@@ -5,15 +5,15 @@ struct GuideInjector {
     /// Inject the Rabble Guide IIFE bundle and initialization code into HTML.
     /// The SDK is inert until `window.glossGuide.startStep()` is called.
     static func injectGuideSDK(into html: String) -> String {
-        guard let bundleURL = Bundle.main.url(forResource: "rabble-guide", withExtension: "js"),
+        let bundleURL: URL?
+        #if XCODE_BUILD
+        bundleURL = Bundle.main.url(forResource: "rabble-guide", withExtension: "js")
+        #else
+        bundleURL = Bundle.module.url(forResource: "rabble-guide", withExtension: "js")
+        #endif
+
+        guard let bundleURL,
               let bundleJS = try? String(contentsOf: bundleURL, encoding: .utf8) else {
-            #if SPM_BUILD
-            // Try SPM bundle
-            if let bundleURL = Bundle.module.url(forResource: "rabble-guide", withExtension: "js"),
-               let bundleJS = try? String(contentsOf: bundleURL, encoding: .utf8) {
-                return injectScript(bundleJS, into: html)
-            }
-            #endif
             return html // Graceful degradation
         }
         return injectScript(bundleJS, into: html)
