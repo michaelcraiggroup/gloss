@@ -194,6 +194,49 @@ struct LinkDatabase: Sendable {
         }
     }
 
+    // MARK: - Tag Queries
+
+    /// All unique tags in the vault with their file counts, sorted alphabetically.
+    func allTagCounts() throws -> [(tag: String, count: Int)] {
+        try dbQueue.read { db in
+            try Row.fetchAll(
+                db,
+                sql: "SELECT tag, COUNT(*) AS cnt FROM tags GROUP BY tag ORDER BY tag COLLATE NOCASE"
+            ).map { row in
+                (tag: row["tag"] as String, count: row["cnt"] as Int)
+            }
+        }
+    }
+
+    /// All tags for a specific file.
+    func tags(forFileId fileId: Int64) throws -> [String] {
+        try dbQueue.read { db in
+            try String.fetchAll(
+                db,
+                sql: "SELECT tag FROM tags WHERE fileId = ? ORDER BY tag COLLATE NOCASE",
+                arguments: [fileId]
+            )
+        }
+    }
+
+    /// All files that have a specific tag.
+    func files(forTag tag: String) throws -> [(path: String, title: String)] {
+        try dbQueue.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT f.path, f.title FROM files f
+                    JOIN tags t ON t.fileId = f.id
+                    WHERE t.tag = ?
+                    ORDER BY f.title COLLATE NOCASE
+                    """,
+                arguments: [tag]
+            ).map { row in
+                (path: row["path"] as String, title: row["title"] as String)
+            }
+        }
+    }
+
     // MARK: - Queries
 
     /// Fetch backlinks for a file at the given path — other files that link TO this file.

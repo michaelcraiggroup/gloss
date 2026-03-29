@@ -121,6 +121,7 @@ struct ContentView: View {
             InspectorView(
                 headings: headings,
                 frontmatter: frontmatter,
+                tags: linkIndex.currentFileTags,
                 backlinks: linkIndex.backlinks,
                 hasDocument: settings.currentFileURL != nil,
                 onHeadingTap: { headingID in
@@ -128,6 +129,9 @@ struct ContentView: View {
                         name: .glossScrollToHeading,
                         object: headingID
                     )
+                },
+                onTagTap: { tag in
+                    fileTree.filterByTag(tag, files: linkIndex.files(forTag: tag))
                 },
                 onBacklinkTap: { sourcePath in
                     let url = URL(fileURLWithPath: sourcePath)

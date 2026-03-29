@@ -27,7 +27,77 @@ struct SidebarView: View {
             get: { fileTree.selectedFileURL },
             set: { selectFile($0) }
         )) {
-            if searchScope == .content && !searchText.isEmpty {
+            // Tag filter banner (shown when filtering by tag from inspector or sidebar)
+            if let activeTag = fileTree.activeTagFilter,
+               let tagFiles = fileTree.tagFilteredFiles {
+                Section {
+                    HStack {
+                        Label(activeTag, systemImage: "tag.fill")
+                            .font(.caption)
+                            .foregroundStyle(.teal)
+                        Spacer()
+                        Button {
+                            fileTree.clearTagFilter()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text("Filtered by Tag")
+                }
+
+                Section("Results (\(tagFiles.count))") {
+                    if tagFiles.isEmpty {
+                        Text("No files with this tag")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(tagFiles, id: \.path) { file in
+                            let url = URL(fileURLWithPath: file.path)
+                            let parentFolder = url.deletingLastPathComponent().lastPathComponent
+                            let docType = DocumentType.detect(
+                                filename: url.lastPathComponent, folderName: parentFolder
+                            )
+                            Label {
+                                Text(file.title)
+                                    .lineLimit(1)
+                            } icon: {
+                                Text(docType.icon)
+                            }
+                            .tag(url)
+                            .contextMenu { favoriteContextMenu(for: url) }
+                        }
+                    }
+                }
+            } else if searchScope == .tags && !searchText.isEmpty {
+                // Tag search results
+                Section("Matching Tags") {
+                    let matchingTags = linkIndex.allTags.filter {
+                        $0.tag.localizedCaseInsensitiveContains(searchText)
+                    }
+                    if matchingTags.isEmpty {
+                        Text("No matching tags")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(matchingTags, id: \.tag) { item in
+                            Button {
+                                fileTree.filterByTag(item.tag, files: linkIndex.files(forTag: item.tag))
+                                searchText = ""
+                            } label: {
+                                HStack {
+                                    Label(item.tag, systemImage: "tag")
+                                    Spacer()
+                                    Text("\(item.count)")
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            } else if searchScope == .content && !searchText.isEmpty {
                 // Content search results
                 Section("Content Results") {
                     if contentSearch.isSearching {
@@ -62,8 +132,8 @@ struct SidebarView: View {
                         }
                     }
                 }
-            } else if searchScope == .filename {
-                // Normal browsing mode (no search active)
+            } else if searchScope == .filename || searchScope == .tags {
+                // Normal browsing mode (no search active, or tags scope without query)
                 browseSection
 
                 if !favoriteDocuments.isEmpty {
@@ -115,6 +185,26 @@ struct SidebarView: View {
                     }
                 }
 
+                if !linkIndex.allTags.isEmpty {
+                    Section("Tags") {
+                        ForEach(linkIndex.allTags.prefix(20), id: \.tag) { item in
+                            Button {
+                                fileTree.filterByTag(item.tag, files: linkIndex.files(forTag: item.tag))
+                            } label: {
+                                HStack {
+                                    Label(item.tag, systemImage: "tag")
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text("\(item.count)")
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
                 if !recentDocuments.isEmpty {
                     Section("Recent Documents") {
                         ForEach(recentDocuments.prefix(10)) { doc in
@@ -156,7 +246,7 @@ struct SidebarView: View {
             }
         }
         .onChange(of: searchScope) { _, scope in
-            if scope == .content && !store.isUnlocked {
+            if (scope == .content || scope == .tags) && !store.isUnlocked {
                 searchScope = .filename
                 _ = store.gate(.fullTextSearch)
                 return
@@ -164,7 +254,7 @@ struct SidebarView: View {
             fileTree.searchScope = scope
             if scope == .content && !searchText.isEmpty {
                 contentSearch.search(query: searchText, rootURL: fileTree.activeNode?.url)
-            } else if scope == .filename {
+            } else if scope == .filename || scope == .tags {
                 contentSearch.cancel()
                 contentSearch.results = []
             }

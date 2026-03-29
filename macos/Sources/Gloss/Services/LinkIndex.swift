@@ -8,6 +8,8 @@ import GlossKit
 final class LinkIndex {
     var backlinks: [BacklinkGroup] = []
     var recentlyChanged: [(path: String, title: String, modifiedAt: Date)] = []
+    var allTags: [(tag: String, count: Int)] = []
+    var currentFileTags: [String] = []
     var isIndexing: Bool = false
 
     private var database: LinkDatabase?
@@ -41,8 +43,9 @@ final class LinkIndex {
                 // Resolve cross-references
                 try db.resolveAllLinks()
 
-                // Populate recently changed files
+                // Populate recently changed files and tags
                 self.recentlyChanged = (try? db.recentlyChangedFiles()) ?? []
+                self.allTags = (try? db.allTagCounts()) ?? []
 
                 isIndexing = false
             } catch {
@@ -62,6 +65,7 @@ final class LinkIndex {
                 // Refresh backlinks if we're viewing a file
                 refreshBacklinks(for: fileURL)
                 recentlyChanged = (try? db.recentlyChangedFiles()) ?? []
+                allTags = (try? db.allTagCounts()) ?? []
             } catch {
                 // Index update failed silently
             }
@@ -97,14 +101,26 @@ final class LinkIndex {
         }
     }
 
-    /// Refresh the backlinks array for the currently viewed file.
+    /// Refresh the backlinks and tags for the currently viewed file.
     func refreshBacklinks(for fileURL: URL?) {
         guard let db = database, let fileURL else {
             backlinks = []
+            currentFileTags = []
             return
         }
 
-        guard let links = try? db.backlinks(forPath: fileURL.standardizedFileURL.path), !links.isEmpty else {
+        let standardizedPath = fileURL.standardizedFileURL.path
+
+        // Refresh tags for current file
+        if let fileId = try? db.fileId(forPath: standardizedPath),
+           let tags = try? db.tags(forFileId: fileId) {
+            currentFileTags = tags
+        } else {
+            currentFileTags = []
+        }
+
+        // Refresh backlinks
+        guard let links = try? db.backlinks(forPath: standardizedPath), !links.isEmpty else {
             backlinks = []
             return
         }
@@ -114,6 +130,12 @@ final class LinkIndex {
             guard let typeLinks = grouped[type], !typeLinks.isEmpty else { return nil }
             return BacklinkGroup(linkType: type, links: typeLinks)
         }
+    }
+
+    /// Get file paths for a specific tag.
+    func files(forTag tag: String) -> [(path: String, title: String)] {
+        guard let db = database else { return [] }
+        return (try? db.files(forTag: tag)) ?? []
     }
 
     // MARK: - Static Helpers (nonisolated for TaskGroup)

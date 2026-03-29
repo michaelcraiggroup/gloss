@@ -30,6 +30,8 @@ final class FileTreeModel {
     var scopedNode: FileTreeNode?
     var sortOrder: SortOrder = .name
     var sortDirection: SortDirection = .ascending
+    var activeTagFilter: String?
+    var tagFilteredFiles: [(path: String, title: String)]?
 
     private var pollTimer: Timer?
 
@@ -176,6 +178,20 @@ final class FileTreeModel {
         }
     }
 
+    // MARK: - Tag Filtering
+
+    /// Filter the sidebar to show only files with a specific tag.
+    func filterByTag(_ tag: String, files: [(path: String, title: String)]) {
+        activeTagFilter = tag
+        tagFilteredFiles = files
+    }
+
+    /// Clear the active tag filter.
+    func clearTagFilter() {
+        activeTagFilter = nil
+        tagFilteredFiles = nil
+    }
+
     // MARK: - Directory Polling
 
     private func startPolling() {
@@ -256,4 +272,5 @@ final class FileTreeModel {
 enum SearchScope: String, CaseIterable {
     case filename = "Filenames"
     case content = "Content"
+    case tags = "Tags"
 }
