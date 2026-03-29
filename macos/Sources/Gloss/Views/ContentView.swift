@@ -13,8 +13,7 @@ struct ContentView: View {
     @Environment(GlossGuideService.self) private var guideService
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
-    @State private var spotlightFrames: [SpotlightTarget: CGRect] = [:]
-    @State private var inspectorIsShown = false
+@State private var inspectorIsShown = false
     @State private var headings: [HeadingInfo] = []
     @State private var frontmatter: FrontmatterData?
     @State private var paywallFeature: PaidFeature?
@@ -106,10 +105,7 @@ struct ContentView: View {
             Text("Enter a name for the new markdown file.")
         }
         .overlay {
-            NativeSpotlightOverlay(spotlightFrames: spotlightFrames)
-        }
-        .onPreferenceChange(SpotlightPreferenceKey.self) { frames in
-            spotlightFrames = frames
+            NativeSpotlightOverlay()
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossGuideReady)) { _ in
             guideService.handleWebSDKReady()

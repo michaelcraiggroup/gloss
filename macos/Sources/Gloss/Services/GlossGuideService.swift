@@ -9,6 +9,10 @@ final class GlossGuideService {
     var currentStepIndex: Int = 0
     var isWebSDKReady: Bool = false
 
+    /// Spotlight target frames, written directly by SpotlightTargetModifier.
+    /// Works across view hierarchy boundaries (toolbar, sidebar, etc.).
+    var spotlightFrames: [SpotlightTarget: CGRect] = [:]
+
     /// The current native step, if any. NativeSpotlightOverlay observes this.
     var currentNativeStep: NativeStep? {
         guard let guide = activeGuide,

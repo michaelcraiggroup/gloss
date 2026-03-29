@@ -5,11 +5,10 @@ import SwiftUI
 /// plus a popover card with content, progress, and navigation controls.
 struct NativeSpotlightOverlay: View {
     @Environment(GlossGuideService.self) private var guideService
-    let spotlightFrames: [SpotlightTarget: CGRect]
 
     var body: some View {
         if let step = guideService.currentNativeStep,
-           let frame = spotlightFrames[step.target] {
+           let frame = guideService.spotlightFrames[step.target] {
             ZStack {
                 // Backdrop with cutout
                 SpotlightCutoutShape(hole: frame.insetBy(dx: -8, dy: -8))
@@ -116,9 +115,11 @@ struct GuidePopover: View {
         .frame(width: 280)
         .background {
             RoundedRectangle(cornerRadius: 12)
-                .fill(.regularMaterial)
+                .fill(Color.white)
                 .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
         }
+        .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.18))
+        .colorScheme(.light)
     }
 }
 
