@@ -28,7 +28,7 @@ gloss/
 │   │   │   ├── AppSettings.swift   # User preferences + folder path + font size
 │   │   │   ├── DocumentType.swift  # Document classification (14 types)
 │   │   │   ├── FileTreeNode.swift  # Lazy file tree node (@Observable)
-│   │   │   ├── FileTreeModel.swift # Sidebar state + search + SearchScope
+│   │   │   ├── FileTreeModel.swift # Sidebar state + search + SearchScope + tag filtering
 │   │   │   ├── RecentDocument.swift # SwiftData recent docs + favorites
 │   │   │   ├── ContentSearchResult.swift # Content search result model
 │   │   │   ├── LinkType.swift      # Typed link relationships (8 types)
@@ -37,9 +37,9 @@ gloss/
 │   │   ├── Views/
 │   │   │   ├── ContentView.swift   # NavigationSplitView layout + inspector + FocusedValues
 │   │   │   ├── DocumentView.swift  # File loading + live reload + wiki-link resolution
-│   │   │   ├── InspectorView.swift # TOC sidebar + frontmatter + backlinks
+│   │   │   ├── InspectorView.swift # TOC sidebar + frontmatter + tags + backlinks
 │   │   │   ├── PaywallView.swift   # StoreKit 2 purchase UI
-│   │   │   ├── SidebarView.swift   # File tree + search scopes + favorites + recents
+│   │   │   ├── SidebarView.swift   # File tree + search scopes + favorites + recents + tags
 │   │   │   ├── SettingsView.swift  # Editor/Appearance/Reading sections
 │   │   │   └── Components/
 │   │   │       ├── WebView.swift   # WKWebView wrapper + link interception + PDF export
@@ -61,7 +61,7 @@ gloss/
 │   ├── GlossQLExtension/   # Quick Look extension
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 171 tests
+│   └── Tests/GlossTests/   # 181+ tests
 └── gloss-project-plan.md   # Full product plan
 ```
 

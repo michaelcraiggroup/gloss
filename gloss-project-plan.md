@@ -18,7 +18,7 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 
 **VS Code Extension (v0.2.2)** — Published on marketplace. Custom webview reader with syntax highlighting, mermaid diagrams, KaTeX math, find-in-page, print, copy buttons, YAML frontmatter stripping, and image rendering. Zero telemetry.
 
-**macOS App (v0.12.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, print, StoreKit 2 paywall, navigation history (back/forward), custom editor picker. 125 tests passing. Pending: signing, notarization, App Store submission.
+**macOS App (v0.12.0)** — Development builds working via SPM and xcodegen. NavigationSplitView with file browser sidebar, inspector sidebar (TOC + frontmatter + tags + backlinks), full-text content search, favorites, Quick Look extension, find-in-page, mermaid diagrams, KaTeX math, heading anchor links, wiki-link navigation, PDF export, print, StoreKit 2 paywall, navigation history (back/forward), custom editor picker, tag browsing and filtering. 181+ tests passing. Pending: signing, notarization, App Store submission.
 
 ---
 
@@ -265,12 +265,22 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [ ] Bundled CM6 (replace CDN with local bundle for offline support)
 - [ ] Wiki-link autocomplete in editor
 
-#### Phase 8: Link Index + Backlinks (Planned)
-- [ ] LinkIndex service — scan vault, extract wiki-links + tags + frontmatter
-- [ ] SQLite persistence (`.gloss/index.sqlite`)
-- [ ] Typed link syntax `[[target::type]]`
-- [ ] BacklinksView in InspectorView
-- [ ] Incremental re-indexing
+#### Phase 8: Link Index + Backlinks ✅
+- [x] LinkIndex service — scan vault, extract wiki-links + tags + frontmatter
+- [x] SQLite persistence (`.gloss/index.sqlite`)
+- [x] Typed link syntax `[[target::type]]`
+- [x] BacklinksView in InspectorView
+- [x] Incremental re-indexing
+- [x] 171 tests passing
+
+#### Phase 8.5: Tags UI & Navigation ✅
+- [x] LinkDatabase tag query methods (allTagCounts, tags(forFileId:), files(forTag:))
+- [x] LinkIndex exposes allTags and currentFileTags as observable properties
+- [x] InspectorView Tags section with teal pill styling and TagFlowLayout
+- [x] Sidebar Tags browser section with file counts
+- [x] Tag click filters sidebar in-place (from inspector or sidebar)
+- [x] SearchScope.tags — search/filter tags by name
+- [x] 10 new tests, 181+ tests passing
 
 #### Phase 9: Graph Visualization (Planned)
 - [ ] D3.js force-directed graph in WKWebView tab
