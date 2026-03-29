@@ -87,13 +87,24 @@ struct GuideInjector {
                         sdk.stop();
                         suppressStop = false;
                         sdk.reset(guideId);
-                        sdk.start({ id: guideId, name: 'step', version: 1, steps: [stepJSON] })
-                            .then(function() {
-                                var el = document.querySelector('.rg-popover__progress');
-                                if (el && current && total) {
-                                    el.textContent = current + ' of ' + total;
-                                }
-                            });
+
+                        // Scroll spotlight targets into view first
+                        var doStart = function() {
+                            sdk.start({ id: guideId, name: 'step', version: 1, steps: [stepJSON] })
+                                .then(function() {
+                                    var el = document.querySelector('.rg-popover__progress');
+                                    if (el && current && total) {
+                                        el.textContent = current + ' of ' + total;
+                                    }
+                                });
+                        };
+                        if (stepJSON.target) {
+                            var target = document.querySelector(stepJSON.target);
+                            if (target) {
+                                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                setTimeout(doStart, 400);
+                            } else { doStart(); }
+                        } else { doStart(); }
                     },
                     stop: function() {
                         suppressStop = true;
