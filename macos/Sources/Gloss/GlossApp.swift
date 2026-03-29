@@ -252,9 +252,9 @@ struct GlossApp: App {
         if let resource = guide.documentResource {
             let bundleURL: URL?
             #if XCODE_BUILD
-            bundleURL = Bundle.main.url(forResource: resource, withExtension: "md", subdirectory: "guides")
+            bundleURL = Bundle.main.url(forResource: resource, withExtension: "md")
             #else
-            bundleURL = Bundle.module.url(forResource: resource, withExtension: "md", subdirectory: "guides")
+            bundleURL = Bundle.module.url(forResource: resource, withExtension: "md")
             #endif
 
             if let bundleURL,
