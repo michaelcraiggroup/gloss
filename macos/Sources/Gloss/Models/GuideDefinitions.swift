@@ -25,7 +25,8 @@ extension WalkthroughGuide {
                 content: "**Inspector tags** — the current document's tags as clickable pills.",
                 placement: "leading"
             )),
-        ]
+        ],
+        documentResource: "whats-new-tags"
     )
 
     /// Onboarding guide for first-time users.
@@ -80,6 +81,7 @@ extension WalkthroughGuide {
                 content: "# Keyboard Navigation\n\n- **j/k** — scroll down/up\n- **gg** — top of page\n- **G** — bottom\n- **\u{2318}F** — find in page\n\nHappy reading!",
                 placement: "center"
             )),
-        ]
+        ],
+        documentResource: "getting-started"
     )
 }

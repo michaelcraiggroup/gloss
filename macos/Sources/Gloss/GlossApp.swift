@@ -231,10 +231,10 @@ struct GlossApp: App {
             }
             CommandGroup(replacing: .help) {
                 Button("Getting Started Tour") {
-                    guideService.start(guide: .gettingStarted)
+                    openGuide(.gettingStarted)
                 }
                 Button("What's New: Tags") {
-                    guideService.start(guide: .whatsNewTags)
+                    openGuide(.whatsNewTags)
                 }
             }
         }
@@ -246,6 +246,27 @@ struct GlossApp: App {
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 320, height: 140)
+    }
+
+    private func openGuide(_ guide: WalkthroughGuide) {
+        if let resource = guide.documentResource {
+            let bundleURL: URL?
+            #if XCODE_BUILD
+            bundleURL = Bundle.main.url(forResource: resource, withExtension: "md", subdirectory: "guides")
+            #else
+            bundleURL = Bundle.module.url(forResource: resource, withExtension: "md", subdirectory: "guides")
+            #endif
+
+            if let bundleURL,
+               let content = try? String(contentsOf: bundleURL, encoding: .utf8) {
+                let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("gloss-guides", isDirectory: true)
+                try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                let tempFile = tempDir.appendingPathComponent("\(resource).md")
+                try? content.write(to: tempFile, atomically: true, encoding: .utf8)
+                settings.currentFileURL = tempFile
+            }
+        }
+        guideService.start(guide: guide)
     }
 
     private func openFilePanel() {

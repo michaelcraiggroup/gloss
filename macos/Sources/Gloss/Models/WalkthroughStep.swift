@@ -60,4 +60,6 @@ struct WalkthroughGuide: Sendable {
     let name: String
     let version: Int
     let steps: [WalkthroughStep]
+    /// Bundled markdown resource name to open when the guide starts (without extension).
+    let documentResource: String?
 }
