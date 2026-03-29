@@ -91,7 +91,7 @@ final class GlossGuideService {
     /// Called when the WKWebView signals the SDK is initialized.
     func handleWebSDKReady() {
         isWebSDKReady = true
-        // If we were waiting for SDK to be ready, dispatch the current step
+        // If we were waiting for SDK to be ready, re-dispatch the current step
         if let step = currentWebStep {
             dispatchWebStep(step)
         }
@@ -104,13 +104,11 @@ final class GlossGuideService {
 
         switch guide.steps[currentStepIndex] {
         case .native:
-            // State change triggers NativeSpotlightOverlay reactively — nothing else to do
-            break
+            break // NativeSpotlightOverlay reads currentNativeStep reactively
         case .web(let step):
-            if isWebSDKReady {
-                dispatchWebStep(step)
-            }
-            // If not ready, handleWebSDKReady() will dispatch when the SDK signals
+            // Always dispatch — the JS retry loop handles SDK not yet ready.
+            // If SDK hasn't signaled ready yet, handleWebSDKReady() will re-dispatch.
+            dispatchWebStep(step)
         }
     }
 

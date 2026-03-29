@@ -36,6 +36,7 @@ struct WebStep: Sendable {
     /// JSON representation for passing to the JS SDK.
     var jsonObject: [String: Any] {
         var obj: [String: Any] = [
+            "id": id,
             "type": type,
             "content": content,
             "placement": placement,

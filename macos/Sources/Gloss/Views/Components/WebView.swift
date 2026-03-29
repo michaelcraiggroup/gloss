@@ -286,11 +286,18 @@ struct WebView: NSViewRepresentable {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard message.name == "glossGuide",
-                  let body = message.body as? String,
-                  let data = body.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let type = json["type"] as? String else { return }
+            guard message.name == "glossGuide" else { return }
+            // Accept both String (JSON.stringify) and Dictionary (raw object) payloads
+            let json: [String: Any]?
+            if let body = message.body as? String,
+               let data = body.data(using: .utf8) {
+                json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            } else if let dict = message.body as? [String: Any] {
+                json = dict
+            } else {
+                return
+            }
+            guard let json, let type = json["type"] as? String else { return }
 
             MainActor.assumeIsolated {
                 switch type {
@@ -309,12 +316,24 @@ struct WebView: NSViewRepresentable {
         private func dispatchGuideStep(_ step: WebStep) {
             guard let jsonData = try? JSONSerialization.data(
                 withJSONObject: step.jsonObject, options: []
-            ), let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+            ), let jsonString = String(data: jsonData, encoding: .utf8) else {
+                return
+            }
 
-            webView?.evaluateJavaScript(
-                "window.glossGuide && window.glossGuide.startStep(\(jsonString))",
-                completionHandler: nil
-            )
+            // Retry briefly if glossGuide isn't ready yet (SDK init may still be running)
+            let js = """
+            (function() {
+                function dispatch() {
+                    if (window.glossGuide) {
+                        window.glossGuide.startStep(\(jsonString));
+                    } else {
+                        setTimeout(dispatch, 100);
+                    }
+                }
+                dispatch();
+            })()
+            """
+            webView?.evaluateJavaScript(js, completionHandler: nil)
         }
 
         private func exportPDF() {
