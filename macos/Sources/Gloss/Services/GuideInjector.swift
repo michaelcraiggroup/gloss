@@ -54,17 +54,32 @@ struct GuideInjector {
                 });
 
                 var stepCounter = 0;
+                var suppressStop = false;
+
                 window.glossGuide = {
                     startStep: function(stepJSON) {
                         stepCounter++;
+                        suppressStop = true;
                         sdk.stop();
+                        suppressStop = false;
                         sdk.start({ id: 'gloss-' + stepCounter + '-' + stepJSON.id, name: 'step', version: 1, steps: [stepJSON] });
                     },
-                    stop: function() { sdk.stop(); },
+                    stop: function() {
+                        suppressStop = true;
+                        sdk.stop();
+                        suppressStop = false;
+                    },
                 };
 
-                sdk.on('complete', function() { post({ type: 'complete' }); });
-                sdk.on('stop', function() { post({ type: 'skip' }); });
+                sdk.on('complete', function() {
+                    suppressStop = true;
+                    post({ type: 'complete' });
+                    setTimeout(function() { suppressStop = false; }, 50);
+                });
+                sdk.on('stop', function() {
+                    if (suppressStop) return;
+                    post({ type: 'skip' });
+                });
 
                 post({ type: 'ready' });
             } catch(e) {

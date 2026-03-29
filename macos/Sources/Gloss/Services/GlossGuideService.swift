@@ -33,11 +33,6 @@ final class GlossGuideService {
         (currentStepIndex + 1, activeGuide?.steps.count ?? 0)
     }
 
-    /// When true, the next `stop` event from the JS SDK is suppressed (it was triggered
-    /// programmatically by `advance()`, not by the user dismissing the guide).
-    @ObservationIgnored
-    private var suppressNextWebStop = false
-
     // MARK: - Completion Tracking
 
     @ObservationIgnored
@@ -71,10 +66,8 @@ final class GlossGuideService {
     func advance() {
         guard let guide = activeGuide else { return }
 
-        // Stop any active web step — suppress the resulting SDK stop event
-        // so it doesn't trigger skip() and kill the entire guide.
+        // Stop any active web step (JS-side suppressStop handles the stop event)
         if currentWebStep != nil {
-            suppressNextWebStop = true
             NotificationCenter.default.post(name: .glossGuideStopWeb, object: nil)
         }
 
@@ -99,13 +92,8 @@ final class GlossGuideService {
         advance()
     }
 
-    /// Called when the JS SDK fires a stop event. Ignores programmatic stops
-    /// triggered by `advance()` — only acts on user-initiated dismissals.
+    /// Called when the user dismisses a web step (JS filters out programmatic stops).
     func handleWebStopped() {
-        if suppressNextWebStop {
-            suppressNextWebStop = false
-            return
-        }
         skip()
     }
 
