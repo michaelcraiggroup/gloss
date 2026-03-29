@@ -43,9 +43,13 @@ struct GuideInjector {
         .rg-popover .rg-popover__content h3 {
             color: #1a1a2e !important;
         }
-        .rg-popover .rg-popover__content code {
+        .rg-popover .rg-popover__content code,
+        .rg-popover .rg-popover__content pre {
             color: #1a1a2e !important;
             background: rgba(0, 0, 0, 0.06) !important;
+        }
+        .rg-popover .rg-popover__content pre code {
+            background: transparent !important;
         }
         .rg-popover .rg-popover__content a {
             color: var(--rg-primary, #4876d6) !important;
