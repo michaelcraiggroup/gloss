@@ -53,9 +53,12 @@ struct GuideInjector {
                     },
                 });
 
+                var stepCounter = 0;
                 window.glossGuide = {
                     startStep: function(stepJSON) {
-                        sdk.start({ id: 'gloss-step', name: 'step', version: 1, steps: [stepJSON] });
+                        stepCounter++;
+                        sdk.stop();
+                        sdk.start({ id: 'gloss-' + stepCounter + '-' + stepJSON.id, name: 'step', version: 1, steps: [stepJSON] });
                     },
                     stop: function() { sdk.stop(); },
                 };

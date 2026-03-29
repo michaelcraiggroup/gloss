@@ -54,6 +54,10 @@ final class GlossGuideService {
     // MARK: - Guide Lifecycle
 
     func start(guide: WalkthroughGuide) {
+        // Stop any in-progress guide first
+        if activeGuide != nil {
+            NotificationCenter.default.post(name: .glossGuideStopWeb, object: nil)
+        }
         activeGuide = guide
         currentStepIndex = 0
         dispatchCurrentStep()
