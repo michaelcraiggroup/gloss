@@ -62,13 +62,13 @@ extension WalkthroughGuide {
                 placement: "top"
             )),
 
-            // 4. Diagrams & math
+            // 4. Diagrams & math — spotlight the rendered mermaid diagram
             .web(WebStep(
                 id: "diagrams-math",
-                type: "content",
-                target: nil,
-                content: "## Diagrams & Math\n\nGloss renders **Mermaid diagrams** and **LaTeX math** (KaTeX) automatically \u{2014} just write standard fenced blocks.\n\n````\n```mermaid\ngraph LR; A-->B\n```\n````\n\nInline math: `$E = mc^2$`",
-                placement: "center"
+                type: "spotlight",
+                target: "pre.mermaid",
+                content: "**Diagrams & Math** \u{2014} Mermaid diagrams and LaTeX math (KaTeX) render automatically from standard fenced blocks. No plugins needed.",
+                placement: "top"
             )),
 
             // 5. Edit mode — native spotlight
