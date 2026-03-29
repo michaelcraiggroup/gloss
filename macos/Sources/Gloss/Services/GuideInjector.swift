@@ -75,16 +75,19 @@ struct GuideInjector {
                     },
                 });
 
+                var session = Date.now();
                 var stepCounter = 0;
                 var suppressStop = false;
 
                 window.glossGuide = {
                     startStep: function(stepJSON, current, total) {
                         stepCounter++;
+                        var guideId = 'gloss-' + session + '-' + stepCounter + '-' + stepJSON.id;
                         suppressStop = true;
                         sdk.stop();
                         suppressStop = false;
-                        sdk.start({ id: 'gloss-' + stepCounter + '-' + stepJSON.id, name: 'step', version: 1, steps: [stepJSON] })
+                        sdk.reset(guideId);
+                        sdk.start({ id: guideId, name: 'step', version: 1, steps: [stepJSON] })
                             .then(function() {
                                 var el = document.querySelector('.rg-popover__progress');
                                 if (el && current && total) {
