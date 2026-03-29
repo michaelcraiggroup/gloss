@@ -118,7 +118,7 @@ struct ContentView: View {
             guideService.handleWebStepComplete()
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossGuideStopped)) { _ in
-            guideService.skip()
+            guideService.handleWebStopped()
         }
     }
 

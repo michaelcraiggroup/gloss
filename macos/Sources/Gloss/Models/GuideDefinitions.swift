@@ -29,56 +29,123 @@ extension WalkthroughGuide {
         documentResource: "whats-new-tags"
     )
 
-    /// Onboarding guide for first-time users.
+    /// Comprehensive onboarding guide for new users.
     static let gettingStarted = WalkthroughGuide(
-        id: "getting-started-v1",
+        id: "getting-started-v2",
         name: "Getting Started with Gloss",
-        version: 1,
+        version: 2,
         steps: [
+            // 1. Welcome
             .web(WebStep(
                 id: "welcome",
                 type: "content",
                 target: nil,
-                content: "# Welcome to Gloss\n\nA distraction-free markdown reader. Let's take a quick tour.",
+                content: "# Welcome to Gloss\n\nA distraction-free markdown reader for macOS. Let\u{2019}s walk through everything you can do.",
                 placement: "center"
             )),
+
+            // 2. Beautiful rendering — spotlight a heading
             .web(WebStep(
                 id: "headings",
                 type: "spotlight",
-                target: "h1[id], h2[id]",
-                content: "**Heading anchors** — hover any heading to see a link icon. Click to copy the anchor.",
+                target: "h2[id]",
+                content: "**Heading anchors** \u{2014} hover any heading to see a link icon. Click it to copy a deep link to that section.",
                 placement: "bottom"
             )),
+
+            // 3. Code blocks — spotlight a code block
             .web(WebStep(
                 id: "code-blocks",
                 type: "spotlight",
                 target: "pre",
-                content: "**Code blocks** — hover to reveal a copy button. Syntax highlighting included.",
-                placement: "top"
+                content: "**Syntax highlighting** \u{2014} code blocks are highlighted automatically. Hover to reveal a one-click copy button.",
+                placement: "bottom"
             )),
+
+            // 4. Diagrams & math
+            .web(WebStep(
+                id: "diagrams-math",
+                type: "content",
+                target: nil,
+                content: "## Diagrams & Math\n\nGloss renders **Mermaid diagrams** and **LaTeX math** (KaTeX) automatically \u{2014} just write standard fenced blocks.\n\n````\n```mermaid\ngraph LR; A-->B\n```\n````\n\nInline math: `$E = mc^2$`",
+                placement: "center"
+            )),
+
+            // 5. Edit mode — native spotlight
             .native(NativeStep(
                 id: "edit-mode",
                 target: .toolbarEditMode,
-                content: "**Edit mode** — switch to a live-preview editor (\u{21E7}\u{2318}E). Auto-saves when you switch back.",
+                content: "**Edit mode** \u{2014} toggle a live-preview editor (\u{21E7}\u{2318}E). Markdown syntax hides on unfocused lines. Auto-saves when you switch back to reading mode.",
                 placement: "bottom"
             )),
+
+            // 6. Inspector — native spotlight
             .native(NativeStep(
                 id: "inspector",
                 target: .toolbarInspectorToggle,
-                content: "**Inspector** — table of contents, frontmatter, tags, and backlinks (\u{2325}\u{2318}I).",
+                content: "**Inspector** \u{2014} open the sidebar (\u{2325}\u{2318}I) to see the table of contents, YAML frontmatter, tags, and backlinks for the current document.",
                 placement: "bottom"
             )),
+
+            // 7. Favorites — native spotlight
             .native(NativeStep(
                 id: "favorite",
                 target: .toolbarFavorite,
-                content: "**Favorites** — star documents for quick access (\u{2318}D).",
+                content: "**Favorites** \u{2014} star any document (\u{2318}D) for quick access from the sidebar. Your favorites are always just one click away.",
                 placement: "bottom"
             )),
+
+            // 8. Folder sidebar & search
+            .web(WebStep(
+                id: "folder-sidebar",
+                type: "content",
+                target: nil,
+                content: "## Folder Sidebar\n\nOpen a folder (\u{21E7}\u{2318}O) to browse all your markdown files in a tree view.\n\n- **Full-text search** across every file in your vault\n- **Recents** \u{2014} quickly revisit recent documents\n- **Favorites** \u{2014} your starred files, always at the top",
+                placement: "center"
+            )),
+
+            // 9. Wiki-links & backlinks
+            .web(WebStep(
+                id: "wiki-links",
+                type: "content",
+                target: nil,
+                content: "## Wiki-Links & Backlinks\n\nLink between documents with `[[wiki-links]]`. Gloss resolves them automatically within your folder.\n\nTyped links like `[[note::related]]` categorize relationships. The **Inspector** shows backlinks grouped by type.",
+                placement: "center"
+            )),
+
+            // 10. Tags
+            .web(WebStep(
+                id: "tags",
+                type: "content",
+                target: nil,
+                content: "## Tags\n\nAdd tags to your YAML frontmatter:\n\n```yaml\n---\ntags: [project, idea, draft]\n---\n```\n\nBrowse all tags in the sidebar, filter by tag, and see a document\u{2019}s tags as clickable pills in the Inspector.",
+                placement: "center"
+            )),
+
+            // 11. Keyboard navigation
             .web(WebStep(
                 id: "keyboard",
                 type: "content",
                 target: nil,
-                content: "# Keyboard Navigation\n\n- **j/k** — scroll down/up\n- **gg** — top of page\n- **G** — bottom\n- **\u{2318}F** — find in page\n\nHappy reading!",
+                content: "## Keyboard Navigation\n\nVim-style keys work in reading mode:\n\n- **j / k** \u{2014} scroll down / up\n- **gg** \u{2014} jump to top\n- **G** \u{2014} jump to bottom\n- **\u{2318}F** \u{2014} find in page\n- **\u{2318}G** \u{2014} find next match",
+                placement: "center"
+            )),
+
+            // 12. Export & productivity
+            .web(WebStep(
+                id: "export",
+                type: "content",
+                target: nil,
+                content: "## Export & More\n\n- **\u{2318}P** \u{2014} Print\n- **\u{2318}E** \u{2014} Export as PDF\n- **\u{2318}\\\\** \u{2014} Zen mode (hide sidebar & chrome)\n- **Quick Look** \u{2014} press Space on any .md file in Finder for an instant preview",
+                placement: "center"
+            )),
+
+            // 13. Done
+            .web(WebStep(
+                id: "done",
+                type: "content",
+                target: nil,
+                content: "# You\u{2019}re all set!\n\nRevisit this tour anytime from **Help \u{2192} Getting Started Tour**.\n\nHappy reading!",
                 placement: "center"
             )),
         ],
