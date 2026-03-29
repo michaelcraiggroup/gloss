@@ -3,69 +3,88 @@ import SwiftUI
 /// Full-window overlay that spotlights a native SwiftUI view during a walkthrough step.
 /// Reads the current native step from GlossGuideService and renders a backdrop with cutout
 /// plus a popover card with content, progress, and navigation controls.
+///
+/// Uses a GeometryReader to convert global spotlight frames to overlay-local coordinates,
+/// which is essential for toolbar items that live outside the content area.
 struct NativeSpotlightOverlay: View {
     @Environment(GlossGuideService.self) private var guideService
 
     var body: some View {
-        if let step = guideService.currentNativeStep,
-           let frame = guideService.spotlightFrames[step.target] {
-            ZStack {
-                // Backdrop with cutout
-                SpotlightCutoutShape(hole: frame.insetBy(dx: -8, dy: -8))
-                    .fill(.black.opacity(0.5))
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        guideService.skip()
-                    }
+        GeometryReader { overlayGeo in
+            let overlayOrigin = overlayGeo.frame(in: .global).origin
+            if let step = guideService.currentNativeStep,
+               let globalFrame = guideService.spotlightFrames[step.target] {
+                let frame = localFrame(from: globalFrame, overlayOrigin: overlayOrigin)
+                ZStack {
+                    // Backdrop with cutout
+                    SpotlightCutoutShape(hole: frame.insetBy(dx: -8, dy: -8))
+                        .fill(.black.opacity(0.5))
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            guideService.skip()
+                        }
 
-                // Popover card
-                GuidePopover(
-                    content: step.content,
-                    progress: guideService.progress,
-                    onContinue: { guideService.advance() },
-                    onSkip: { guideService.skip() }
-                )
-                .position(popoverPosition(for: frame, placement: step.placement))
-            }
-            .transition(.opacity)
-            .animation(.easeInOut(duration: 0.2), value: step.id)
-            .onExitCommand {
-                guideService.skip()
+                    // Popover card
+                    GuidePopover(
+                        content: step.content,
+                        progress: guideService.progress,
+                        onContinue: { guideService.advance() },
+                        onSkip: { guideService.skip() }
+                    )
+                    .position(popoverPosition(for: frame, placement: step.placement,
+                                              overlaySize: overlayGeo.size))
+                }
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.2), value: step.id)
+                .onExitCommand {
+                    guideService.skip()
+                }
             }
         }
     }
 
-    private func popoverPosition(for targetFrame: CGRect, placement: String) -> CGPoint {
+    /// Convert a global frame to overlay-local coordinates.
+    private func localFrame(from globalFrame: CGRect, overlayOrigin: CGPoint) -> CGRect {
+        CGRect(
+            x: globalFrame.origin.x - overlayOrigin.x,
+            y: globalFrame.origin.y - overlayOrigin.y,
+            width: globalFrame.width,
+            height: globalFrame.height
+        )
+    }
+
+    private func popoverPosition(for targetFrame: CGRect, placement: String,
+                                 overlaySize: CGSize) -> CGPoint {
         let cardWidth: CGFloat = 280
         let offset: CGFloat = 16
 
+        // Clamp x so the popover stays within the overlay bounds
+        let rawX: CGFloat
+        let y: CGFloat
+
         switch placement {
         case "top":
-            return CGPoint(
-                x: targetFrame.midX,
-                y: targetFrame.minY - offset - 60
-            )
+            rawX = targetFrame.midX
+            y = targetFrame.minY - offset - 60
         case "bottom":
-            return CGPoint(
-                x: targetFrame.midX,
-                y: targetFrame.maxY + offset + 60
-            )
+            rawX = targetFrame.midX
+            y = targetFrame.maxY + offset + 60
         case "leading":
-            return CGPoint(
-                x: targetFrame.minX - offset - cardWidth / 2,
-                y: targetFrame.midY
-            )
+            rawX = targetFrame.minX - offset - cardWidth / 2
+            y = targetFrame.midY
         case "trailing":
-            return CGPoint(
-                x: targetFrame.maxX + offset + cardWidth / 2,
-                y: targetFrame.midY
-            )
+            rawX = targetFrame.maxX + offset + cardWidth / 2
+            y = targetFrame.midY
         default:
-            return CGPoint(
-                x: targetFrame.midX,
-                y: targetFrame.maxY + offset + 60
-            )
+            rawX = targetFrame.midX
+            y = targetFrame.maxY + offset + 60
         }
+
+        // Keep popover within horizontal bounds
+        let halfCard = cardWidth / 2
+        let clampedX = min(max(rawX, halfCard + 16), overlaySize.width - halfCard - 16)
+
+        return CGPoint(x: clampedX, y: y)
     }
 }
 
