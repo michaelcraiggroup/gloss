@@ -179,6 +179,15 @@ struct GlossApp: App {
         }
 
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Gloss") {
+                    let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+                    NSApplication.shared.orderFrontStandardAboutPanel(options: [
+                        NSApplication.AboutPanelOptionKey(rawValue: "Version"): "",
+                        NSApplication.AboutPanelOptionKey.applicationVersion: shortVersion
+                    ])
+                }
+            }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
                     openWindow(id: "settings")

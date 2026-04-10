@@ -26,15 +26,12 @@ targets:
     platform: macOS
     sources:
       - path: Sources/Gloss
-        excludes:
-          - Resources
-    resources:
-      - path: Sources/Gloss/Resources
     info:
       path: Scripts/Info.plist
       properties:
         CFBundleIconFile: AppIcon
         CFBundleDisplayName: Gloss
+        CFBundleShortVersionString: "1.5.21"
         NSHighResolutionCapable: true
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
@@ -62,7 +59,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.5.20"
+        MARKETING_VERSION: "1.5.21"
         CURRENT_PROJECT_VERSION: "12"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
         INFOPLIST_KEY_CFBundleDisplayName: Gloss
