@@ -41,12 +41,11 @@ struct GlossApp: App {
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
                     setAppIcon()
+                    handleCLIArguments()
                     restoreFolder()
                 }
                 .onOpenURL { url in
-                    guard ["md", "markdown"].contains(url.pathExtension.lowercased()) else { return }
-                    settings.currentFileURL = url
-                    settings.lastOpenedFile = url.path
+                    openPath(url)
                 }
         }
         .modelContainer(for: RecentDocument.self)
@@ -185,6 +184,12 @@ struct GlossApp: App {
                     openWindow(id: "settings")
                 }
                 .keyboardShortcut(",", modifiers: .command)
+
+                Divider()
+
+                Button("Install Command Line Tool…") {
+                    installCLI()
+                }
             }
             CommandGroup(after: .textEditing) {
                 Button("Find…") {
@@ -316,6 +321,69 @@ struct GlossApp: App {
         if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
             fileTree.openFolder(url)
             linkIndex.buildIndex(rootURL: url)
+        }
+    }
+
+    private func openPath(_ url: URL) {
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+            guard store.gate(.folderSidebar) else { return }
+            fileTree.openFolder(url)
+            settings.rootFolderPath = url.path
+            linkIndex.buildIndex(rootURL: url)
+        } else if ["md", "markdown"].contains(url.pathExtension.lowercased()) {
+            settings.currentFileURL = url
+            settings.lastOpenedFile = url.path
+        }
+    }
+
+    private func handleCLIArguments() {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.count > 1 else { return }
+        for arg in args.dropFirst() {
+            guard !arg.hasPrefix("-") else { continue }
+            let absPath: String
+            if arg.hasPrefix("/") {
+                absPath = (arg as NSString).standardizingPath
+            } else {
+                let cwd = FileManager.default.currentDirectoryPath
+                absPath = (("\(cwd)/\(arg)") as NSString).standardizingPath
+            }
+            let url = URL(fileURLWithPath: absPath)
+            guard FileManager.default.fileExists(atPath: absPath) else { continue }
+            openPath(url)
+            return
+        }
+    }
+
+    private func installCLI() {
+        let appPath = Bundle.main.bundlePath
+        let scriptSource = "\(appPath)/Contents/Resources/gloss"
+        let dest = "/usr/local/bin/gloss"
+
+        guard FileManager.default.fileExists(atPath: scriptSource) else {
+            let alert = NSAlert()
+            alert.messageText = "CLI Script Not Found"
+            alert.informativeText = "The gloss CLI script was not found in the app bundle."
+            alert.runModal()
+            return
+        }
+
+        let script = "do shell script \"ln -sf '\(scriptSource)' '\(dest)'\" with administrator privileges"
+        var error: NSDictionary?
+        if let appleScript = NSAppleScript(source: script) {
+            appleScript.executeAndReturnError(&error)
+            if let error {
+                let alert = NSAlert()
+                alert.messageText = "Installation Failed"
+                alert.informativeText = error[NSAppleScript.errorMessage] as? String ?? "Unknown error"
+                alert.runModal()
+            } else {
+                let alert = NSAlert()
+                alert.messageText = "Command Line Tool Installed"
+                alert.informativeText = "You can now use 'gloss' from the terminal.\n\nUsage:\n  gloss .              Open current folder\n  gloss file.md        Open a file\n  gloss ~/notes        Open a folder"
+                alert.runModal()
+            }
         }
     }
 }

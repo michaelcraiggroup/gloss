@@ -25,6 +25,10 @@ class DropAcceptingWebView: WKWebView {
     /// Shared reference for direct print/export access from menu commands.
     static weak var current: DropAcceptingWebView?
 
+    /// Raw markdown source for the currently rendered document. Used by the
+    /// "Copy Raw Markdown" context menu item.
+    var rawMarkdown: String?
+
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
         registerForDraggedTypes([.fileURL])
@@ -32,6 +36,27 @@ class DropAcceptingWebView: WKWebView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
+
+    // MARK: - Context Menu
+
+    override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
+        super.willOpenMenu(menu, with: event)
+        guard rawMarkdown != nil else { return }
+        let item = NSMenuItem(
+            title: "Copy Raw Markdown",
+            action: #selector(copyRawMarkdown(_:)),
+            keyEquivalent: ""
+        )
+        item.target = self
+        menu.addItem(.separator())
+        menu.addItem(item)
+    }
+
+    @objc private func copyRawMarkdown(_ sender: Any?) {
+        guard let markdown = rawMarkdown else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(markdown, forType: .string)
+    }
 
     // MARK: - Clipboard Support
 
@@ -111,6 +136,7 @@ struct WebView: NSViewRepresentable {
     let htmlContent: String
     var baseURL: URL?
     var highlightQuery: String?
+    var rawMarkdown: String?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -133,6 +159,7 @@ struct WebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         let contentChanged = htmlContent != context.coordinator.lastHTML
         context.coordinator.pendingHighlight = highlightQuery
+        (webView as? DropAcceptingWebView)?.rawMarkdown = rawMarkdown
 
         if contentChanged {
             context.coordinator.lastHTML = htmlContent

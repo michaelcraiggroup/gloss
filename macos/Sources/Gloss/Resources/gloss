@@ -1,0 +1,40 @@
+#!/bin/bash
+# gloss — Open files and folders in Gloss
+# Install via: Gloss menu → Install Command Line Tool
+
+# Resolve the app bundle from this script's location
+SCRIPT_PATH="$0"
+if [ -L "$SCRIPT_PATH" ]; then
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+fi
+
+APP_DIR="$(dirname "$(dirname "$(dirname "$SCRIPT_PATH")")")"
+
+# Verify we resolved to a .app bundle; fall back to Spotlight search
+if [[ "$APP_DIR" != *.app ]] || [ ! -d "$APP_DIR" ]; then
+    APP_DIR="$(mdfind 'kMDItemCFBundleIdentifier == "group.michaelcraig.gloss"' 2>/dev/null | head -1)"
+fi
+
+if [ -z "$APP_DIR" ] || [ ! -d "$APP_DIR" ]; then
+    echo "Error: Gloss.app not found" >&2
+    exit 1
+fi
+
+# No arguments — just launch/activate the app
+if [ -z "$1" ]; then
+    open -a "$APP_DIR"
+    exit 0
+fi
+
+# Resolve to absolute path
+if [ -d "$1" ]; then
+    path="$(cd "$1" && pwd)"
+elif [ -f "$1" ]; then
+    dir="$(cd "$(dirname "$1")" && pwd)"
+    path="$dir/$(basename "$1")"
+else
+    echo "Error: $1: No such file or directory" >&2
+    exit 1
+fi
+
+open -a "$APP_DIR" "$path"

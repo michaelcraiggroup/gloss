@@ -46,6 +46,11 @@ targets:
             CFBundleTypeExtensions:
               - md
               - markdown
+          - CFBundleTypeName: Folder
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: None
+            LSItemContentTypes:
+              - public.folder
     entitlements:
       path: Gloss.entitlements
       properties:
@@ -57,7 +62,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.5.18"
+        MARKETING_VERSION: "1.5.19"
         CURRENT_PROJECT_VERSION: "12"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
         INFOPLIST_KEY_CFBundleDisplayName: Gloss

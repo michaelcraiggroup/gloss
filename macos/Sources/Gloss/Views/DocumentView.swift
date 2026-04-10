@@ -34,7 +34,12 @@ struct DocumentView: View {
                         }
                     )
                     let html = GuideInjector.injectGuideSDK(into: rendered)
-                    WebView(htmlContent: html, baseURL: url.deletingLastPathComponent(), highlightQuery: highlightQuery)
+                    WebView(
+                        htmlContent: html,
+                        baseURL: url.deletingLastPathComponent(),
+                        highlightQuery: highlightQuery,
+                        rawMarkdown: content
+                    )
                 } else {
                     errorState(message: "Could not read file:\n\(url.lastPathComponent)")
                 }
