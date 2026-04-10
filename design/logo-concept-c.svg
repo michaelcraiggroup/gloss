@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Rich warm gradient -->
+    <linearGradient id="letterGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="35%" stop-color="#FBBF24"/>
+      <stop offset="70%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#92400E"/>
+    </linearGradient>
+    <!-- Background -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1B18"/>
+      <stop offset="100%" stop-color="#0F0E0D"/>
+    </linearGradient>
+    <!-- Diagonal sheen — sharp glossy band -->
+    <linearGradient id="glossBand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="42%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="46%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0.4)"/>
+      <stop offset="54%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="58%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <clipPath id="sq">
+      <rect x="16" y="16" width="480" height="480" rx="108" ry="108"/>
+    </clipPath>
+  </defs>
+
+  <!-- Dark background -->
+  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" fill="url(#bg)"/>
+
+  <g clip-path="url(#sq)">
+    <!-- G shape — filled, modern sans-serif style -->
+    <path d="
+      M 324 148
+      C 290 120, 230 110, 190 140
+      C 145 175, 128 230, 128 260
+      C 128 290, 145 345, 190 378
+      C 230 406, 290 400, 324 370
+      L 324 274
+      L 256 274
+      L 256 240
+      L 370 240
+      L 370 360
+      C 348 394, 300 430, 240 430
+      C 165 430, 90 365, 90 260
+      C 90 155, 165 86, 240 86
+      C 300 86, 348 116, 370 148
+      Z
+    " fill="url(#letterGrad)"/>
+
+    <!-- Glossy band across everything -->
+    <rect x="16" y="16" width="480" height="480" fill="url(#glossBand)"/>
+  </g>
+</svg>

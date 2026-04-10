@@ -149,3 +149,21 @@ _Cross-project pitch: [2026-03-18-dogfooding-pitch-imports.md](../mcg-operations
 - [ ] Trust configuration system (.md+config.yaml)
 
 See [docs/MD_PLUS_SPEC.md](docs/MD_PLUS_SPEC.md) for full specification.
+
+---
+
+### Future: nocmeout Operational Runbook Integration
+
+_nocmeout is the MCG chat-first NOC tool. Gloss is the natural rendering layer for operational runbooks._
+
+**Integration Points:**
+- nocmeout captures runbooks from operational experience (symptom → fix mappings)
+- nocmeout exports runbooks as markdown (md+ format) for Gloss rendering
+- Gloss renders interactive checklists with persistent step completion state
+- md+ `shell` blocks provide "Run" buttons for runbook commands, gated by trust policy
+- Wiki-links (`[[runbook::fixes]]`) connect alerts to runbook documents
+- Diagnostic data rendered inline via md+ `chart`/`calculator` blocks
+
+**Dependency:** md+ shell block type + trust configuration system must land first.
+
+See [nocmeout PROJECT_PLAN on minimac](~/nocmeout/PROJECT_PLAN.md) for the runbook feature design.

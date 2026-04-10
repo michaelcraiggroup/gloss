@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Warm amber-to-gold gradient for the G -->
+    <linearGradient id="warmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <!-- Glossy highlight band -->
+    <linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+      <stop offset="40%" stop-color="rgba(255,255,255,0)" />
+      <stop offset="45%" stop-color="rgba(255,255,255,0.35)" />
+      <stop offset="55%" stop-color="rgba(255,255,255,0.35)" />
+      <stop offset="60%" stop-color="rgba(255,255,255,0)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+    </linearGradient>
+    <!-- macOS-style squircle clip -->
+    <clipPath id="squircle">
+      <rect x="16" y="16" width="480" height="480" rx="108" ry="108"/>
+    </clipPath>
+    <!-- Shadow for depth -->
+    <filter id="innerGlow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
+      <feOffset dx="0" dy="3" result="offsetBlur"/>
+      <feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background squircle -->
+  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" fill="#1C1917"/>
+
+  <!-- The G letterform: bold geometric with open terminal -->
+  <g clip-path="url(#squircle)">
+    <!-- G shape — thick arc with horizontal bar -->
+    <path d="
+      M 310 164
+      A 120 120 0 1 0 310 348
+      L 310 270
+      L 260 270
+    " fill="none" stroke="url(#warmGrad)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Glossy diagonal sheen over the whole icon -->
+    <rect x="16" y="16" width="480" height="480" fill="url(#sheen)"/>
+  </g>
+</svg>

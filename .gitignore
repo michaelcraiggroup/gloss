@@ -15,6 +15,9 @@ macos/Gloss.app/
 macos/Gloss.xcodeproj/
 *.xcuserstate
 
+# Gloss link index (generated per-vault)
+.gloss/
+
 # IDE
 .idea/
 *.swp
