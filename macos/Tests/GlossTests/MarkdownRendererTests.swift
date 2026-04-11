@@ -112,11 +112,54 @@ struct MarkdownRendererTests {
         #expect(html.contains("&lt;String&gt;"))
     }
 
-    @Test("Renders task list checkboxes")
+    @Test("Task list checkboxes are interactive and indexed")
     func taskListCheckboxes() {
         let source = "- [ ] Unchecked\n- [x] Checked"
         let html = MarkdownRenderer.render(source, isDark: false)
-        #expect(html.contains("<input type=\"checkbox\" disabled=\"\""))
+        // Both checkboxes are no longer disabled — they're clickable.
+        #expect(!html.contains("disabled=\"\""))
+        // They're sequentially indexed for the Save Filled Copy flow.
+        #expect(html.contains("data-gloss-task-index=\"0\""))
+        #expect(html.contains("data-gloss-task-index=\"1\""))
+        // Checked state preserved on the second one.
         #expect(html.contains("checked=\"\""))
+    }
+
+    @Test("hasFillableContent detects task lists")
+    func detectsTaskLists() {
+        #expect(MarkdownRenderer.hasFillableContent("- [ ] todo"))
+        #expect(MarkdownRenderer.hasFillableContent("- [x] done"))
+        #expect(!MarkdownRenderer.hasFillableContent("# Just a heading"))
+    }
+
+    @Test("Renders md+ template block as a fieldset")
+    func templateBlockRenders() {
+        let source = """
+        # Doc
+
+        <!--md+
+        type: template
+        id: demo
+        name: Demo Form
+        fields:
+          - name: who
+            type: text
+            label: Your Name
+        -->
+        """
+        let html = MarkdownRenderer.render(source, isDark: false)
+        #expect(html.contains("gloss-mdplus-template"))
+        #expect(html.contains("Demo Form"))
+        #expect(html.contains("data-gloss-mdplus-block=\"demo\""))
+        #expect(html.contains("data-gloss-mdplus-field=\"who\""))
+        #expect(html.contains("Your Name"))
+        // Template fill script is injected
+        #expect(html.contains("window.glossTemplate"))
+    }
+
+    @Test("Fillable script absent for plain markdown")
+    func fillableScriptAbsent() {
+        let html = MarkdownRenderer.render("# Plain\n\nSome text.", isDark: false)
+        #expect(!html.contains("window.glossTemplate"))
     }
 }

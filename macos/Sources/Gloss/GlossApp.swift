@@ -20,6 +20,7 @@ struct GlossApp: App {
     @State private var vaultOverview = VaultOverviewService()
     @State private var graphService = GraphService()
     @State private var guideService = GlossGuideService()
+    @State private var templateFill = TemplateFillService()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
     @FocusedValue(\.goBack) var goBack
@@ -41,6 +42,7 @@ struct GlossApp: App {
                 .environment(vaultOverview)
                 .environment(graphService)
                 .environment(guideService)
+                .environment(templateFill)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
@@ -178,6 +180,11 @@ struct GlossApp: App {
                     NotificationCenter.default.post(name: .glossExportPDF, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command])
+                .disabled(settings.currentFileURL == nil)
+
+                Button("Save Filled Copy…") {
+                    NotificationCenter.default.post(name: .glossSaveFilled, object: nil)
+                }
                 .disabled(settings.currentFileURL == nil)
             }
         }

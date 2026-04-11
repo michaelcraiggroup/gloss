@@ -11,6 +11,7 @@ struct DocumentView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(StoreManager.self) private var store
+    @Environment(TemplateFillService.self) private var templateFill
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
     @State private var fileWatcher = FileWatcher()
@@ -83,6 +84,11 @@ struct DocumentView: View {
                     NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossTemplateFilled)) { notification in
+            guard let payload = notification.object as? TemplateFillPayload,
+                  let url = fileURL else { return }
+            templateFill.saveFilled(sourceURL: url, payload: payload)
         }
     }
 

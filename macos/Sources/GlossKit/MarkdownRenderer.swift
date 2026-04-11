@@ -46,17 +46,33 @@ public struct MarkdownRenderer: Sendable {
         resolveWikiLink: ((String) -> String?)? = nil
     ) -> String {
         let stripped = stripFrontmatter(source)
+        let mdPlus = MdPlusParser.parse(stripped)
         let preprocessed = resolveWikiLink != nil
-            ? preprocessWikiLinks(stripped, resolver: resolveWikiLink!)
-            : stripped
+            ? preprocessWikiLinks(mdPlus.processedSource, resolver: resolveWikiLink!)
+            : mdPlus.processedSource
         let document = Document(parsing: preprocessed, options: [.parseBlockDirectives, .parseSymbolLinks])
         var bodyHTML = HTMLFormatter.format(document)
         bodyHTML = escapeCodeContent(bodyHTML)
         bodyHTML = addHeadingIDs(bodyHTML)
+        bodyHTML = processTaskCheckboxes(bodyHTML)
         let hasMermaid = source.contains("```mermaid")
         let hasMath = source.contains("$$") || source.contains("$\\")
             || source.contains("\\(") || source.contains("\\[")
-        return wrapInDocument(bodyHTML, isDark: isDark, fontSize: fontSize, hasMermaid: hasMermaid, hasMath: hasMath)
+        let hasFillable = MdPlusParser.hasFillableContent(stripped) || !mdPlus.blocks.isEmpty
+        return wrapInDocument(
+            bodyHTML,
+            isDark: isDark,
+            fontSize: fontSize,
+            hasMermaid: hasMermaid,
+            hasMath: hasMath,
+            hasFillable: hasFillable
+        )
+    }
+
+    /// Whether this source contains interactive content (GFM task lists or
+    /// md+ template blocks) that should enable the "Save Filled Copy" flow.
+    public static func hasFillableContent(_ source: String) -> Bool {
+        MdPlusParser.hasFillableContent(stripFrontmatter(source))
     }
 
     /// Extract headings from markdown source for TOC generation.
@@ -131,6 +147,45 @@ public struct MarkdownRenderer: Sendable {
             return ""
         }
         return String(source[closingRange.upperBound...])
+    }
+
+    // MARK: - Task Checkboxes (GFM)
+
+    /// Post-process HTML to make GFM task-list checkboxes interactive.
+    /// swift-markdown emits `<input type="checkbox" disabled="">` for task
+    /// list items; this strips `disabled=""` and adds a sequential
+    /// `data-gloss-task-index="N"` attribute so the Save Filled Copy flow
+    /// can correlate DOM state back to source line positions.
+    static func processTaskCheckboxes(_ html: String) -> String {
+        let pattern = #"<input type="checkbox"\s+disabled=""([^>]*)>"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return html }
+        let nsHtml = html as NSString
+        let matches = regex.matches(in: html, range: NSRange(location: 0, length: nsHtml.length))
+        guard !matches.isEmpty else { return html }
+        var result = html
+        // Reverse-iterate so ranges remain valid; capture the original index.
+        for (i, match) in matches.enumerated().reversed() {
+            guard let fullRange = Range(match.range, in: result) else { continue }
+            let original = String(result[fullRange])
+            var replacement = original.replacingOccurrences(
+                of: #"\s*disabled=""\s*"#,
+                with: " ",
+                options: .regularExpression
+            )
+            // Insert data-gloss-task-index before the closing `>` (or `/>`)
+            if let gt = replacement.lastIndex(of: ">") {
+                let insertPoint: String.Index
+                if replacement.distance(from: replacement.startIndex, to: gt) > 0,
+                   replacement[replacement.index(before: gt)] == "/" {
+                    insertPoint = replacement.index(before: gt)
+                } else {
+                    insertPoint = gt
+                }
+                replacement.insert(contentsOf: " data-gloss-task-index=\"\(i)\"", at: insertPoint)
+            }
+            result.replaceSubrange(fullRange, with: replacement)
+        }
+        return result
     }
 
     // MARK: - Code Content Escaping
@@ -285,7 +340,7 @@ public struct MarkdownRenderer: Sendable {
     }
 
     /// Wrap HTML body content in a full document with CSS theme.
-    private static func wrapInDocument(_ bodyHTML: String, isDark: Bool?, fontSize: Int, hasMermaid: Bool = false, hasMath: Bool = false) -> String {
+    private static func wrapInDocument(_ bodyHTML: String, isDark: Bool?, fontSize: Int, hasMermaid: Bool = false, hasMath: Bool = false, hasFillable: Bool = false) -> String {
         let themeClassAttr: String
         if let isDark {
             themeClassAttr = " class=\"\(isDark ? "dark" : "light")\""
@@ -321,6 +376,8 @@ public struct MarkdownRenderer: Sendable {
             \(headingAnchorScript)
             \(hasMermaid ? mermaidScript : "")
             \(hasMath ? katexScript : "")
+            \(hasFillable ? templateFillStyle : "")
+            \(hasFillable ? templateFillScript : "")
             \(keyboardNavScript)
             \(findInPageScript)
         </body>
@@ -410,6 +467,117 @@ public struct MarkdownRenderer: Sendable {
         if (!doRender()) {
             window.addEventListener('load', doRender);
         }
+    })();
+    </script>
+    """
+
+    /// Inline CSS for md+ template fieldsets and task-list checkbox polish.
+    /// Scoped here (not in gloss-theme.css) so it only loads when the page
+    /// actually has fillable content.
+    private static let templateFillStyle = """
+    <style>
+    .gloss-content input[type="checkbox"][data-gloss-task-index] {
+        cursor: pointer;
+        width: 1em;
+        height: 1em;
+        vertical-align: middle;
+        margin-right: 0.4em;
+        accent-color: var(--accent);
+    }
+    .gloss-content ul li.task-list-item,
+    .gloss-content ul li:has(> input[type="checkbox"]) {
+        list-style: none;
+        margin-left: -1.5em;
+    }
+    .gloss-content .gloss-mdplus {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1em 1.25em;
+        margin: 1.5em 0;
+        background: var(--code-bg);
+    }
+    .gloss-content .gloss-mdplus legend {
+        padding: 0 0.5em;
+        font-weight: 600;
+        color: var(--accent);
+    }
+    .gloss-content .gloss-mdplus-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35em;
+        margin-bottom: 0.85em;
+    }
+    .gloss-content .gloss-mdplus-field:last-child { margin-bottom: 0; }
+    .gloss-content .gloss-mdplus-field label {
+        font-size: 0.85em;
+        font-weight: 500;
+        color: var(--fg);
+        opacity: 0.8;
+    }
+    .gloss-content .gloss-mdplus-field input[type="text"],
+    .gloss-content .gloss-mdplus-field input[type="number"],
+    .gloss-content .gloss-mdplus-field input[type="date"],
+    .gloss-content .gloss-mdplus-field textarea,
+    .gloss-content .gloss-mdplus-field select {
+        font: inherit;
+        color: var(--fg);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.4em 0.6em;
+    }
+    .gloss-content .gloss-mdplus-field textarea { resize: vertical; }
+    .gloss-content .gloss-mdplus-error {
+        border: 1px solid #e11d48;
+        border-radius: 8px;
+        padding: 0.75em 1em;
+        margin: 1.5em 0;
+        background: rgba(225, 29, 72, 0.08);
+    }
+    .gloss-content .gloss-mdplus-error strong { color: #e11d48; }
+    .gloss-content .gloss-mdplus-error pre { margin-top: 0.5em; }
+    </style>
+    """
+
+    /// JavaScript bridge that exposes `window.glossTemplate.collectState()`
+    /// to Swift. Called via `evaluateJavaScript` when the user invokes the
+    /// "Save Filled Copy…" menu command; posts the collected checkbox and
+    /// form field state to the `glossTemplate` script message handler.
+    private static let templateFillScript = """
+    <script>
+    (function() {
+        window.glossTemplate = {
+            collectState: function() {
+                var checkboxes = [];
+                document.querySelectorAll('input[type="checkbox"][data-gloss-task-index]').forEach(function(el) {
+                    checkboxes.push({
+                        index: parseInt(el.dataset.glossTaskIndex, 10),
+                        checked: !!el.checked
+                    });
+                });
+                var fields = [];
+                document.querySelectorAll('[data-gloss-mdplus-field]').forEach(function(el) {
+                    var value;
+                    if (el.type === 'checkbox') {
+                        value = el.checked ? 'true' : 'false';
+                    } else {
+                        value = el.value;
+                    }
+                    fields.push({
+                        blockId: el.dataset.glossMdplusBlock,
+                        fieldName: el.dataset.glossMdplusField,
+                        value: value
+                    });
+                });
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.glossTemplate) {
+                    window.webkit.messageHandlers.glossTemplate.postMessage({
+                        kind: 'filled',
+                        checkboxes: checkboxes,
+                        fields: fields
+                    });
+                }
+            }
+        };
     })();
     </script>
     """

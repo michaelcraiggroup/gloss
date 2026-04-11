@@ -19,6 +19,8 @@ extension Notification.Name {
     static let glossGuideStopWeb = Notification.Name("glossGuideStopWeb")
     static let glossIndexUpdated = Notification.Name("glossIndexUpdated")
     static let glossShowGraph = Notification.Name("glossShowGraph")
+    static let glossSaveFilled = Notification.Name("glossSaveFilled")
+    static let glossTemplateFilled = Notification.Name("glossTemplateFilled")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.
@@ -148,6 +150,7 @@ struct WebView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         config.userContentController.add(context.coordinator, name: "glossGuide")
+        config.userContentController.add(context.coordinator, name: "glossTemplate")
 
         let webView = DropAcceptingWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
@@ -249,6 +252,19 @@ struct WebView: NSViewRepresentable {
                     }
                 }
             )
+            // Save Filled Copy — kick the JS bridge to collect state
+            observers.append(
+                NotificationCenter.default.addObserver(
+                    forName: .glossSaveFilled, object: nil, queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.webView?.evaluateJavaScript(
+                            "if (window.glossTemplate) window.glossTemplate.collectState();",
+                            completionHandler: nil
+                        )
+                    }
+                }
+            )
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -317,6 +333,10 @@ struct WebView: NSViewRepresentable {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
+            if message.name == "glossTemplate" {
+                handleTemplateFillMessage(body: message.body)
+                return
+            }
             guard message.name == "glossGuide" else { return }
             // Accept both String (JSON.stringify) and Dictionary (raw object) payloads
             let json: [String: Any]?
@@ -341,6 +361,25 @@ struct WebView: NSViewRepresentable {
                 default:
                     break
                 }
+            }
+        }
+
+        private func handleTemplateFillMessage(body: Any) {
+            let dict: [String: Any]?
+            if let str = body as? String, let data = str.data(using: .utf8) {
+                dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            } else if let d = body as? [String: Any] {
+                dict = d
+            } else {
+                dict = nil
+            }
+            guard let dict,
+                  let data = try? JSONSerialization.data(withJSONObject: dict),
+                  let payload = try? JSONDecoder().decode(TemplateFillPayload.self, from: data) else {
+                return
+            }
+            MainActor.assumeIsolated {
+                NotificationCenter.default.post(name: .glossTemplateFilled, object: payload)
             }
         }
 

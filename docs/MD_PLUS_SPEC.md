@@ -136,11 +136,12 @@ The formula uses standard compound interest: P(1 + r)^t
 
 ### Phase 1 (MVP)
 
-| Type | Purpose | Security | Parameters |
-|------|---------|----------|------------|
-| `calculator` | Formula evaluation | Safe | `formula`, `inputs[]`, `output` |
-| `chart` | Data visualization | Safe | `chartType`, `data`, `options` |
-| `embed` | Include another file | Read-only | `path`, `lines`, `language` |
+| Type | Purpose | Security | Parameters | Status |
+|------|---------|----------|------------|--------|
+| `template` | Fillable form that saves as plain markdown | Safe | `name`, `fields[]` | **Shipped in Gloss v1.10.0** |
+| `calculator` | Formula evaluation | Safe | `formula`, `inputs[]`, `output` | Planned |
+| `chart` | Data visualization | Safe | `chartType`, `data`, `options` | Planned |
+| `embed` | Include another file | Read-only | `path`, `lines`, `language` | Planned |
 
 ### Phase 2
 
@@ -153,13 +154,61 @@ The formula uses standard compound interest: P(1 + r)^t
 
 | Type | Purpose | Security | Parameters |
 |------|---------|----------|------------|
-| `form` | Interactive input | Safe | `fields[]`, `onSubmit` |
+| `form` | Interactive input (submit to external target — distinct from `template` which saves locally) | Safe | `fields[]`, `onSubmit` |
 | `state` | Reactive variables | Safe | `variables`, `computed` |
 | `conditional` | Show/hide content | Safe | `if`, `then`, `else` |
 
 ---
 
 ## Block Reference
+
+### template
+
+**Status:** Shipped in Gloss v1.10.0.
+
+Renders as an interactive form inside the document. Combined with GFM task lists (`- [ ]` / `- [x]`) — which are always clickable in the Gloss reader — templates let you fill out a markdown document and save the filled state as a new plain-markdown file via **File → Save Filled Copy…**.
+
+Unlike the Phase 3 `form` block (which submits to an external target), `template` is entirely local: it writes the filled values back into the same block structure in a new `.md` file, preserving the template as a template.
+
+```yaml
+type: template
+id: daily-checkin          # Stable identifier (optional — auto-assigned if omitted)
+name: Daily Check-In       # Human-readable title shown in the legend
+fields:
+  - name: date             # Field identifier (required)
+    type: date             # text | number | checkbox | date | select
+    label: Date            # Display label (defaults to name)
+    default: "2026-04-10"  # Initial value (optional)
+  - name: mood
+    type: select
+    label: Mood
+    options: [great, good, meh, rough]
+    default: good
+  - name: notes
+    type: text
+    label: Notes
+    multiline: true        # Renders as a textarea (text fields only)
+```
+
+**Supported field types:**
+
+| Type | Rendered as | `default` value |
+|------|-------------|-----------------|
+| `text` | `<input type="text">` or `<textarea>` if `multiline: true` | String |
+| `number` | `<input type="number">` | Numeric or string |
+| `checkbox` | `<input type="checkbox">` | `true` / `false` |
+| `date` | `<input type="date">` | ISO 8601 (`YYYY-MM-DD`) |
+| `select` | `<select>` with `<option>` children | Must match an entry in `options` |
+
+**Save semantics:**
+
+1. Opens an `NSSavePanel`; default filename is `{basename}-filled.md` in the source directory.
+2. On save, the service writes a new file with:
+   - GFM task list markers updated (`- [ ]` ↔ `- [x]`) to match the DOM state at save time.
+   - Each template field's `value:` key set to the user-entered value, preserving the rest of the block verbatim.
+3. The original source is never mutated — the template stays reusable.
+
+**Portability:** In GitHub, VS Code, or any other renderer, the block is an invisible HTML comment — the document still reads as normal markdown with whatever task lists or prose surround the template block.
 
 ### calculator
 
