@@ -18,6 +18,9 @@ macos/Gloss.xcodeproj/
 # Gloss link index (generated per-vault)
 .gloss/
 
+# Local test vault
+test-vault/
+
 # IDE
 .idea/
 *.swp

@@ -1,19 +1,25 @@
 import SwiftUI
 import GlossKit
 
-/// Inspector sidebar showing table of contents, frontmatter, tags, and backlinks.
+/// Inspector sidebar showing table of contents, frontmatter, tags, forward links, and backlinks.
 struct InspectorView: View {
     let headings: [HeadingInfo]
     let frontmatter: FrontmatterData?
     let tags: [String]
+    let forwardLinks: [ForwardLinkGroup]
     let backlinks: [BacklinkGroup]
     var hasDocument: Bool = false
     var onHeadingTap: ((String) -> Void)?
     var onTagTap: ((String) -> Void)?
+    var onForwardLinkTap: ((IndexedLink) -> Void)?
     var onBacklinkTap: ((String) -> Void)?
 
     private var hasContent: Bool {
-        !headings.isEmpty || (frontmatter != nil && !frontmatter!.fields.isEmpty) || !tags.isEmpty || !backlinks.isEmpty
+        !headings.isEmpty
+            || (frontmatter != nil && !frontmatter!.fields.isEmpty)
+            || !tags.isEmpty
+            || !forwardLinks.isEmpty
+            || !backlinks.isEmpty
     }
 
     var body: some View {
@@ -74,18 +80,33 @@ struct InspectorView: View {
                     .spotlightTarget(.inspectorTags)
                 }
 
-                if !backlinks.isEmpty {
-                    Section("Backlinks") {
-                        ForEach(backlinks) { group in
-                            DisclosureGroup {
-                                ForEach(group.links) { link in
-                                    Button {
-                                        onBacklinkTap?(link.sourcePath)
-                                    } label: {
+                if !forwardLinks.isEmpty {
+                    Section("Forward Links") {
+                        ForEach(forwardLinks) { group in
+                            HStack(spacing: 4) {
+                                Image(systemName: group.linkType.icon)
+                                    .font(.caption2)
+                                Text("\(group.linkType.displayName) (\(group.links.count))")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .foregroundStyle(.secondary)
+                            .listRowSeparator(.hidden)
+
+                            ForEach(group.links, id: \.stableKey) { link in
+                                Button {
+                                    onForwardLinkTap?(link)
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        if !link.isResolved {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.caption2)
+                                                .foregroundStyle(.red.opacity(0.7))
+                                                .help("Unresolved — no matching file")
+                                        }
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(link.sourceTitle)
+                                            Text(link.displayText ?? link.targetName)
                                                 .font(.caption)
-                                                .foregroundStyle(.primary)
+                                                .foregroundStyle(link.isResolved ? .primary : .secondary)
                                                 .lineLimit(1)
                                             if let line = link.lineNumber {
                                                 Text("Line \(line)")
@@ -95,16 +116,48 @@ struct InspectorView: View {
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
                                 }
-                            } label: {
-                                Label {
-                                    Text("\(group.linkType.displayName) (\(group.links.count))")
-                                        .font(.caption)
-                                } icon: {
-                                    Image(systemName: group.linkType.icon)
-                                        .font(.caption2)
+                                .buttonStyle(.plain)
+                                .disabled(!link.isResolved)
+                                .padding(.leading, 8)
+                            }
+                        }
+                    }
+                }
+
+                if !backlinks.isEmpty {
+                    Section("Backlinks") {
+                        ForEach(backlinks) { group in
+                            HStack(spacing: 4) {
+                                Image(systemName: group.linkType.icon)
+                                    .font(.caption2)
+                                Text("\(group.linkType.displayName) (\(group.links.count))")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .foregroundStyle(.secondary)
+                            .listRowSeparator(.hidden)
+
+                            ForEach(group.links, id: \.stableKey) { link in
+                                Button {
+                                    onBacklinkTap?(link.sourcePath)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(link.sourceTitle)
+                                            .font(.caption)
+                                            .foregroundStyle(.primary)
+                                            .lineLimit(1)
+                                        if let line = link.lineNumber {
+                                            Text("Line \(line)")
+                                                .font(.caption2)
+                                                .foregroundStyle(.tertiary)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                                 }
+                                .buttonStyle(.plain)
+                                .padding(.leading, 8)
                             }
                         }
                     }

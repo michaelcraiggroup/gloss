@@ -86,26 +86,40 @@ struct DocumentView: View {
         }
     }
 
+    @ViewBuilder
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            Text("Open a markdown file to start reading")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-            Text("File → Open or drag a .md file here")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first,
-                  ["md", "markdown"].contains(url.pathExtension.lowercased()) else {
-                return false
+        if fileTree.hasFolder {
+            VaultOverviewView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .dropDestination(for: URL.self) { urls, _ in
+                    guard let url = urls.first,
+                          ["md", "markdown"].contains(url.pathExtension.lowercased()) else {
+                        return false
+                    }
+                    NotificationCenter.default.post(name: .glossFileDrop, object: url)
+                    return true
+                }
+        } else {
+            VStack(spacing: 12) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.tertiary)
+                Text("Open a markdown file to start reading")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                Text("File → Open or drag a .md file here")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
-            NotificationCenter.default.post(name: .glossFileDrop, object: url)
-            return true
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first,
+                      ["md", "markdown"].contains(url.pathExtension.lowercased()) else {
+                    return false
+                }
+                NotificationCenter.default.post(name: .glossFileDrop, object: url)
+                return true
+            }
         }
     }
 

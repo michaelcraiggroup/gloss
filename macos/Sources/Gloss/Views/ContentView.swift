@@ -10,6 +10,7 @@ struct ContentView: View {
     @Environment(ContentSearchService.self) private var contentSearch
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
+    @Environment(VaultOverviewService.self) private var vaultOverview
     @Environment(GlossGuideService.self) private var guideService
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
@@ -94,6 +95,12 @@ struct ContentView: View {
                 linkIndex.updateIndex(for: currentURL)
             }
         }
+        .modifier(VaultOverviewRefresh(
+            linkIndex: linkIndex,
+            vaultOverview: vaultOverview,
+            currentFileURL: settings.currentFileURL,
+            hasFolder: fileTree.hasFolder
+        ))
         .onChange(of: settings.isZenMode) {
             columnVisibility = settings.isZenMode ? .detailOnly : .automatic
         }
@@ -135,6 +142,7 @@ struct ContentView: View {
                 headings: headings,
                 frontmatter: frontmatter,
                 tags: linkIndex.currentFileTags,
+                forwardLinks: linkIndex.forwardLinks,
                 backlinks: linkIndex.backlinks,
                 hasDocument: settings.currentFileURL != nil,
                 onHeadingTap: { headingID in
@@ -145,6 +153,12 @@ struct ContentView: View {
                 },
                 onTagTap: { tag in
                     fileTree.filterByTag(tag, files: linkIndex.files(forTag: tag))
+                },
+                onForwardLinkTap: { link in
+                    guard let targetPath = link.targetPath else { return }
+                    let url = URL(fileURLWithPath: targetPath)
+                    settings.currentFileURL = url
+                    settings.lastOpenedFile = url.path
                 },
                 onBacklinkTap: { sourcePath in
                     let url = URL(fileURLWithPath: sourcePath)
@@ -359,6 +373,33 @@ struct ContentView: View {
             }
         }
         return true
+    }
+}
+
+// MARK: - VaultOverviewRefresh ViewModifier
+
+/// Drives `VaultOverviewService` refreshes off the main body to keep
+/// ContentView's type checker happy. Listens for index rebuilds and
+/// folder-open/close changes, then triggers refresh or clear.
+struct VaultOverviewRefresh: ViewModifier {
+    let linkIndex: LinkIndex
+    let vaultOverview: VaultOverviewService
+    let currentFileURL: URL?
+    let hasFolder: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .glossIndexUpdated)) { _ in
+                linkIndex.refreshBacklinks(for: currentFileURL)
+                vaultOverview.refresh(database: linkIndex.databaseRef)
+            }
+            .onChange(of: hasFolder) { _, nowHasFolder in
+                if nowHasFolder {
+                    vaultOverview.refresh(database: linkIndex.databaseRef)
+                } else {
+                    vaultOverview.clear()
+                }
+            }
     }
 }
 

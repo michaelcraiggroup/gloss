@@ -34,11 +34,12 @@ mkdir -p "$APP_DIR/Contents/Resources"
 # Copy executable
 cp "$BUILD_DIR/$APP_NAME" "$APP_DIR/Contents/MacOS/"
 
-# Copy resource bundles where Bundle.module expects them:
-# SPM checks Bundle.main.bundleURL/<name>.bundle and Contents/Resources/<name>.bundle
+# Copy resource bundles into Contents/Resources (the standard, signable location).
+# Note: previous versions of this script also copied bundles to the .app root,
+# but that violates Apple's bundle layout and breaks codesign. Bundle.module finds
+# them under Contents/Resources via Bundle.main lookup.
 for BUNDLE_NAME in Gloss_Gloss Gloss_GlossKit; do
     if [ -d "$BUILD_DIR/$BUNDLE_NAME.bundle" ]; then
-        cp -R "$BUILD_DIR/$BUNDLE_NAME.bundle" "$APP_DIR/"
         cp -R "$BUILD_DIR/$BUNDLE_NAME.bundle" "$APP_DIR/Contents/Resources/"
     fi
 done
@@ -48,6 +49,12 @@ cp "Sources/Gloss/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"
 
 # Copy Info.plist
 cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
+
+# Ad-hoc sign so Gatekeeper allows the bundle to launch from /Applications.
+# Without this, macOS shows "may be damaged or incomplete" on copies.
+codesign --force --deep --sign - "$APP_DIR" >/dev/null 2>&1 || {
+    echo "Warning: ad-hoc signing failed" >&2
+}
 
 echo "Built $APP_DIR"
 echo "Run with: open $APP_DIR"

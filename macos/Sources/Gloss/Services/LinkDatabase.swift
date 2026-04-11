@@ -242,17 +242,18 @@ struct LinkDatabase: Sendable {
     /// Fetch backlinks for a file at the given path — other files that link TO this file.
     func backlinks(forPath path: String) throws -> [IndexedLink] {
         try dbQueue.read { db in
-            // Get file ID and title for the target file
-            guard let targetRow = try Row.fetchOne(db, sql: "SELECT id, title FROM files WHERE path = ?", arguments: [path]) else {
+            // Get file ID, title, and path for the target file
+            guard let targetRow = try Row.fetchOne(db, sql: "SELECT id, title, path FROM files WHERE path = ?", arguments: [path]) else {
                 return []
             }
             let targetId: Int64 = targetRow["id"]
             let targetTitle: String = targetRow["title"]
+            let targetPath: String = targetRow["path"]
 
             // Find links that point to this file by ID or by name
             let rows = try Row.fetchAll(db, sql: """
                 SELECT l.id, f.path AS sourcePath, f.title AS sourceTitle,
-                       l.targetName, l.linkType, l.displayText, l.lineNumber
+                       l.targetName, l.linkType, l.displayText, l.lineNumber, l.isResolved
                 FROM links l
                 JOIN files f ON f.id = l.sourceFileId
                 WHERE l.targetFileId = ? OR l.targetName = ?
@@ -265,11 +266,113 @@ struct LinkDatabase: Sendable {
                     sourcePath: row["sourcePath"],
                     sourceTitle: row["sourceTitle"],
                     targetName: row["targetName"],
+                    targetPath: targetPath,
                     linkType: LinkType(fromRaw: row["linkType"]),
                     displayText: row["displayText"],
-                    lineNumber: row["lineNumber"]
+                    lineNumber: row["lineNumber"],
+                    isResolved: (row["isResolved"] as Bool?) ?? true
                 )
             }
+        }
+    }
+
+    /// Fetch forward links for a file — links FROM this file pointing to other files (resolved or not).
+    func forwardLinks(forPath path: String) throws -> [IndexedLink] {
+        try dbQueue.read { db in
+            guard let sourceRow = try Row.fetchOne(db, sql: "SELECT id, title FROM files WHERE path = ?", arguments: [path]) else {
+                return []
+            }
+            let sourceId: Int64 = sourceRow["id"]
+            let sourceTitle: String = sourceRow["title"]
+
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT l.id, l.targetName, l.linkType, l.displayText, l.lineNumber, l.isResolved,
+                       tf.path AS targetPath
+                FROM links l
+                LEFT JOIN files tf ON tf.id = l.targetFileId
+                WHERE l.sourceFileId = ?
+                ORDER BY l.linkType, l.targetName
+                """, arguments: [sourceId])
+
+            return rows.map { row in
+                IndexedLink(
+                    id: row["id"],
+                    sourcePath: path,
+                    sourceTitle: sourceTitle,
+                    targetName: row["targetName"],
+                    targetPath: row["targetPath"],
+                    linkType: LinkType(fromRaw: row["linkType"]),
+                    displayText: row["displayText"],
+                    lineNumber: row["lineNumber"],
+                    isResolved: (row["isResolved"] as Bool?) ?? false
+                )
+            }
+        }
+    }
+
+    /// Count of unresolved (broken) links across the vault.
+    func brokenLinkCount() throws -> Int {
+        try dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM links WHERE isResolved = 0") ?? 0
+        }
+    }
+
+    /// All broken links across the vault, joined with source file info for navigation.
+    func brokenLinks() throws -> [IndexedLink] {
+        try dbQueue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT l.id, f.path AS sourcePath, f.title AS sourceTitle,
+                       l.targetName, l.linkType, l.displayText, l.lineNumber
+                FROM links l
+                JOIN files f ON f.id = l.sourceFileId
+                WHERE l.isResolved = 0
+                ORDER BY f.title, l.lineNumber
+                """)
+            return rows.map { row in
+                IndexedLink(
+                    id: row["id"],
+                    sourcePath: row["sourcePath"],
+                    sourceTitle: row["sourceTitle"],
+                    targetName: row["targetName"],
+                    targetPath: nil,
+                    linkType: LinkType(fromRaw: row["linkType"]),
+                    displayText: row["displayText"],
+                    lineNumber: row["lineNumber"],
+                    isResolved: false
+                )
+            }
+        }
+    }
+
+    /// Files with no inbound and no outbound links.
+    func orphanFiles() throws -> [(path: String, title: String)] {
+        try dbQueue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT f.path, f.title FROM files f
+                WHERE NOT EXISTS (SELECT 1 FROM links l WHERE l.sourceFileId = f.id)
+                  AND NOT EXISTS (SELECT 1 FROM links l WHERE l.targetFileId = f.id)
+                ORDER BY f.title COLLATE NOCASE
+                """).map { row in
+                    (path: row["path"] as String, title: row["title"] as String)
+                }
+        }
+    }
+
+    /// Files with the most resolved inbound links — the "hubs" of the vault.
+    func hubFiles(limit: Int = 10) throws -> [(path: String, title: String, linkCount: Int)] {
+        try dbQueue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT f.path, f.title, COUNT(l.id) AS cnt
+                FROM files f
+                JOIN links l ON l.targetFileId = f.id
+                GROUP BY f.id
+                ORDER BY cnt DESC, f.title COLLATE NOCASE
+                LIMIT ?
+                """, arguments: [limit]).map { row in
+                    (path: row["path"] as String,
+                     title: row["title"] as String,
+                     linkCount: row["cnt"] as Int)
+                }
         }
     }
 

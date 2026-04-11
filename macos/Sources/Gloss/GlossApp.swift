@@ -17,6 +17,7 @@ struct GlossApp: App {
     @State private var contentSearch = ContentSearchService()
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
+    @State private var vaultOverview = VaultOverviewService()
     @State private var guideService = GlossGuideService()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
@@ -36,6 +37,7 @@ struct GlossApp: App {
                 .environment(contentSearch)
                 .environment(store)
                 .environment(linkIndex)
+                .environment(vaultOverview)
                 .environment(guideService)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)

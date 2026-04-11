@@ -7,25 +7,34 @@ import GlossKit
 @MainActor
 final class LinkIndex {
     var backlinks: [BacklinkGroup] = []
+    var forwardLinks: [ForwardLinkGroup] = []
     var recentlyChanged: [(path: String, title: String, modifiedAt: Date)] = []
     var allTags: [(tag: String, count: Int)] = []
     var currentFileTags: [String] = []
+    var linkHealth: LinkHealthStats = .empty
     var isIndexing: Bool = false
 
     private var database: LinkDatabase?
     private var rootURL: URL?
     private var indexTask: Task<Void, Never>?
 
+    /// Sendable snapshot of the current database, for other services (e.g.
+    /// `VaultOverviewService`) that need to run queries off-main.
+    var databaseRef: LinkDatabase? { database }
+
     /// Build the full index for a vault root. Creates `.gloss/index.sqlite`.
+    ///
+    /// Runs the heavy indexing work off-main via `Task.detached` — otherwise
+    /// the nonisolated static helpers inherit main actor isolation from the
+    /// enclosing `@MainActor` class and block the UI thread for the whole scan.
     func buildIndex(rootURL: URL) {
         self.rootURL = rootURL
         indexTask?.cancel()
         isIndexing = true
 
-        indexTask = Task {
+        indexTask = Task.detached { [weak self] in
             do {
                 let db = try LinkDatabase(rootURL: rootURL)
-                self.database = db
 
                 let files = Self.collectMarkdownFiles(under: rootURL)
                 guard !Task.isCancelled else { return }
@@ -43,14 +52,27 @@ final class LinkIndex {
                 // Resolve cross-references
                 try db.resolveAllLinks()
 
-                // Populate recently changed files and tags
-                self.recentlyChanged = (try? db.recentlyChangedFiles()) ?? []
-                self.allTags = (try? db.allTagCounts()) ?? []
+                // Collect aggregates off-main
+                let recent = (try? db.recentlyChangedFiles()) ?? []
+                let tags = (try? db.allTagCounts()) ?? []
+                let health = Self.computeHealth(database: db)
 
-                isIndexing = false
+                // Hop back to main actor for the state swap + notification
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.database = db
+                    self.recentlyChanged = recent
+                    self.allTags = tags
+                    self.linkHealth = health
+                    self.isIndexing = false
+                    NotificationCenter.default.post(name: .glossIndexUpdated, object: nil)
+                }
             } catch {
-                isIndexing = false
+                await MainActor.run { [weak self] in
+                    self?.isIndexing = false
+                }
             }
+            _ = self  // silence unused-capture warning when the catch path fires
         }
     }
 
@@ -58,17 +80,26 @@ final class LinkIndex {
     func updateIndex(for fileURL: URL) {
         guard let db = database, let rootURL else { return }
 
-        Task {
+        Task.detached { [weak self] in
             do {
                 try Self.indexFile(fileURL, rootURL: rootURL, database: db)
                 try db.resolveAllLinks()
-                // Refresh backlinks if we're viewing a file
-                refreshBacklinks(for: fileURL)
-                recentlyChanged = (try? db.recentlyChangedFiles()) ?? []
-                allTags = (try? db.allTagCounts()) ?? []
+
+                let recent = (try? db.recentlyChangedFiles()) ?? []
+                let tags = (try? db.allTagCounts()) ?? []
+                let health = Self.computeHealth(database: db)
+
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.recentlyChanged = recent
+                    self.allTags = tags
+                    self.linkHealth = health
+                    self.refreshBacklinks(for: fileURL)
+                }
             } catch {
                 // Index update failed silently
             }
+            _ = self
         }
     }
 
@@ -76,13 +107,18 @@ final class LinkIndex {
     func removeFromIndex(url: URL) {
         guard let db = database else { return }
         let standardizedPath = url.standardizedFileURL.path
-        Task {
+        Task.detached { [weak self] in
             do {
                 try db.deleteFile(path: standardizedPath)
                 try db.resolveAllLinks()
+                let health = Self.computeHealth(database: db)
+                await MainActor.run { [weak self] in
+                    self?.linkHealth = health
+                }
             } catch {
                 // Delete failed silently
             }
+            _ = self
         }
     }
 
@@ -90,21 +126,27 @@ final class LinkIndex {
     func handleRename(oldURL: URL, newURL: URL) {
         guard let db = database, let rootURL else { return }
         let oldPath = oldURL.standardizedFileURL.path
-        Task {
+        Task.detached { [weak self] in
             do {
                 try db.deleteFile(path: oldPath)
                 try Self.indexFile(newURL, rootURL: rootURL, database: db)
                 try db.resolveAllLinks()
+                let health = Self.computeHealth(database: db)
+                await MainActor.run { [weak self] in
+                    self?.linkHealth = health
+                }
             } catch {
                 // Rename index update failed silently
             }
+            _ = self
         }
     }
 
-    /// Refresh the backlinks and tags for the currently viewed file.
+    /// Refresh the backlinks, forward links, and tags for the currently viewed file.
     func refreshBacklinks(for fileURL: URL?) {
         guard let db = database, let fileURL else {
             backlinks = []
+            forwardLinks = []
             currentFileTags = []
             return
         }
@@ -120,16 +162,33 @@ final class LinkIndex {
         }
 
         // Refresh backlinks
-        guard let links = try? db.backlinks(forPath: standardizedPath), !links.isEmpty else {
+        if let links = try? db.backlinks(forPath: standardizedPath), !links.isEmpty {
+            let grouped = Dictionary(grouping: links, by: \.linkType)
+            backlinks = LinkType.allCases.compactMap { type in
+                guard let typeLinks = grouped[type], !typeLinks.isEmpty else { return nil }
+                return BacklinkGroup(linkType: type, links: typeLinks)
+            }
+        } else {
             backlinks = []
-            return
         }
 
-        let grouped = Dictionary(grouping: links, by: \.linkType)
-        backlinks = LinkType.allCases.compactMap { type in
-            guard let typeLinks = grouped[type], !typeLinks.isEmpty else { return nil }
-            return BacklinkGroup(linkType: type, links: typeLinks)
+        // Refresh forward links
+        if let links = try? db.forwardLinks(forPath: standardizedPath), !links.isEmpty {
+            let grouped = Dictionary(grouping: links, by: \.linkType)
+            forwardLinks = LinkType.allCases.compactMap { type in
+                guard let typeLinks = grouped[type], !typeLinks.isEmpty else { return nil }
+                return ForwardLinkGroup(linkType: type, links: typeLinks)
+            }
+        } else {
+            forwardLinks = []
         }
+    }
+
+    /// Compute current vault link health (total + broken counts).
+    nonisolated private static func computeHealth(database: LinkDatabase) -> LinkHealthStats {
+        let total = (try? database.linkCount()) ?? 0
+        let broken = (try? database.brokenLinkCount()) ?? 0
+        return LinkHealthStats(totalLinks: total, brokenCount: broken)
     }
 
     /// Get file paths for a specific tag.
