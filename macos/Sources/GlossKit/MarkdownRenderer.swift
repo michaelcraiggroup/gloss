@@ -372,13 +372,23 @@ public struct MarkdownRenderer: Sendable {
             <div class="gloss-content">
                 \(bodyHTML)
             </div>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
             <script>
-            document.querySelectorAll('pre code').forEach(function(block) {
-                if (!block.classList.contains('language-mermaid')) {
-                    hljs.highlightElement(block);
-                }
-            });
+            // Load hljs asynchronously so it doesn't block page interactivity.
+            // Synchronous <script src=...> here blocks all JS until the CDN
+            // responds, which also blocks click/focus events on form fields.
+            (function() {
+                var s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+                s.async = true;
+                s.onload = function() {
+                    document.querySelectorAll('pre code').forEach(function(block) {
+                        if (!block.classList.contains('language-mermaid')) {
+                            hljs.highlightElement(block);
+                        }
+                    });
+                };
+                document.head.appendChild(s);
+            })();
             </script>
             \(copyButtonScript)
             \(headingAnchorScript)

@@ -15,40 +15,56 @@ struct DocumentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
     @State private var fileWatcher = FileWatcher()
+    @State private var isLoading = false
 
     var body: some View {
-        Group {
-            if let url = fileURL {
-                if isEditing {
-                    EditorWebView(
-                        fileURL: url,
-                        isDark: colorScheme == .dark,
-                        fontSize: settings.fontSize
-                    )
-                } else if let content = fileContent {
-                    let rendered = MarkdownRenderer.render(
-                        content,
-                        isDark: colorScheme == .dark,
-                        fontSize: settings.fontSize,
-                        resolveWikiLink: { target in
-                            resolveWikiLink(target, from: url)
-                        }
-                    )
-                    let html = GuideInjector.injectGuideSDK(into: rendered)
-                    WebView(
-                        htmlContent: html,
-                        baseURL: url.deletingLastPathComponent(),
-                        highlightQuery: highlightQuery,
-                        rawMarkdown: content
-                    )
+        ZStack {
+            Group {
+                if let url = fileURL {
+                    if isEditing {
+                        EditorWebView(
+                            fileURL: url,
+                            isDark: colorScheme == .dark,
+                            fontSize: settings.fontSize
+                        )
+                    } else if let content = fileContent {
+                        let rendered = MarkdownRenderer.render(
+                            content,
+                            isDark: colorScheme == .dark,
+                            fontSize: settings.fontSize,
+                            resolveWikiLink: { target in
+                                resolveWikiLink(target, from: url)
+                            }
+                        )
+                        let html = GuideInjector.injectGuideSDK(into: rendered)
+                        WebView(
+                            htmlContent: html,
+                            baseURL: url.deletingLastPathComponent(),
+                            highlightQuery: highlightQuery,
+                            rawMarkdown: content
+                        )
+                    } else {
+                        errorState(message: "Could not read file:\n\(url.lastPathComponent)")
+                    }
                 } else {
-                    errorState(message: "Could not read file:\n\(url.lastPathComponent)")
+                    emptyState
                 }
-            } else {
-                emptyState
+            }
+
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(10)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 12)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
             }
         }
+        .animation(.easeInOut(duration: 0.15), value: isLoading)
         .onChange(of: fileURL) {
+            if fileURL != nil { isLoading = true }
             if isEditing && isEditorDirty {
                 GlossEditorWebView.current?.saveCurrentContent { _ in
                     isEditing = false
@@ -60,6 +76,12 @@ struct DocumentView: View {
                 isEditorDirty = false
                 loadAndWatch()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossWebViewDidStartLoad)) { _ in
+            isLoading = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossWebViewDidFinishLoad)) { _ in
+            isLoading = false
         }
         .onAppear {
             loadAndWatch()

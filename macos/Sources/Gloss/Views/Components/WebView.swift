@@ -21,6 +21,8 @@ extension Notification.Name {
     static let glossShowGraph = Notification.Name("glossShowGraph")
     static let glossSaveFilled = Notification.Name("glossSaveFilled")
     static let glossTemplateFilled = Notification.Name("glossTemplateFilled")
+    static let glossWebViewDidStartLoad = Notification.Name("glossWebViewDidStartLoad")
+    static let glossWebViewDidFinishLoad = Notification.Name("glossWebViewDidFinishLoad")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.
@@ -267,9 +269,16 @@ struct WebView: NSViewRepresentable {
             )
         }
 
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            MainActor.assumeIsolated {
+                NotificationCenter.default.post(name: .glossWebViewDidStartLoad, object: nil)
+            }
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             MainActor.assumeIsolated {
                 applyHighlight(pendingHighlight)
+                NotificationCenter.default.post(name: .glossWebViewDidFinishLoad, object: nil)
             }
         }
 
