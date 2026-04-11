@@ -108,6 +108,12 @@ struct GlossApp: App {
                 .keyboardShortcut("d", modifiers: .command)
                 .disabled(toggleFavorite == nil)
 
+                Divider()
+
+                Button("Save Filled Copy…") {
+                    NotificationCenter.default.post(name: .glossSaveFilled, object: nil)
+                }
+                .disabled(settings.currentFileURL == nil)
             }
         }
 
@@ -180,16 +186,6 @@ struct GlossApp: App {
                     NotificationCenter.default.post(name: .glossExportPDF, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command])
-                .disabled(settings.currentFileURL == nil)
-            }
-        }
-
-        .commands {
-            CommandGroup(after: .printItem) {
-                Button("Save Filled Copy…") {
-                    NotificationCenter.default.post(name: .glossSaveFilled, object: nil)
-                }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(settings.currentFileURL == nil)
             }
         }
