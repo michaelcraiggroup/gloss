@@ -114,6 +114,7 @@ enum PaidFeature: String, CaseIterable, Identifiable {
     case favorites = "Favorites & Recents"
     case wikiLinks = "Wiki-Link Navigation"
     case fontSizeControl = "Font Size Control"
+    case graphView = "Graph View"
 
     var id: String { rawValue }
 }

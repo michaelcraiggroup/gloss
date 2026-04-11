@@ -18,6 +18,7 @@ extension Notification.Name {
     static let glossGuideDispatchWeb = Notification.Name("glossGuideDispatchWeb")
     static let glossGuideStopWeb = Notification.Name("glossGuideStopWeb")
     static let glossIndexUpdated = Notification.Name("glossIndexUpdated")
+    static let glossShowGraph = Notification.Name("glossShowGraph")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.

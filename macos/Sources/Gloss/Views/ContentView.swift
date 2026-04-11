@@ -11,6 +11,7 @@ struct ContentView: View {
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(VaultOverviewService.self) private var vaultOverview
+    @Environment(GraphService.self) private var graphService
     @Environment(GlossGuideService.self) private var guideService
     @Environment(\.modelContext) private var modelContext
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
@@ -23,6 +24,7 @@ struct ContentView: View {
     @State private var isEditorDirty = false
     @State private var showingNewFileAlert = false
     @State private var newFileName = ""
+    @State private var isShowingGraph = false
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -82,6 +84,10 @@ struct ContentView: View {
             if let newValue {
                 navHistory.navigate(to: newValue, from: oldValue)
                 linkIndex.refreshBacklinks(for: newValue)
+                // Selecting a file exits graph mode so the user sees the doc.
+                if isShowingGraph {
+                    withAnimation { isShowingGraph = false }
+                }
             } else {
                 headings = []
                 frontmatter = nil
@@ -98,8 +104,11 @@ struct ContentView: View {
         .modifier(VaultOverviewRefresh(
             linkIndex: linkIndex,
             vaultOverview: vaultOverview,
+            graphService: graphService,
+            store: store,
             currentFileURL: settings.currentFileURL,
-            hasFolder: fileTree.hasFolder
+            hasFolder: fileTree.hasFolder,
+            isShowingGraph: $isShowingGraph
         ))
         .onChange(of: settings.isZenMode) {
             columnVisibility = settings.isZenMode ? .detailOnly : .automatic
@@ -129,6 +138,18 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
+        if isShowingGraph {
+            GraphView()
+                .toolbar(settings.isZenMode ? .hidden : .automatic)
+                .toolbar { graphToolbarContent }
+                .navigationTitle("Vault Graph")
+        } else {
+            documentDetailView
+        }
+    }
+
+    @ViewBuilder
+    private var documentDetailView: some View {
         DocumentView(
             fileURL: settings.currentFileURL,
             highlightQuery: fileTree.searchScope == .content ? fileTree.searchQuery : nil,
@@ -252,6 +273,23 @@ struct ContentView: View {
                 ToolbarItem(placement: .status) {
                     statusText
                 }
+            }
+        }
+    }
+
+    // MARK: - Graph Toolbar
+
+    @ToolbarContentBuilder
+    private var graphToolbarContent: some ToolbarContent {
+        if !settings.isZenMode {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    withAnimation { isShowingGraph = false }
+                } label: {
+                    Label("Close Graph", systemImage: "xmark")
+                }
+                .help("Close Graph (Esc)")
+                .keyboardShortcut(.escape, modifiers: [])
             }
         }
     }
@@ -384,21 +422,37 @@ struct ContentView: View {
 struct VaultOverviewRefresh: ViewModifier {
     let linkIndex: LinkIndex
     let vaultOverview: VaultOverviewService
+    let graphService: GraphService
+    let store: StoreManager
     let currentFileURL: URL?
     let hasFolder: Bool
+    @Binding var isShowingGraph: Bool
 
     func body(content: Content) -> some View {
         content
             .onReceive(NotificationCenter.default.publisher(for: .glossIndexUpdated)) { _ in
                 linkIndex.refreshBacklinks(for: currentFileURL)
                 vaultOverview.refresh(database: linkIndex.databaseRef)
+                graphService.refresh(database: linkIndex.databaseRef)
             }
             .onChange(of: hasFolder) { _, nowHasFolder in
                 if nowHasFolder {
                     vaultOverview.refresh(database: linkIndex.databaseRef)
+                    graphService.refresh(database: linkIndex.databaseRef)
                 } else {
                     vaultOverview.clear()
+                    graphService.clear()
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .glossShowGraph)) { _ in
+                guard store.gate(.graphView) else { return }
+                if let current = currentFileURL {
+                    var f = graphService.filter
+                    f.centerPath = current.standardizedFileURL.path
+                    if f.maxDepth == nil { f.maxDepth = 2 }
+                    graphService.applyFilter(f, database: linkIndex.databaseRef)
+                }
+                withAnimation { isShowingGraph = true }
             }
     }
 }

@@ -18,6 +18,7 @@ struct GlossApp: App {
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
     @State private var vaultOverview = VaultOverviewService()
+    @State private var graphService = GraphService()
     @State private var guideService = GlossGuideService()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
@@ -38,6 +39,7 @@ struct GlossApp: App {
                 .environment(store)
                 .environment(linkIndex)
                 .environment(vaultOverview)
+                .environment(graphService)
                 .environment(guideService)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
@@ -244,6 +246,12 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(toggleInspector == nil)
+
+                Button("Show Vault Graph") {
+                    NotificationCenter.default.post(name: .glossShowGraph, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: [.command, .option])
+                .disabled(!fileTree.hasFolder)
             }
             CommandGroup(replacing: .help) {
                 Button("Getting Started Tour") {

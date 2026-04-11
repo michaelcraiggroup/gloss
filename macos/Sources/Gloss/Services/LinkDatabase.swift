@@ -407,4 +407,72 @@ struct LinkDatabase: Sendable {
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM links") ?? 0
         }
     }
+
+    // MARK: - Graph Queries
+
+    /// Row type for graph node fetches.
+    struct GraphFileRow: Sendable {
+        let id: Int64
+        let path: String
+        let title: String
+    }
+
+    /// Row type for resolved edges in the graph.
+    struct GraphEdgeRow: Sendable {
+        let sourceId: Int64
+        let targetId: Int64
+        let linkType: String
+    }
+
+    /// Fetch every file in the vault as a graph node candidate.
+    func graphFiles() throws -> [GraphFileRow] {
+        try dbQueue.read { db in
+            try Row.fetchAll(
+                db,
+                sql: "SELECT id, path, title FROM files ORDER BY title COLLATE NOCASE"
+            ).map { row in
+                GraphFileRow(
+                    id: row["id"],
+                    path: row["path"],
+                    title: row["title"]
+                )
+            }
+        }
+    }
+
+    /// Fetch every resolved link as a graph edge. Drops unresolved (broken)
+    /// links — those have no target node to connect to.
+    func graphResolvedEdges() throws -> [GraphEdgeRow] {
+        try dbQueue.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT sourceFileId, targetFileId, linkType
+                    FROM links
+                    WHERE isResolved = 1 AND targetFileId IS NOT NULL
+                    """
+            ).map { row in
+                GraphEdgeRow(
+                    sourceId: row["sourceFileId"],
+                    targetId: row["targetFileId"],
+                    linkType: row["linkType"]
+                )
+            }
+        }
+    }
+
+    /// Fetch tags grouped by file id, for enriching graph nodes without
+    /// issuing one query per file.
+    func graphTagsByFileId() throws -> [Int64: [String]] {
+        try dbQueue.read { db in
+            var result: [Int64: [String]] = [:]
+            let rows = try Row.fetchAll(db, sql: "SELECT fileId, tag FROM tags")
+            for row in rows {
+                let fid: Int64 = row["fileId"]
+                let tag: String = row["tag"]
+                result[fid, default: []].append(tag)
+            }
+            return result
+        }
+    }
 }

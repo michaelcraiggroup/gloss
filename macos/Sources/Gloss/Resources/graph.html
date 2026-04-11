@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault Graph</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Night Owl Light — matches gloss-theme.css */
+  :root {
+    --bg: #FBFBFB;
+    --fg: #403f53;
+    --fg-muted: rgba(64, 63, 83, 0.55);
+    --edge: rgba(64, 63, 83, 0.22);
+    --node: #4876d6;
+    --node-stroke: #FBFBFB;
+    --card-bg: rgba(255, 255, 255, 0.92);
+    --card-border: rgba(0, 0, 0, 0.08);
+    --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  }
+
+  html.dark {
+    --bg: #011627;
+    --fg: #d6deeb;
+    --fg-muted: rgba(214, 222, 235, 0.55);
+    --edge: rgba(214, 222, 235, 0.18);
+    --node: #82AAFF;
+    --node-stroke: #011627;
+    --card-bg: rgba(11, 37, 58, 0.92);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  #graph {
+    width: 100vw;
+    height: 100vh;
+    cursor: grab;
+  }
+  #graph:active { cursor: grabbing; }
+
+  .link {
+    stroke: var(--edge);
+    stroke-width: 1.2;
+    fill: none;
+  }
+  .link.related { stroke: var(--edge); }
+  .link.supports { stroke: rgba(34, 197, 94, 0.55); }
+  .link.contradicts { stroke: rgba(239, 68, 68, 0.55); }
+  .link.extends { stroke: rgba(168, 85, 247, 0.55); }
+  .link.implements { stroke: rgba(234, 179, 8, 0.6); }
+  .link.depends { stroke: rgba(14, 165, 233, 0.55); }
+  .link.supersedes { stroke: rgba(236, 72, 153, 0.55); }
+  .link.references { stroke: rgba(107, 114, 128, 0.55); }
+
+  .node-circle {
+    fill: var(--node);
+    stroke: var(--node-stroke);
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: fill 0.15s ease;
+  }
+  .node-circle:hover { fill: #f59e0b; }
+  .node-circle.center {
+    fill: #f59e0b;
+    stroke-width: 2.5;
+  }
+
+  .node-label {
+    fill: var(--fg);
+    font-size: 11px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .empty-state {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--fg-muted);
+    font-size: 13px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #stats {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--fg-muted);
+    box-shadow: var(--card-shadow);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<svg id="graph"></svg>
+<div class="empty-state" id="empty">Loading graph…</div>
+<div id="stats"></div>
+
+<script type="module">
+import * as d3 from 'https://esm.sh/d3@7';
+
+const svgEl = d3.select('#graph');
+const emptyEl = document.getElementById('empty');
+const statsEl = document.getElementById('stats');
+
+let width = window.innerWidth;
+let height = window.innerHeight;
+
+svgEl.attr('viewBox', `0 0 ${width} ${height}`);
+
+// Container that receives zoom/pan transforms
+const container = svgEl.append('g').attr('class', 'zoom-container');
+const linkLayer = container.append('g').attr('class', 'links');
+const nodeLayer = container.append('g').attr('class', 'nodes');
+
+const simulation = d3.forceSimulation()
+  .force('charge', d3.forceManyBody().strength(-220))
+  .force('center', d3.forceCenter(width / 2, height / 2))
+  .force('link', d3.forceLink().id(d => d.id).distance(70).strength(0.8))
+  .force('collide', d3.forceCollide().radius(d => 8 + Math.sqrt((d.inDegree || 0) + (d.outDegree || 0)) * 2));
+
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 8])
+  .on('zoom', (event) => {
+    container.attr('transform', event.transform);
+  });
+svgEl.call(zoom);
+
+let currentData = { nodes: [], edges: [] };
+let centerPath = null;
+
+window.addEventListener('resize', () => {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  svgEl.attr('viewBox', `0 0 ${width} ${height}`);
+  simulation.force('center', d3.forceCenter(width / 2, height / 2));
+  simulation.alpha(0.3).restart();
+});
+
+function radius(node) {
+  return 5 + Math.sqrt((node.inDegree || 0) + (node.outDegree || 0)) * 2;
+}
+
+function sendToSwift(message) {
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.glossGraph) {
+    window.webkit.messageHandlers.glossGraph.postMessage(message);
+  }
+}
+
+function updateStats() {
+  const n = currentData.nodes.length;
+  const e = currentData.edges.length;
+  statsEl.textContent = `${n} node${n === 1 ? '' : 's'} · ${e} edge${e === 1 ? '' : 's'}`;
+}
+
+window.renderGraph = function(payload) {
+  try {
+    const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    currentData = data;
+    centerPath = data.centerPath || null;
+
+    if (!data.nodes || data.nodes.length === 0) {
+      linkLayer.selectAll('*').remove();
+      nodeLayer.selectAll('*').remove();
+      emptyEl.style.display = 'block';
+      emptyEl.textContent = 'No files in the graph yet. Open a vault to begin.';
+      updateStats();
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    // Preserve positions of nodes that already exist so re-renders don't
+    // reshuffle the whole layout. D3 mutates nodes in-place, so we key by id.
+    const oldById = new Map();
+    simulation.nodes().forEach(n => oldById.set(n.id, n));
+
+    const nodes = data.nodes.map(n => {
+      const prev = oldById.get(n.id);
+      if (prev) {
+        return Object.assign(prev, n);
+      }
+      return Object.assign({}, n);
+    });
+    const links = data.edges.map(e => ({ source: e.source, target: e.target, type: e.type }));
+
+    // ---- Links ----
+    const link = linkLayer.selectAll('line').data(links, d => `${d.source}|${d.target}|${d.type}`);
+    link.exit().remove();
+    const linkEnter = link.enter().append('line').attr('class', d => `link ${d.type}`);
+    linkEnter.append('title').text(d => `${d.source} → ${d.target} (${d.type})`);
+    const allLinks = linkEnter.merge(link);
+
+    // ---- Nodes ----
+    const node = nodeLayer.selectAll('g.node').data(nodes, d => d.id);
+    node.exit().remove();
+    const nodeEnter = node.enter().append('g').attr('class', 'node');
+
+    nodeEnter.append('circle')
+      .attr('class', d => `node-circle${d.path === centerPath ? ' center' : ''}`)
+      .attr('r', d => radius(d))
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        sendToSwift({ type: 'nodeClick', path: d.path });
+      })
+      .call(d3.drag()
+        .on('start', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }));
+
+    nodeEnter.append('title').text(d => `${d.title}\n${d.path}`);
+
+    nodeEnter.append('text')
+      .attr('class', 'node-label')
+      .attr('dx', d => radius(d) + 4)
+      .attr('dy', 4)
+      .text(d => d.title);
+
+    const allNodes = nodeEnter.merge(node);
+    // Re-apply center class on update (filter can change centerPath)
+    allNodes.select('circle').attr('class', d => `node-circle${d.path === centerPath ? ' center' : ''}`);
+
+    // ---- Simulation ----
+    simulation.nodes(nodes).on('tick', () => {
+      allLinks
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+      allNodes.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+    simulation.force('link').links(links);
+    simulation.alpha(0.8).restart();
+
+    updateStats();
+  } catch (err) {
+    emptyEl.style.display = 'block';
+    emptyEl.textContent = 'Graph error: ' + (err && err.message ? err.message : 'unknown');
+    console.error('Graph render error:', err);
+  }
+};
+
+window.fitToWindow = function() {
+  svgEl.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+};
+
+window.setTheme = function(isDark) {
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+};
+
+// Signal to Swift that the SDK loaded and is ready for data.
+sendToSwift({ type: 'ready' });
+</script>
+</body>
+</html>

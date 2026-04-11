@@ -277,6 +277,14 @@ struct SidebarView: View {
                     Label("Open Folder", systemImage: "folder.badge.plus")
                 }
                 .help("Open Folder (⇧⌘O)")
+
+                Button {
+                    NotificationCenter.default.post(name: .glossShowGraph, object: nil)
+                } label: {
+                    Label("Vault Graph", systemImage: "point.3.connected.trianglepath.dotted")
+                }
+                .help("Show Vault Graph (⌥⌘G)")
+                .disabled(!fileTree.hasFolder)
             }
         }
         .alert("Rename", isPresented: $showingRenameAlert) {
