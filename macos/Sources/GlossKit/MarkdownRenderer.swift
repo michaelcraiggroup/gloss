@@ -588,7 +588,12 @@ public struct MarkdownRenderer: Sendable {
     (function() {
         var pending = '';
         document.addEventListener('keydown', function(e) {
-            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+            var el = document.activeElement;
+            if (el) {
+                var tag = el.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                if (el.isContentEditable) return;
+            }
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             var key = e.key;
             if (key === 'j') {
