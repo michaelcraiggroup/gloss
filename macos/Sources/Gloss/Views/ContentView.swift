@@ -7,7 +7,7 @@ import GlossKit
 struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
-    @Environment(ContentSearchService.self) private var contentSearch
+    @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(VaultOverviewService.self) private var vaultOverview

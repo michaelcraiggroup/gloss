@@ -56,6 +56,19 @@ struct LinkDatabase: Sendable {
             }
         }
 
+        // WS5 — Enhanced Search: add FTS5 virtual table for full-text search
+        // over file titles and bodies. Uses porter stemming over unicode61
+        // tokenization for case-insensitive, punctuation-safe indexing.
+        // `rowid` is explicitly set to `files.id` so we can JOIN on it when
+        // returning hits, and so `deleteFile` can cascade manually.
+        migrator.registerMigration("v2_fts5") { db in
+            try db.create(virtualTable: "files_fts", using: FTS5()) { t in
+                t.tokenizer = .porter(wrapping: .unicode61())
+                t.column("title")
+                t.column("body")
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -85,10 +98,15 @@ struct LinkDatabase: Sendable {
         }
     }
 
-    /// Delete a file and its associated links/tags (cascading).
+    /// Delete a file and its associated links/tags/FTS row (cascading).
+    /// FTS5 virtual tables don't participate in foreign-key cascades, so the
+    /// `files_fts` row has to be removed explicitly by rowid.
     func deleteFile(path: String) throws {
         try dbQueue.write { db in
-            try db.execute(sql: "DELETE FROM files WHERE path = ?", arguments: [path])
+            if let fileId: Int64 = try Row.fetchOne(db, sql: "SELECT id FROM files WHERE path = ?", arguments: [path])?["id"] {
+                try db.execute(sql: "DELETE FROM files_fts WHERE rowid = ?", arguments: [fileId])
+                try db.execute(sql: "DELETE FROM files WHERE id = ?", arguments: [fileId])
+            }
         }
     }
 
@@ -121,6 +139,7 @@ struct LinkDatabase: Sendable {
                 let path: String = row["path"]
                 if !existingPaths.contains(path) {
                     let fileId: Int64 = row["id"]
+                    try db.execute(sql: "DELETE FROM files_fts WHERE rowid = ?", arguments: [fileId])
                     try db.execute(sql: "DELETE FROM files WHERE id = ?", arguments: [fileId])
                 }
             }
@@ -473,6 +492,109 @@ struct LinkDatabase: Sendable {
                 result[fid, default: []].append(tag)
             }
             return result
+        }
+    }
+
+    // MARK: - Full-Text Search (WS5, FTS5)
+
+    /// Raw hit returned by `searchFTS`. Not the public search hit model — the
+    /// service layer wraps this in `SearchHit` after decorating with file
+    /// metadata.
+    struct FTSHitRow: Sendable {
+        let fileId: Int64
+        let path: String
+        let title: String
+        let snippet: String   // contains « » delimiters around matched tokens
+        let rank: Double      // bm25 — lower is better
+        let modifiedAt: Date
+    }
+
+    /// Index (or re-index) the full body text of a file for full-text search.
+    /// Uses `files.id` as the FTS5 rowid so we can cascade deletions and JOIN
+    /// back to file metadata on read.
+    func indexFileContent(fileId: Int64, title: String, body: String) throws {
+        try dbQueue.write { db in
+            try db.execute(
+                sql: "INSERT OR REPLACE INTO files_fts(rowid, title, body) VALUES (?, ?, ?)",
+                arguments: [fileId, title, body]
+            )
+        }
+    }
+
+    /// Clear the FTS5 table — used when reindexing an entire vault to avoid
+    /// orphan rows on rename.
+    func clearFTS() throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM files_fts")
+        }
+    }
+
+    /// Run a full-text search. Returns hits ranked by BM25 (lower = better),
+    /// with a highlighted snippet (« » delimit matched tokens). Optional
+    /// filters narrow to files tagged with `tag` and/or modified within
+    /// `dateRange`. Empty / whitespace queries return an empty result.
+    func searchFTS(
+        query: String,
+        tag: String? = nil,
+        dateRange: ClosedRange<Date>? = nil,
+        limit: Int = 50
+    ) throws -> [FTSHitRow] {
+        // FTS5Pattern sanitizes the query — returns nil for queries that are
+        // pure punctuation or otherwise can't form a valid pattern.
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty,
+              let pattern = FTS5Pattern(matchingAllPrefixesIn: trimmed) else {
+            return []
+        }
+
+        return try dbQueue.read { db in
+            var sql = """
+                SELECT f.id AS fileId, f.path, f.title, f.modifiedAt,
+                       bm25(files_fts) AS rank,
+                       snippet(files_fts, 1, '«', '»', '…', 24) AS snippet
+                FROM files_fts
+                JOIN files f ON f.id = files_fts.rowid
+                WHERE files_fts MATCH ?
+                """
+            var arguments: [(any DatabaseValueConvertible)?] = [pattern]
+
+            if let tag {
+                sql += " AND f.id IN (SELECT fileId FROM tags WHERE tag = ?)"
+                arguments.append(tag)
+            }
+
+            if let dateRange {
+                sql += " AND f.modifiedAt BETWEEN ? AND ?"
+                arguments.append(dateRange.lowerBound.timeIntervalSince1970)
+                arguments.append(dateRange.upperBound.timeIntervalSince1970)
+            }
+
+            sql += " ORDER BY rank LIMIT ?"
+            arguments.append(limit)
+
+            let rows = try Row.fetchAll(
+                db, sql: sql,
+                arguments: StatementArguments(arguments)
+            )
+
+            return rows.map { row in
+                FTSHitRow(
+                    fileId: row["fileId"],
+                    path: row["path"],
+                    title: row["title"],
+                    snippet: row["snippet"],
+                    rank: row["rank"],
+                    modifiedAt: Date(timeIntervalSince1970: row["modifiedAt"])
+                )
+            }
+        }
+    }
+
+    /// Count of rows currently in the FTS5 index — used by tests and
+    /// diagnostics.
+    func ftsRowCount() throws -> Int {
+        try dbQueue.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM files_fts") ?? 0
         }
     }
 }

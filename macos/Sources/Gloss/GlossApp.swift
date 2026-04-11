@@ -14,7 +14,7 @@ struct GlossApp: App {
     @NSApplicationDelegateAdaptor(GlossAppDelegate.self) var appDelegate
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
-    @State private var contentSearch = ContentSearchService()
+    @State private var enhancedSearch = EnhancedSearchService()
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
     @State private var vaultOverview = VaultOverviewService()
@@ -35,7 +35,7 @@ struct GlossApp: App {
             ContentView()
                 .environmentObject(settings)
                 .environment(fileTree)
-                .environment(contentSearch)
+                .environment(enhancedSearch)
                 .environment(store)
                 .environment(linkIndex)
                 .environment(vaultOverview)

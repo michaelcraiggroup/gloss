@@ -13,7 +13,7 @@ struct SidebarView: View {
     @Query(filter: #Predicate<RecentDocument> { $0.isFavorite },
            sort: \RecentDocument.title)
     private var favoriteDocuments: [RecentDocument]
-    @Environment(ContentSearchService.self) private var contentSearch
+    @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(LinkIndex.self) private var linkIndex
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
@@ -98,23 +98,29 @@ struct SidebarView: View {
                     }
                 }
             } else if searchScope == .content && !searchText.isEmpty {
-                // Content search results
+                // Full-text search results (WS5 — backed by FTS5)
+                Section {
+                    searchFilterChips
+                } header: {
+                    Text("Filters")
+                }
+
                 Section("Content Results") {
-                    if contentSearch.isSearching {
+                    if enhancedSearch.isSearching {
                         HStack {
                             ProgressView()
                                 .controlSize(.small)
                             Text("Searching…")
                                 .foregroundStyle(.secondary)
                         }
-                    } else if contentSearch.results.isEmpty {
+                    } else if enhancedSearch.results.isEmpty {
                         Text("No matches")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(contentSearch.results) { result in
-                            contentResultRow(result)
-                                .tag(result.fileURL)
-                                .contextMenu { favoriteContextMenu(for: result.fileURL) }
+                        ForEach(enhancedSearch.results) { hit in
+                            searchHitRow(hit)
+                                .tag(hit.fileURL)
+                                .contextMenu { favoriteContextMenu(for: hit.fileURL) }
                         }
                     }
                 }
@@ -243,7 +249,7 @@ struct SidebarView: View {
         .onChange(of: searchText) { _, query in
             fileTree.searchQuery = query
             if searchScope == .content {
-                contentSearch.search(query: query, rootURL: fileTree.activeNode?.url)
+                enhancedSearch.search(query: query, database: linkIndex.databaseRef)
             }
         }
         .onChange(of: searchScope) { _, scope in
@@ -254,10 +260,9 @@ struct SidebarView: View {
             }
             fileTree.searchScope = scope
             if scope == .content && !searchText.isEmpty {
-                contentSearch.search(query: searchText, rootURL: fileTree.activeNode?.url)
+                enhancedSearch.search(query: searchText, database: linkIndex.databaseRef)
             } else if scope == .filename || scope == .tags {
-                contentSearch.cancel()
-                contentSearch.results = []
+                enhancedSearch.cancel()
             }
         }
         .toolbar {
@@ -312,37 +317,130 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Content Result Row
+    // MARK: - Search Hit Row (WS5)
 
-    private func contentResultRow(_ result: ContentSearchResult) -> some View {
+    private func searchHitRow(_ hit: SearchHit) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
-                Text(result.documentType.icon)
+                Text(hit.documentType.icon)
                     .font(.caption)
-                Text(result.fileName)
+                Text(hit.title)
                     .font(.caption)
                     .fontWeight(.medium)
+                    .lineLimit(1)
                 Spacer()
-                Text("L\(result.lineNumber)")
+                Text(relativeDate(hit.modifiedAt))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
-            Text(highlightedLine(result.lineContent, query: searchText))
+            Text(attributedSnippet(hit.segments))
                 .font(.caption)
-                .lineLimit(1)
+                .lineLimit(2)
         }
     }
 
-    private func highlightedLine(_ line: String, query: String) -> AttributedString {
-        var attributed = AttributedString(line)
-        attributed.foregroundColor = .secondary
-        guard !query.isEmpty,
-              let range = attributed.range(of: query, options: .caseInsensitive) else {
-            return attributed
+    /// Build an `AttributedString` from parsed FTS5 snippet segments, bolding
+    /// matched tokens.
+    private func attributedSnippet(_ segments: [SearchHit.Segment]) -> AttributedString {
+        var result = AttributedString()
+        for segment in segments {
+            var piece = AttributedString(segment.text)
+            if segment.isMatch {
+                piece.foregroundColor = .primary
+                piece.font = .caption.bold()
+            } else {
+                piece.foregroundColor = .secondary
+            }
+            result.append(piece)
         }
-        attributed[range].foregroundColor = .primary
-        attributed[range].font = .caption.bold()
-        return attributed
+        return result
+    }
+
+    // MARK: - Filter Chips (WS5)
+
+    @ViewBuilder
+    private var searchFilterChips: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                // Tag filter chip
+                Menu {
+                    Button("All tags") {
+                        enhancedSearch.tagFilter = nil
+                        enhancedSearch.rerun(database: linkIndex.databaseRef)
+                    }
+                    if !linkIndex.allTags.isEmpty {
+                        Divider()
+                        ForEach(linkIndex.allTags.prefix(30), id: \.tag) { item in
+                            Button("#\(item.tag) (\(item.count))") {
+                                enhancedSearch.tagFilter = item.tag
+                                enhancedSearch.rerun(database: linkIndex.databaseRef)
+                            }
+                        }
+                    }
+                } label: {
+                    chipLabel(
+                        icon: "tag",
+                        text: enhancedSearch.tagFilter.map { "#\($0)" } ?? "Tag",
+                        isActive: enhancedSearch.tagFilter != nil
+                    )
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+
+                // Document type filter chip
+                Menu {
+                    Button("All types") {
+                        enhancedSearch.documentTypeFilter = nil
+                        enhancedSearch.rerun(database: linkIndex.databaseRef)
+                    }
+                    Divider()
+                    ForEach(DocumentType.allCases, id: \.self) { type in
+                        Button("\(type.icon) \(type.displayName)") {
+                            enhancedSearch.documentTypeFilter = type
+                            enhancedSearch.rerun(database: linkIndex.databaseRef)
+                        }
+                    }
+                } label: {
+                    chipLabel(
+                        icon: "doc",
+                        text: enhancedSearch.documentTypeFilter?.displayName ?? "Type",
+                        isActive: enhancedSearch.documentTypeFilter != nil
+                    )
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+
+                if enhancedSearch.hasActiveFilters {
+                    Button {
+                        enhancedSearch.clearFilters()
+                        enhancedSearch.rerun(database: linkIndex.databaseRef)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func chipLabel(icon: String, text: String, isActive: Bool) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.caption2)
+            Text(text)
+                .font(.caption2)
+                .lineLimit(1)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 8))
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+        )
+        .foregroundStyle(isActive ? Color.accentColor : .secondary)
     }
 
     // MARK: - Browse Section

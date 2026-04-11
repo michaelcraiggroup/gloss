@@ -31,7 +31,7 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.8.0"
+        CFBundleShortVersionString: "1.9.0"
         NSHighResolutionCapable: true
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
@@ -59,7 +59,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.8.0"
+        MARKETING_VERSION: "1.9.0"
         CURRENT_PROJECT_VERSION: "12"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
         INFOPLIST_KEY_CFBundleDisplayName: Gloss
