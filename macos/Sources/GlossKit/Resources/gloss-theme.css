@@ -187,13 +187,15 @@ li > input[type="checkbox"] {
     vertical-align: baseline;
 }
 
-/* Task list items: checkbox + text on same line, hanging-indent style */
-li:has(> input[type="checkbox"]) {
+/* Task list items: checkbox + text on same line, hanging-indent style.
+   Uses .gloss-task-item class (added by processTaskCheckboxes) instead
+   of :has(), which forces per-keystroke style recalc in WKWebView. */
+li.gloss-task-item {
     list-style: none;
     margin-left: -1.25em;
 }
 
-li:has(> input[type="checkbox"]) > p {
+li.gloss-task-item > p {
     display: inline;
 }
 

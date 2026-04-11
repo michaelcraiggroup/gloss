@@ -185,6 +185,14 @@ public struct MarkdownRenderer: Sendable {
             }
             result.replaceSubrange(fullRange, with: replacement)
         }
+        // Tag parent <li> with a class so the task-list CSS can target it
+        // directly. Avoids the `:has()` selector (expensive in WebKit —
+        // causes per-keystroke style recalc when descendants change).
+        result = result.replacingOccurrences(
+            of: #"<li>(\s*)<input type="checkbox""#,
+            with: #"<li class="gloss-task-item">$1<input type="checkbox""#,
+            options: .regularExpression
+        )
         return result
     }
 
@@ -484,8 +492,7 @@ public struct MarkdownRenderer: Sendable {
         margin-right: 0.4em;
         accent-color: var(--accent);
     }
-    .gloss-content ul li.task-list-item,
-    .gloss-content ul li:has(> input[type="checkbox"]) {
+    .gloss-content ul li.gloss-task-item {
         list-style: none;
         margin-left: -1.5em;
     }
@@ -495,6 +502,9 @@ public struct MarkdownRenderer: Sendable {
         padding: 1em 1.25em;
         margin: 1.5em 0;
         background: var(--code-bg);
+        /* Isolate layout/paint so typing in a field doesn't reflow the
+           rest of the document (major WKWebView typing-lag cause). */
+        contain: layout style;
     }
     .gloss-content .gloss-mdplus legend {
         padding: 0 0.5em;

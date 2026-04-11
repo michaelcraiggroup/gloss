@@ -123,6 +123,9 @@ struct MarkdownRendererTests {
         #expect(html.contains("data-gloss-task-index=\"1\""))
         // Checked state preserved on the second one.
         #expect(html.contains("checked=\"\""))
+        // Parent <li> is tagged with the class the CSS targets (so we
+        // don't need the expensive `:has()` selector).
+        #expect(html.contains("<li class=\"gloss-task-item\">"))
     }
 
     @Test("hasFillableContent detects task lists")
