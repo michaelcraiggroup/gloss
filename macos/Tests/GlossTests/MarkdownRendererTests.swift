@@ -65,7 +65,8 @@ struct MarkdownRendererTests {
     @Test("Includes CSS theme")
     func includesCSS() {
         let html = MarkdownRenderer.render("test", isDark: false)
-        #expect(html.contains("--accent: #0d9488"))
+        // Night Owl light-mode accent — updated from the old Teal #0d9488
+        #expect(html.contains("--accent: #4876d6"))
     }
 
     @Test("Strips YAML frontmatter")
