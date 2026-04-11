@@ -187,13 +187,22 @@ li > input[type="checkbox"] {
     vertical-align: baseline;
 }
 
-/* Task list items: checkbox + text on same line */
+/* Task list items: checkbox + text on same line, hanging-indent style */
 li:has(> input[type="checkbox"]) {
     list-style: none;
+    margin-left: -1.25em;
 }
 
 li:has(> input[type="checkbox"]) > p {
     display: inline;
+}
+
+/* Nested lists get extra indent so hierarchy reads clearly */
+li > ul,
+li > ol {
+    padding-left: 1.75em;
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
 }
 
 table {

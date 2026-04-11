@@ -18,8 +18,9 @@ macos/Gloss.xcodeproj/
 # Gloss link index (generated per-vault)
 .gloss/
 
-# Local test vault
-test-vault/
+# Local test vault (personal scratch files, except committed fixtures)
+test-vault/*
+!test-vault/fillable-demo.md
 
 # IDE
 .idea/

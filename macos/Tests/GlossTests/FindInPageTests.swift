@@ -42,10 +42,15 @@ struct FindInPageTests {
         #expect(html.contains("gloss-find-current"))
     }
 
-    @Test("Keyboard nav skips when input is focused")
+    @Test("Keyboard nav skips when an editable element is focused")
     func keyboardNavSkipsInputFocus() {
         let html = MarkdownRenderer.render("test")
-        #expect(html.contains("activeElement.tagName === 'INPUT'"))
+        // Guard must cover INPUT, TEXTAREA, SELECT, and contenteditable so
+        // typing in md+ template fields isn't hijacked by vim-style nav keys.
+        #expect(html.contains("tag === 'INPUT'"))
+        #expect(html.contains("tag === 'TEXTAREA'"))
+        #expect(html.contains("tag === 'SELECT'"))
+        #expect(html.contains("isContentEditable"))
     }
 
     @Test("Find bar responds to Cmd+F keydown")

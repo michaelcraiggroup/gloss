@@ -181,10 +181,15 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command])
                 .disabled(settings.currentFileURL == nil)
+            }
+        }
 
+        .commands {
+            CommandGroup(after: .printItem) {
                 Button("Save Filled Copy…") {
                     NotificationCenter.default.post(name: .glossSaveFilled, object: nil)
                 }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(settings.currentFileURL == nil)
             }
         }
