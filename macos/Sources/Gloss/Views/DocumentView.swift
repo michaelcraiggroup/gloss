@@ -14,8 +14,11 @@ struct DocumentView: View {
     @Environment(TemplateFillService.self) private var templateFill
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
+    @State private var renderedHTML: String?
+    @State private var renderURL: URL?
     @State private var fileWatcher = FileWatcher()
     @State private var isLoading = false
+    @State private var renderTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -27,23 +30,14 @@ struct DocumentView: View {
                             isDark: colorScheme == .dark,
                             fontSize: settings.fontSize
                         )
-                    } else if let content = fileContent {
-                        let rendered = MarkdownRenderer.render(
-                            content,
-                            isDark: colorScheme == .dark,
-                            fontSize: settings.fontSize,
-                            resolveWikiLink: { target in
-                                resolveWikiLink(target, from: url)
-                            }
-                        )
-                        let html = GuideInjector.injectGuideSDK(into: rendered)
+                    } else if let html = renderedHTML, let content = fileContent, renderURL == url {
                         WebView(
                             htmlContent: html,
                             baseURL: url.deletingLastPathComponent(),
                             highlightQuery: highlightQuery,
                             rawMarkdown: content
                         )
-                    } else {
+                    } else if !isLoading {
                         errorState(message: "Could not read file:\n\(url.lastPathComponent)")
                     }
                 } else {
@@ -65,6 +59,8 @@ struct DocumentView: View {
         .animation(.easeInOut(duration: 0.15), value: isLoading)
         .onChange(of: fileURL) {
             if fileURL != nil { isLoading = true }
+            renderedHTML = nil
+            renderURL = nil
             if isEditing && isEditorDirty {
                 GlossEditorWebView.current?.saveCurrentContent { _ in
                     isEditing = false
@@ -104,7 +100,18 @@ struct DocumentView: View {
                 fileContent = try? String(contentsOf: url, encoding: .utf8)
                 if let content = fileContent {
                     NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+                    renderAsync(content, url: url)
                 }
+            }
+        }
+        .onChange(of: colorScheme) {
+            if let content = fileContent, let url = fileURL {
+                renderAsync(content, url: url)
+            }
+        }
+        .onChange(of: settings.fontSize) {
+            if let content = fileContent, let url = fileURL {
+                renderAsync(content, url: url)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossTemplateFilled)) { notification in
@@ -173,15 +180,71 @@ struct DocumentView: View {
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+            renderAsync(content, url: url)
         }
         fileWatcher.watch(url: url) {
             Task { @MainActor [url] in
                 fileContent = try? String(contentsOf: url, encoding: .utf8)
                 if let content = fileContent {
                     NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+                    renderAsync(content, url: url)
                 }
             }
         }
+    }
+
+    /// Renders markdown to HTML on a background thread to avoid blocking the main thread
+    /// for large files. Cancels any in-flight render for a previous file.
+    private func renderAsync(_ content: String, url: URL) {
+        renderTask?.cancel()
+        isLoading = true
+
+        // Pre-resolve wiki-links on the main thread (accesses @MainActor FileTreeModel),
+        // then pass the resolved map to the background task.
+        let wikiLinkMap = buildWikiLinkSnapshot(for: content, from: url)
+        let isDark = colorScheme == .dark
+        let fontSize = settings.fontSize
+
+        renderTask = Task.detached(priority: .userInitiated) {
+            guard !Task.isCancelled else { return }
+            let rendered = MarkdownRenderer.render(
+                content,
+                isDark: isDark,
+                fontSize: fontSize,
+                resolveWikiLink: wikiLinkMap.isEmpty ? nil : { target in
+                    wikiLinkMap[target.lowercased()]
+                }
+            )
+            guard !Task.isCancelled else { return }
+            let html = GuideInjector.injectGuideSDK(into: rendered)
+            await MainActor.run {
+                renderedHTML = html
+                renderURL = url
+                // isLoading cleared by glossWebViewDidFinishLoad notification
+            }
+        }
+    }
+
+    /// Scans the markdown source for [[wiki-link]] patterns and resolves them to URLs
+    /// up-front on the main thread, producing a Sendable snapshot for background rendering.
+    private func buildWikiLinkSnapshot(for content: String, from url: URL) -> [String: String] {
+        guard content.contains("[[") else { return [:] }
+        var map: [String: String] = [:]
+        let pattern = try? NSRegularExpression(pattern: #"\[\[([^\]]+)\]\]"#)
+        let range = NSRange(content.startIndex..., in: content)
+        pattern?.enumerateMatches(in: content, options: [], range: range) { match, _, _ in
+            guard let match, let r = Range(match.range(at: 1), in: content) else { return }
+            // Strip type suffix (::type) and display text (|label)
+            let raw = String(content[r])
+            let withoutType = raw.components(separatedBy: "::").first ?? raw
+            let target = (withoutType.components(separatedBy: "|").first ?? withoutType)
+                .trimmingCharacters(in: .whitespaces)
+            if map[target.lowercased()] == nil,
+               let resolved = resolveWikiLink(target, from: url) {
+                map[target.lowercased()] = resolved
+            }
+        }
+        return map
     }
 
     // MARK: - Wiki-Link Resolution

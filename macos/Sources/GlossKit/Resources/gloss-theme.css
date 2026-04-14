@@ -75,6 +75,14 @@ body {
     padding: 32px 24px 64px;
 }
 
+/* Performance: skip layout/paint for off-screen top-level blocks.
+   Content stays in the DOM so anchors, find-in-page, and TOC links work.
+   `auto` remembers the real rendered size to prevent scroll-position jumps. */
+.gloss-content > * {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 200px;
+}
+
 h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
     margin-bottom: 0.5em;
