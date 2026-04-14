@@ -26,6 +26,8 @@ targets:
     platform: macOS
     sources:
       - path: Sources/Gloss
+    resources:
+      - path: Sources/Gloss/Resources/gloss
     info:
       path: Scripts/Info.plist
       properties:
