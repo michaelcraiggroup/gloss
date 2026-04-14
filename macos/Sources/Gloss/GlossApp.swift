@@ -425,14 +425,24 @@ struct GlossApp: App {
         if let appleScript = NSAppleScript(source: script) {
             appleScript.executeAndReturnError(&error)
             if let error {
+                let errorMsg = error[NSAppleScript.errorMessage] as? String ?? "Unknown error"
                 let alert = NSAlert()
                 alert.messageText = "Installation Failed"
-                alert.informativeText = error[NSAppleScript.errorMessage] as? String ?? "Unknown error"
+
+                // Provide helpful guidance based on error type
+                if errorMsg.contains("user name or password") {
+                    alert.informativeText = "Authentication failed. Please make sure:\n\n• You entered your Mac login password correctly\n• Your account has administrator privileges\n• You didn't click Cancel on the password dialog\n\nTry again and carefully enter your password when prompted."
+                } else if errorMsg.contains("Permission denied") {
+                    alert.informativeText = "Permission denied. Make sure /usr/local/bin is writable and you have administrator privileges."
+                } else {
+                    alert.informativeText = errorMsg
+                }
                 alert.runModal()
             } else {
                 let alert = NSAlert()
                 alert.messageText = "Command Line Tool Installed"
                 alert.informativeText = "You can now use 'gloss' from the terminal.\n\nUsage:\n  gloss .              Open current folder\n  gloss file.md        Open a file\n  gloss ~/notes        Open a folder"
+                alert.addButton(withTitle: "OK")
                 alert.runModal()
             }
         }
