@@ -384,14 +384,38 @@ struct GlossApp: App {
     }
 
     private func installCLI() {
-        let appPath = Bundle.main.bundlePath
-        let scriptSource = "\(appPath)/Contents/Resources/gloss"
         let dest = "/usr/local/bin/gloss"
+        let fm = FileManager.default
 
-        guard FileManager.default.fileExists(atPath: scriptSource) else {
+        // Try multiple possible locations for the script
+        var scriptSource: String?
+
+        // Try SPM bundle structure first (direct in bundle root)
+        let bundlePath = Bundle.main.bundlePath
+        let bundleScriptPath = "\(bundlePath)/gloss"
+        if fm.fileExists(atPath: bundleScriptPath) {
+            scriptSource = bundleScriptPath
+        }
+
+        // Fallback: standard app bundle structure (Contents/Resources)
+        if scriptSource == nil {
+            let standardPath = "\(bundlePath)/Contents/Resources/gloss"
+            if fm.fileExists(atPath: standardPath) {
+                scriptSource = standardPath
+            }
+        }
+
+        // Last resort: try to find it via Bundle.main.url
+        if scriptSource == nil {
+            if let bundleURL = Bundle.main.url(forResource: "gloss", withExtension: "") {
+                scriptSource = bundleURL.path
+            }
+        }
+
+        guard let scriptSource = scriptSource, fm.fileExists(atPath: scriptSource) else {
             let alert = NSAlert()
             alert.messageText = "CLI Script Not Found"
-            alert.informativeText = "The gloss CLI script was not found in the app bundle."
+            alert.informativeText = "The gloss CLI script was not found in the app bundle. Please rebuild the app."
             alert.runModal()
             return
         }

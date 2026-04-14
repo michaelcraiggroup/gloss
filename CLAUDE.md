@@ -121,6 +121,19 @@ npm run package      # Creates .vsix file
 | `Gloss: Toggle Reading Mode`             | Enable/disable globally       |
 | `Gloss: Open in Reading Mode`            | Open current file in preview  |
 
+### Command-Line Tool
+
+**Install:** macOS app menu → Settings → "Install Command Line Tool…"
+
+**Usage:**
+```bash
+gloss file.md          # Open a file
+gloss .                # Open current directory
+gloss ~/notes          # Open a folder
+```
+
+**How it works:** Launches Gloss.app with the file/directory path as an argument. The app automatically opens the file or folder in the sidebar.
+
 ### Configuration
 
 ```jsonc
