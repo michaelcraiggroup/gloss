@@ -420,30 +420,27 @@ struct GlossApp: App {
             return
         }
 
-        let script = "do shell script \"ln -sf '\(scriptSource)' '\(dest)'\" with administrator privileges"
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script) {
-            appleScript.executeAndReturnError(&error)
-            if let error {
-                let errorMsg = error[NSAppleScript.errorMessage] as? String ?? "Unknown error"
-                let alert = NSAlert()
-                alert.messageText = "Installation Failed"
+        // Show the installation dialog with command to copy
+        let alert = NSAlert()
+        alert.messageText = "Install Command Line Tool"
+        alert.informativeText = "To install the CLI tool, open Terminal and run:\n\nsudo ln -sf \(scriptSource) \(dest)\n\nThen paste your Mac password when prompted."
+        alert.addButton(withTitle: "Copy Command")
+        alert.addButton(withTitle: "Cancel")
 
-                // Provide helpful guidance based on error type
-                if errorMsg.contains("user name or password") {
-                    alert.informativeText = "Authentication failed. Please make sure:\n\n• You entered your Mac login password correctly\n• Your account has administrator privileges\n• You didn't click Cancel on the password dialog\n\nTry again and carefully enter your password when prompted."
-                } else if errorMsg.contains("Permission denied") {
-                    alert.informativeText = "Permission denied. Make sure /usr/local/bin is writable and you have administrator privileges."
-                } else {
-                    alert.informativeText = errorMsg
-                }
-                alert.runModal()
-            } else {
-                let alert = NSAlert()
-                alert.messageText = "Command Line Tool Installed"
-                alert.informativeText = "You can now use 'gloss' from the terminal.\n\nUsage:\n  gloss .              Open current folder\n  gloss file.md        Open a file\n  gloss ~/notes        Open a folder"
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
+        if alert.runModal() == .alertFirstButtonReturn {
+            // Copy command to pasteboard
+            let command = "sudo ln -sf \(scriptSource) \(dest)"
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+
+            let confirmAlert = NSAlert()
+            confirmAlert.messageText = "Command Copied"
+            confirmAlert.informativeText = "The installation command has been copied to your clipboard.\n\n1. Open Terminal\n2. Paste the command (Cmd+V)\n3. Press Enter\n4. Enter your Mac password"
+            confirmAlert.addButton(withTitle: "Open Terminal")
+            confirmAlert.addButton(withTitle: "Done")
+
+            if confirmAlert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Utilities/Terminal.app"))
             }
         }
     }
