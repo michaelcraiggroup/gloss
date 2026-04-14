@@ -7,6 +7,21 @@ class GlossAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
+
+    // Called when the user launches Gloss while it's already running (e.g. clicks the dock icon).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        sender.windows.first { !($0 is NSPanel) }?.makeKeyAndOrderFront(nil)
+        sender.activate(ignoringOtherApps: true)
+        return true
+    }
+
+    // Called when macOS routes a file/folder open to an already-running instance.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+        NotificationCenter.default.post(name: .glossOpenPath, object: url)
+        application.windows.first { !($0 is NSPanel) }?.makeKeyAndOrderFront(nil)
+        application.activate(ignoringOtherApps: true)
+    }
 }
 
 @main
@@ -53,7 +68,13 @@ struct GlossApp: App {
                 .onOpenURL { url in
                     openPath(url)
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .glossOpenPath)) { note in
+                    if let url = note.object as? URL {
+                        openPath(url)
+                    }
+                }
         }
+        .handlesExternalEvents(matching: ["*"])
         .modelContainer(for: RecentDocument.self)
         .defaultSize(width: 1100, height: 700)
         .commands {

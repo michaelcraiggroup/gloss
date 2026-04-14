@@ -23,6 +23,7 @@ extension Notification.Name {
     static let glossTemplateFilled = Notification.Name("glossTemplateFilled")
     static let glossWebViewDidStartLoad = Notification.Name("glossWebViewDidStartLoad")
     static let glossWebViewDidFinishLoad = Notification.Name("glossWebViewDidFinishLoad")
+    static let glossOpenPath = Notification.Name("glossOpenPath")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.
