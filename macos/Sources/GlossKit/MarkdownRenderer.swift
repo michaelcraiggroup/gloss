@@ -396,6 +396,7 @@ public struct MarkdownRenderer: Sendable {
             \(hasMath ? katexScript : "")
             \(hasFillable ? templateFillStyle : "")
             \(hasFillable ? templateFillScript : "")
+            \(virtualizationScript)
             \(keyboardNavScript)
             \(findInPageScript)
         </body>
@@ -598,6 +599,54 @@ public struct MarkdownRenderer: Sendable {
                 }
             }
         };
+    })();
+    </script>
+    """
+
+    /// JavaScript for content-visibility virtualization on large documents.
+    /// Fires after the first paint to measure real block heights, then uses
+    /// IntersectionObserver with a generous rootMargin to keep a 3000px
+    /// pre-render zone above and below the viewport — enough for fast scrolling
+    /// without blank sections. Skipped entirely on small documents.
+    private static let virtualizationScript = """
+    <script>
+    (function glossVirtualize() {
+        var MARGIN = 3000;   // px pre-render zone above and below viewport
+        var MIN_BLOCKS = 40; // don't bother on small docs
+
+        function init() {
+            var blocks = Array.from(
+                document.querySelectorAll('.gloss-content > *')
+            );
+            if (blocks.length < MIN_BLOCKS) return;
+
+            // Measure real rendered heights while all blocks are still visible.
+            // This gives scroll-position estimation accurate intrinsic sizes
+            // instead of a one-size-fits-all guess.
+            var heights = blocks.map(function(el) {
+                return Math.max(el.getBoundingClientRect().height, 32);
+            });
+
+            // Store accurate intrinsic sizes so the scrollbar stays stable.
+            blocks.forEach(function(el, i) {
+                el.style.containIntrinsicBlockSize = heights[i] + 'px';
+            });
+
+            // IntersectionObserver drives visible/auto toggling.
+            // rootMargin extends the intersection zone 3000px in each direction
+            // so blocks are pre-rendered well before they enter the viewport.
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(e) {
+                    e.target.style.contentVisibility =
+                        e.isIntersecting ? 'visible' : 'auto';
+                });
+            }, { rootMargin: MARGIN + 'px 0px', threshold: 0 });
+
+            blocks.forEach(function(el) { observer.observe(el); });
+        }
+
+        // Two rAF hops guarantee layout is complete before we measure heights.
+        requestAnimationFrame(function() { requestAnimationFrame(init); });
     })();
     </script>
     """
