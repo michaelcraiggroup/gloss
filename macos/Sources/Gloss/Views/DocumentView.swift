@@ -77,7 +77,12 @@ struct DocumentView: View {
             isLoading = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossWebViewDidFinishLoad)) { _ in
-            isLoading = false
+            // Only clear loading if we have HTML for the current file.
+            // This prevents stale notifications from previous documents
+            // from prematurely clearing the loading state.
+            if renderedHTML != nil && renderURL == fileURL {
+                isLoading = false
+            }
         }
         .onAppear {
             loadAndWatch()
