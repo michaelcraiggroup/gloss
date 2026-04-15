@@ -84,6 +84,7 @@ targets:
     info:
       path: GlossQLExtension/Info.plist
       properties:
+        CFBundleShortVersionString: "1.10.4"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewViewController"
@@ -101,6 +102,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
+        MARKETING_VERSION: "1.10.4"
+        CURRENT_PROJECT_VERSION: "12"
         SKIP_INSTALL: true
         LD_RUNPATH_SEARCH_PATHS:
           - "@executable_path/../Frameworks"
