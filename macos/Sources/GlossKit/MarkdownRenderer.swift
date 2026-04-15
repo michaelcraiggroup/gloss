@@ -604,14 +604,15 @@ public struct MarkdownRenderer: Sendable {
     """
 
     /// JavaScript for content-visibility virtualization on large documents.
-    /// Fires after the first paint to measure real block heights, then uses
-    /// IntersectionObserver with a generous rootMargin to keep a 3000px
-    /// pre-render zone above and below the viewport — enough for fast scrolling
-    /// without blank sections. Skipped entirely on small documents.
+    /// Fires after first paint to measure real block heights, then keeps a
+    /// large pre-render zone (10× viewport height) visible on each side.
+    /// Skipped entirely on small documents.
     private static let virtualizationScript = """
     <script>
     (function glossVirtualize() {
-        var MARGIN = 3000;   // px pre-render zone above and below viewport
+        // Pre-render zone: 10× viewport height on each side (~9000px on a
+        // 900px display). Covers fast trackpad momentum scrolling.
+        var MARGIN = Math.max(window.innerHeight * 10, 6000);
         var MIN_BLOCKS = 40; // don't bother on small docs
 
         function init() {
@@ -620,21 +621,29 @@ public struct MarkdownRenderer: Sendable {
             );
             if (blocks.length < MIN_BLOCKS) return;
 
-            // Measure real rendered heights while all blocks are still visible.
-            // This gives scroll-position estimation accurate intrinsic sizes
-            // instead of a one-size-fits-all guess.
-            var heights = blocks.map(function(el) {
-                return Math.max(el.getBoundingClientRect().height, 32);
+            // Measure real rendered heights while all blocks are still fully
+            // visible. Stores accurate intrinsic sizes so the scrollbar stays
+            // stable after virtualization kicks in.
+            var scrollY = window.scrollY;
+            var vph = window.innerHeight;
+            blocks.forEach(function(el) {
+                var h = Math.max(el.getBoundingClientRect().height, 32);
+                el.style.containIntrinsicBlockSize = h + 'px';
+
+                // Pre-warm: synchronously mark every block inside the margin
+                // as visible before the async observer fires, so there is no
+                // single-frame gap where a block has content-visibility: auto
+                // but the observer hasn't run yet.
+                var top = scrollY + el.getBoundingClientRect().top;
+                if (top >= scrollY - MARGIN && top <= scrollY + vph + MARGIN) {
+                    el.style.contentVisibility = 'visible';
+                }
             });
 
-            // Store accurate intrinsic sizes so the scrollbar stays stable.
-            blocks.forEach(function(el, i) {
-                el.style.containIntrinsicBlockSize = heights[i] + 'px';
-            });
-
-            // IntersectionObserver drives visible/auto toggling.
-            // rootMargin extends the intersection zone 3000px in each direction
-            // so blocks are pre-rendered well before they enter the viewport.
+            // IntersectionObserver maintains the pre-render zone as the user
+            // scrolls. rootMargin expands the intersection check by MARGIN px
+            // in each direction so blocks become visible well before they reach
+            // the actual viewport edge.
             var observer = new IntersectionObserver(function(entries) {
                 entries.forEach(function(e) {
                     e.target.style.contentVisibility =
