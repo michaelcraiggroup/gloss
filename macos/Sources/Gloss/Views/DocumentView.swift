@@ -19,6 +19,7 @@ struct DocumentView: View {
     @State private var fileWatcher = FileWatcher()
     @State private var isLoading = false
     @State private var renderTask: Task<Void, Never>?
+    @State private var loadingForURL: URL?
 
     var body: some View {
         ZStack {
@@ -58,7 +59,10 @@ struct DocumentView: View {
         }
         .animation(.easeInOut(duration: 0.15), value: isLoading)
         .onChange(of: fileURL) {
-            if fileURL != nil { isLoading = true }
+            if fileURL != nil {
+                isLoading = true
+                loadingForURL = fileURL
+            }
             renderedHTML = nil
             renderURL = nil
             if isEditing && isEditorDirty {
@@ -77,10 +81,10 @@ struct DocumentView: View {
             isLoading = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossWebViewDidFinishLoad)) { _ in
-            // Only clear loading if we have HTML for the current file.
-            // This prevents stale notifications from previous documents
-            // from prematurely clearing the loading state.
-            if renderedHTML != nil && renderURL == fileURL {
+            // Only clear loading if this notification is for the currently loading file.
+            // This prevents stale notifications from previous documents from clearing
+            // the loading state prematurely during rapid file navigation.
+            if loadingForURL == fileURL {
                 isLoading = false
             }
         }
