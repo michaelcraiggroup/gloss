@@ -329,7 +329,7 @@ struct GlossApp: App {
         panel.title = "Open Markdown File"
         if panel.runModal() == .OK, let url = panel.url {
             settings.currentFileURL = url
-            settings.lastOpenedFile = url.path
+            settings.lastOpenedFile = url.standardizedFileURL.path
         }
     }
 
@@ -381,7 +381,7 @@ struct GlossApp: App {
             linkIndex.buildIndex(rootURL: url)
         } else if ["md", "markdown"].contains(url.pathExtension.lowercased()) {
             settings.currentFileURL = url
-            settings.lastOpenedFile = url.path
+            settings.lastOpenedFile = url.standardizedFileURL.path
         }
     }
 

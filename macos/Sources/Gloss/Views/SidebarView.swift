@@ -642,12 +642,12 @@ struct SidebarView: View {
         fileTree.selectedFileURL = url
         guard let url else { return }
         settings.currentFileURL = url
-        settings.lastOpenedFile = url.path
+        settings.lastOpenedFile = url.standardizedFileURL.path
         recordRecent(url: url)
     }
 
     private func recordRecent(url: URL) {
-        let path = url.path
+        let path = url.standardizedFileURL.path
         let filename = url.lastPathComponent
         let parentFolder = url.deletingLastPathComponent().lastPathComponent
         let docType = DocumentType.detect(filename: filename, folderName: parentFolder)
@@ -673,7 +673,7 @@ struct SidebarView: View {
             // Update selection if the renamed file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = newURL
-                settings.lastOpenedFile = newURL.path
+                settings.lastOpenedFile = newURL.standardizedFileURL.path
             }
         }
         contextMenuTargetURL = nil

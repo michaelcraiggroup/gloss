@@ -71,7 +71,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
             if let url = notification.object as? URL {
                 settings.currentFileURL = url
-                settings.lastOpenedFile = url.path
+                settings.lastOpenedFile = url.standardizedFileURL.path
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossDocumentLoaded)) { notification in
@@ -179,12 +179,12 @@ struct ContentView: View {
                     guard let targetPath = link.targetPath else { return }
                     let url = URL(fileURLWithPath: targetPath)
                     settings.currentFileURL = url
-                    settings.lastOpenedFile = url.path
+                    settings.lastOpenedFile = url.standardizedFileURL.path
                 },
                 onBacklinkTap: { sourcePath in
                     let url = URL(fileURLWithPath: sourcePath)
                     settings.currentFileURL = url
-                    settings.lastOpenedFile = url.path
+                    settings.lastOpenedFile = url.standardizedFileURL.path
                 }
             )
             .inspectorColumnWidth(min: 250, ideal: 280, max: 400)

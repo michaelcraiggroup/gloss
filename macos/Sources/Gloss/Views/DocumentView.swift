@@ -95,7 +95,7 @@ struct DocumentView: View {
             guard store.gate(.wikiLinks) else { return }
             if let url = notification.object as? URL {
                 settings.currentFileURL = url
-                settings.lastOpenedFile = url.path
+                settings.lastOpenedFile = url.standardizedFileURL.path
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossEditorDirtyChanged)) { notification in

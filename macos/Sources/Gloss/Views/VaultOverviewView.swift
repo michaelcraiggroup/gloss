@@ -274,7 +274,7 @@ struct VaultOverviewView: View {
     private func openFile(path: String) {
         let url = URL(fileURLWithPath: path)
         settings.currentFileURL = url
-        settings.lastOpenedFile = url.path
+        settings.lastOpenedFile = url.standardizedFileURL.path
     }
 }
 
