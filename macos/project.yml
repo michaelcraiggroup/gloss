@@ -61,7 +61,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.10.5"
+        MARKETING_VERSION: "1.10.6"
         CURRENT_PROJECT_VERSION: "12"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
         INFOPLIST_KEY_CFBundleDisplayName: Gloss
@@ -102,7 +102,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
-        MARKETING_VERSION: "1.10.5"
+        MARKETING_VERSION: "1.10.6"
         CURRENT_PROJECT_VERSION: "12"
         SKIP_INSTALL: true
         LD_RUNPATH_SEARCH_PATHS:

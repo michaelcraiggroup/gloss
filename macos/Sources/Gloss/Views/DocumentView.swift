@@ -38,7 +38,7 @@ struct DocumentView: View {
                             highlightQuery: highlightQuery,
                             rawMarkdown: content
                         )
-                    } else if !isLoading {
+                    } else if !isLoading && loadingForURL == fileURL {
                         errorState(message: "Could not read file:\n\(url.lastPathComponent)")
                     }
                 } else {
@@ -186,10 +186,13 @@ struct DocumentView: View {
             fileWatcher.stop()
             return
         }
+        loadingForURL = url
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             renderAsync(content, url: url)
+        } else {
+            isLoading = false
         }
         fileWatcher.watch(url: url) {
             Task { @MainActor [url] in
