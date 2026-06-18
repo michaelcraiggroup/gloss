@@ -101,6 +101,7 @@ struct ContentView: View {
                 linkIndex.updateIndex(for: currentURL)
             }
         }
+        .modifier(FolderWatchHandler(fileTree: fileTree, linkIndex: linkIndex))
         .modifier(VaultOverviewRefresh(
             linkIndex: linkIndex,
             vaultOverview: vaultOverview,
@@ -453,6 +454,26 @@ struct VaultOverviewRefresh: ViewModifier {
                     graphService.applyFilter(f, database: linkIndex.databaseRef)
                 }
                 withAnimation { isShowingGraph = true }
+            }
+    }
+}
+
+// MARK: - FolderWatchHandler ViewModifier
+
+/// Reacts to folder-watcher events off the main body (type-checker relief).
+/// Reconciles the sidebar tree and brings the link index up to date when the
+/// FSEvents watcher reports on-disk changes under the open vault.
+struct FolderWatchHandler: ViewModifier {
+    let fileTree: FileTreeModel
+    let linkIndex: LinkIndex
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .glossVaultFilesChanged)) { notification in
+                fileTree.refreshAfterFileChange()
+                if let paths = notification.object as? [String] {
+                    linkIndex.handleExternalChanges(paths: paths)
+                }
             }
     }
 }

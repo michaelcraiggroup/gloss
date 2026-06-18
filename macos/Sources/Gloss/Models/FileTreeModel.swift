@@ -33,7 +33,7 @@ final class FileTreeModel {
     var activeTagFilter: String?
     var tagFilteredFiles: [(path: String, title: String)]?
 
-    private var pollTimer: Timer?
+    private let folderWatcher = FolderWatcher()
 
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
@@ -41,12 +41,16 @@ final class FileTreeModel {
         node.loadChildren()
         node.isExpanded = true
         rootNode = node
-        startPolling()
+        // Watch the whole tree; the callback (on main) fans out to the tree,
+        // the link index, and the open document via a single notification.
+        folderWatcher.start(root: url) { paths in
+            NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
+        }
     }
 
     /// Close the current folder.
     func closeFolder() {
-        stopPolling()
+        folderWatcher.stop()
         scopedNode = nil
         rootNode = nil
     }
@@ -168,13 +172,19 @@ final class FileTreeModel {
         }
     }
 
-    /// Force refresh the tree after a file system change.
+    /// Reconcile the tree against the current disk state after a file-system
+    /// change (external edit, file op, or a folder-watcher event). Recurses
+    /// through every loaded directory and preserves existing nodes — and their
+    /// expansion + loaded subtrees — wherever the path still exists.
     func refreshAfterFileChange() {
         if let root = rootNode {
-            refreshNode(root)
+            reconcileNode(root)
         }
-        if let scoped = scopedNode {
-            refreshNode(scoped)
+        // scopedNode lives within root's tree, but reconcileNode only recurses
+        // into already-loaded directories; reconcile it explicitly in case the
+        // path from root to it isn't fully loaded.
+        if let scoped = scopedNode, scoped !== rootNode {
+            reconcileNode(scoped)
         }
     }
 
@@ -192,52 +202,66 @@ final class FileTreeModel {
         tagFilteredFiles = nil
     }
 
-    // MARK: - Directory Polling
+    // MARK: - Tree Reconciliation
 
-    private func startPolling() {
-        stopPolling()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.refreshIfNeeded()
-            }
-        }
-    }
-
-    private func stopPolling() {
-        pollTimer?.invalidate()
-        pollTimer = nil
-    }
-
-    private func refreshIfNeeded() {
-        if let root = rootNode {
-            refreshNode(root)
-        }
-        if let scoped = scopedNode {
-            refreshNode(scoped)
-        }
-    }
-
-    private func refreshNode(_ node: FileTreeNode) {
-        guard node.isDirectory, node.children != nil else { return }
+    /// Reconcile a single loaded directory node against disk, then recurse into
+    /// its loaded subdirectories. Reuses existing child nodes by path so that
+    /// expansion state and already-loaded grandchildren survive the refresh —
+    /// only added/removed entries change. Cost is bounded by the directories
+    /// the user has actually expanded (children != nil), not the whole tree.
+    private func reconcileNode(_ node: FileTreeNode) {
+        guard node.isDirectory, let existing = node.children else { return }
 
         let fm = FileManager.default
-        guard let currentURLs = try? fm.contentsOfDirectory(
+        guard let contents = try? fm.contentsOfDirectory(
             at: node.url,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return }
 
-        let filteredURLs = Set(currentURLs.filter { url in
-            let name = url.lastPathComponent
-            if FileTreeNode.excludedNames.contains(name) { return false }
-            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            return isDir || FileTreeNode.markdownExtensions.contains(url.pathExtension.lowercased())
-        }.map(\.absoluteURL))
+        let folderName = node.url.lastPathComponent
 
-        let existingURLs = Set((node.children ?? []).map(\.url.absoluteURL))
+        // Entries that belong in the tree (same filter as loadChildren).
+        var desired: [(url: URL, isDir: Bool)] = []
+        for itemURL in contents {
+            if FileTreeNode.excludedNames.contains(itemURL.lastPathComponent) { continue }
+            let isDir = (try? itemURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if isDir || FileTreeNode.markdownExtensions.contains(itemURL.pathExtension.lowercased()) {
+                desired.append((itemURL, isDir))
+            }
+        }
 
-        if filteredURLs != existingURLs {
-            node.loadChildren()
+        // Reuse existing nodes by standardized path; create nodes for the rest.
+        var existingByPath: [String: FileTreeNode] = [:]
+        for child in existing {
+            existingByPath[child.url.standardizedFileURL.path] = child
+        }
+
+        var merged: [FileTreeNode] = desired.map { entry in
+            existingByPath[entry.url.standardizedFileURL.path]
+                ?? FileTreeNode(
+                    url: entry.url,
+                    isDirectory: entry.isDir,
+                    parentFolderName: entry.isDir ? "" : folderName
+                )
+        }
+
+        // Match loadChildren's storage order: directories first, then alpha.
+        merged.sort { a, b in
+            if a.isDirectory != b.isDirectory { return a.isDirectory }
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+
+        // Only reassign when membership actually changed, to avoid view churn.
+        let oldKeys = existing.map { $0.url.standardizedFileURL.path }
+        let newKeys = merged.map { $0.url.standardizedFileURL.path }
+        if oldKeys != newKeys {
+            node.children = merged
+        }
+
+        // Recurse into loaded subdirectories only.
+        for child in merged where child.isDirectory && child.children != nil {
+            reconcileNode(child)
         }
     }
 

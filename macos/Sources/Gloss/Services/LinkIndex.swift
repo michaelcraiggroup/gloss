@@ -122,6 +122,34 @@ final class LinkIndex {
         }
     }
 
+    /// React to external (non-app) file-system changes reported by the folder
+    /// watcher. Re-indexes created/modified markdown files and drops deleted
+    /// ones. Large bursts (e.g. a git checkout) rebuild the whole index once
+    /// rather than running `resolveAllLinks()` per file.
+    func handleExternalChanges(paths: [String]) {
+        guard database != nil, let rootURL else { return }
+
+        let markdownPaths = paths.filter {
+            Self.markdownExtensions.contains(($0 as NSString).pathExtension.lowercased())
+        }
+        guard !markdownPaths.isEmpty else { return }
+
+        if markdownPaths.count > 20 {
+            buildIndex(rootURL: rootURL)
+            return
+        }
+
+        let fm = FileManager.default
+        for path in markdownPaths {
+            let url = URL(fileURLWithPath: path)
+            if fm.fileExists(atPath: path) {
+                updateIndex(for: url)
+            } else {
+                removeFromIndex(url: url)
+            }
+        }
+    }
+
     /// Update the index after a file rename.
     func handleRename(oldURL: URL, newURL: URL) {
         guard let db = database, let rootURL else { return }
