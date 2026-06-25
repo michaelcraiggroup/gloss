@@ -18,6 +18,11 @@ final class LinkIndex {
     private var rootURL: URL?
     private var indexTask: Task<Void, Never>?
 
+    /// Paths the app itself just (re)indexed, with a timestamp. Used to swallow
+    /// the FSEvents echo of our own saves so an in-app edit doesn't get indexed
+    /// and resolved twice. @MainActor-confined (all access is on the main actor).
+    private var recentSelfUpdates: [String: Date] = [:]
+
     /// Sendable snapshot of the current database, for other services (e.g.
     /// `VaultOverviewService`) that need to run queries off-main.
     var databaseRef: LinkDatabase? { database }
@@ -80,6 +85,9 @@ final class LinkIndex {
     func updateIndex(for fileURL: URL) {
         guard let db = database, let rootURL else { return }
 
+        // Record so handleExternalChanges can ignore the FSEvents echo of this save.
+        recentSelfUpdates[fileURL.standardizedFileURL.path] = Date()
+
         Task.detached { [weak self] in
             do {
                 try Self.indexFile(fileURL, rootURL: rootURL, database: db)
@@ -111,12 +119,93 @@ final class LinkIndex {
             do {
                 try db.deleteFile(path: standardizedPath)
                 try db.resolveAllLinks()
+                // Recompute aggregates too, otherwise the deleted file lingers in
+                // the Recently Changed list and its tags stay in the Tags browser.
+                let recent = (try? db.recentlyChangedFiles()) ?? []
+                let tags = (try? db.allTagCounts()) ?? []
                 let health = Self.computeHealth(database: db)
                 await MainActor.run { [weak self] in
-                    self?.linkHealth = health
+                    guard let self else { return }
+                    self.recentlyChanged = recent
+                    self.allTags = tags
+                    self.linkHealth = health
                 }
             } catch {
                 // Delete failed silently
+            }
+            _ = self
+        }
+    }
+
+    /// React to external (non-app) file-system changes reported by the folder
+    /// watcher. Re-indexes created/modified markdown files and drops deleted ones.
+    ///
+    /// - Directory-level changes (folder rename/move/delete) can't be mapped to
+    ///   the affected markdown files from the path alone, so they trigger a single
+    ///   full rebuild — as do large bursts (e.g. a git checkout).
+    /// - Otherwise all changed files are indexed/removed and links resolved ONCE
+    ///   for the whole batch, not once per file.
+    func handleExternalChanges(paths: [String]) {
+        guard let db = database, let rootURL else { return }
+
+        let fm = FileManager.default
+
+        // A directory in the batch means a folder was created/renamed/moved/deleted
+        // (file-level events carry the file's own path, not its parent).
+        let hasStructuralChange = paths.contains { path in
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: path, isDirectory: &isDir) {
+                return isDir.boolValue
+            }
+            // A vanished path with no file extension is most likely a removed dir.
+            return (path as NSString).pathExtension.isEmpty
+        }
+
+        var markdownPaths = paths.filter {
+            Self.markdownExtensions.contains(($0 as NSString).pathExtension.lowercased())
+        }
+
+        // Swallow the FSEvents echo of our own saves (one-shot: a genuine later
+        // external edit to the same file is not suppressed).
+        markdownPaths = markdownPaths.filter { path in
+            let key = URL(fileURLWithPath: path).standardizedFileURL.path
+            if let t = recentSelfUpdates[key], Date().timeIntervalSince(t) < 2.0 {
+                recentSelfUpdates[key] = nil
+                return false
+            }
+            return true
+        }
+        let cutoff = Date().addingTimeInterval(-2.0)
+        recentSelfUpdates = recentSelfUpdates.filter { $0.value > cutoff }
+
+        if hasStructuralChange || markdownPaths.count > 20 {
+            buildIndex(rootURL: rootURL)
+            return
+        }
+        guard !markdownPaths.isEmpty else { return }
+
+        // Batch: index/remove every changed file, then resolve links and refresh
+        // aggregates ONCE. Posting .glossIndexUpdated lets ContentView refresh
+        // backlinks, the vault overview, and the graph for the current file.
+        Task.detached { [weak self] in
+            for path in markdownPaths {
+                let url = URL(fileURLWithPath: path)
+                if FileManager.default.fileExists(atPath: path) {
+                    try? Self.indexFile(url, rootURL: rootURL, database: db)
+                } else {
+                    try? db.deleteFile(path: url.standardizedFileURL.path)
+                }
+            }
+            try? db.resolveAllLinks()
+            let recent = (try? db.recentlyChangedFiles()) ?? []
+            let tags = (try? db.allTagCounts()) ?? []
+            let health = Self.computeHealth(database: db)
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.recentlyChanged = recent
+                self.allTags = tags
+                self.linkHealth = health
+                NotificationCenter.default.post(name: .glossIndexUpdated, object: nil)
             }
             _ = self
         }

@@ -24,6 +24,9 @@ extension Notification.Name {
     static let glossWebViewDidStartLoad = Notification.Name("glossWebViewDidStartLoad")
     static let glossWebViewDidFinishLoad = Notification.Name("glossWebViewDidFinishLoad")
     static let glossOpenPath = Notification.Name("glossOpenPath")
+    /// Posted (object: [String] of changed paths) when the folder watcher
+    /// detects on-disk changes anywhere under the open vault root.
+    static let glossVaultFilesChanged = Notification.Name("glossVaultFilesChanged")
 }
 
 /// WKWebView subclass that intercepts markdown file drops.

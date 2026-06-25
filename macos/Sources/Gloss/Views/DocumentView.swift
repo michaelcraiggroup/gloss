@@ -106,11 +106,22 @@ struct DocumentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .glossEditorSaved)) { _ in
             // Reload content after editor save so read mode reflects changes
             if let url = fileURL {
-                fileContent = try? String(contentsOf: url, encoding: .utf8)
-                if let content = fileContent {
-                    NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
-                    renderAsync(content, url: url)
-                }
+                reloadContent(url: url)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .glossVaultFilesChanged)) { notification in
+            // Live-reload the open document when the folder watcher reports it
+            // changed on disk. Path-based, so it catches atomic save-via-rename
+            // that the per-file watcher misses. Skipped while editing to avoid
+            // clobbering the editor buffer.
+            guard !isEditing, let url = fileURL,
+                  let paths = notification.object as? [String] else { return }
+            // FSEvents reports symlink-resolved paths (/private/...), so resolve
+            // the open file's path before comparing — otherwise a vault under a
+            // symlinked root (e.g. /tmp) never matches and never live-reloads.
+            let target = url.resolvingSymlinksInPath().path
+            if paths.contains(target) {
+                reloadContent(url: url)
             }
         }
         .onChange(of: colorScheme) {
@@ -194,15 +205,43 @@ struct DocumentView: View {
         } else {
             isLoading = false
         }
-        fileWatcher.watch(url: url) {
-            Task { @MainActor [url] in
-                fileContent = try? String(contentsOf: url, encoding: .utf8)
-                if let content = fileContent {
-                    NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
-                    renderAsync(content, url: url)
+        // Files inside the open vault are already covered by the folder-wide
+        // watcher (via .glossVaultFilesChanged), which is path-based and so
+        // survives editors' atomic save-via-rename. Only arm the per-file
+        // DispatchSource watcher for standalone files (no folder open, or a
+        // file outside the root — e.g. wiki-link navigation).
+        if isCoveredByFolderWatcher {
+            fileWatcher.stop()
+        } else {
+            fileWatcher.watch(url: url) {
+                Task { @MainActor [url] in
+                    reloadContent(url: url)
                 }
             }
         }
+    }
+
+    /// Re-read the file from disk and re-render read mode.
+    private func reloadContent(url: URL) {
+        fileContent = try? String(contentsOf: url, encoding: .utf8)
+        if let content = fileContent {
+            NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+            renderAsync(content, url: url)
+        } else {
+            // Read failed (e.g. mid atomic save-via-rename) — clear the spinner so
+            // we don't strand a ProgressView over stale content with no recovery.
+            isLoading = false
+        }
+    }
+
+    /// Whether the open file lives under the actively watched vault root.
+    /// Requires `isWatching` so that if FSEvents failed to start, we fall back to
+    /// the per-file watcher rather than leaving the open doc with no change detection.
+    private var isCoveredByFolderWatcher: Bool {
+        guard fileTree.isWatching, let fileURL, let root = fileTree.rootNode?.url else { return false }
+        let filePath = fileURL.standardizedFileURL.path
+        let rootPath = root.standardizedFileURL.path
+        return filePath == rootPath || filePath.hasPrefix(rootPath + "/")
     }
 
     /// Renders markdown to HTML on a background thread to avoid blocking the main thread

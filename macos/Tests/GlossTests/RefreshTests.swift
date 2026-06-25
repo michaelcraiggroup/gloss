@@ -131,4 +131,132 @@ struct RefreshTests {
         model.closeFolder()
         #expect(model.hasFolder == false)
     }
+
+    // MARK: - Recursive reconcile (folder-wide watching)
+
+    @Test("Reconcile preserves expansion state of subfolders")
+    @MainActor
+    func reconcilePreservesExpansion() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        let subDir = tmpDir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        try "a".write(to: subDir.appendingPathComponent("a.md"), atomically: true, encoding: .utf8)
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+
+        // Expand the subfolder in place.
+        let subNode = try #require(model.rootNode?.children?.first(where: { $0.isDirectory }))
+        subNode.loadChildren()
+        subNode.isExpanded = true
+        let subNodeID = subNode.id
+
+        // Add a file at the root — a membership change at the top level.
+        try "r".write(to: tmpDir.appendingPathComponent("root.md"), atomically: true, encoding: .utf8)
+        model.refreshAfterFileChange()
+
+        // The subfolder node is the same instance and is still expanded/loaded.
+        let preserved = model.rootNode?.children?.first(where: { $0.id == subNodeID })
+        #expect(preserved != nil)
+        #expect(preserved?.isExpanded == true)
+        #expect(preserved?.children?.count == 1)
+        // Root now holds the new file plus the subfolder.
+        #expect(model.rootNode?.children?.count == 2)
+    }
+
+    @Test("Reconcile detects additions in an expanded subfolder")
+    @MainActor
+    func reconcileNestedAddition() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        let subDir = tmpDir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let subNode = try #require(model.rootNode?.children?.first(where: { $0.isDirectory }))
+        subNode.loadChildren()
+        subNode.isExpanded = true
+        #expect(subNode.children?.count == 0)
+
+        // Add a file inside the expanded subfolder — the old shallow refresh missed this.
+        try "n".write(to: subDir.appendingPathComponent("nested.md"), atomically: true, encoding: .utf8)
+        model.refreshAfterFileChange()
+
+        #expect(subNode.children?.count == 1)
+    }
+
+    @Test("Reconcile detects deletions in an expanded subfolder")
+    @MainActor
+    func reconcileNestedDeletion() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        let subDir = tmpDir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let nested = subDir.appendingPathComponent("nested.md")
+        try "n".write(to: nested, atomically: true, encoding: .utf8)
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let subNode = try #require(model.rootNode?.children?.first(where: { $0.isDirectory }))
+        subNode.loadChildren()
+        subNode.isExpanded = true
+        #expect(subNode.children?.count == 1)
+
+        try FileManager.default.removeItem(at: nested)
+        model.refreshAfterFileChange()
+
+        #expect(subNode.children?.count == 0)
+    }
+
+    @Test("Reconcile leaves unexpanded subfolders lazy")
+    @MainActor
+    func reconcileLeavesUnexpandedFoldersLazy() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        let subDir = tmpDir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let subNode = try #require(model.rootNode?.children?.first(where: { $0.isDirectory }))
+        #expect(subNode.children == nil) // never expanded
+
+        // Adding inside an unexpanded folder must not force it to load.
+        try "n".write(to: subDir.appendingPathComponent("nested.md"), atomically: true, encoding: .utf8)
+        model.refreshAfterFileChange()
+
+        #expect(subNode.children == nil)
+    }
+
+    @Test("Reconcile rebuilds a node when its path flips file<->directory")
+    @MainActor
+    func reconcileTypeFlip() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let path = tmpDir.appendingPathComponent("notes.md")
+        try "hi".write(to: path, atomically: true, encoding: .utf8)
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let fileNode = try #require(model.rootNode?.children?.first)
+        #expect(fileNode.isDirectory == false)
+
+        // Externally replace the file with a directory of the same name.
+        try FileManager.default.removeItem(at: path)
+        try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+        model.refreshAfterFileChange()
+
+        // The node must be rebuilt as a directory, not reuse the stale file node.
+        let flipped = try #require(model.rootNode?.children?.first)
+        #expect(flipped.isDirectory == true)
+    }
 }
