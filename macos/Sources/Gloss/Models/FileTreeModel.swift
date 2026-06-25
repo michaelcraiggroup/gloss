@@ -35,6 +35,11 @@ final class FileTreeModel {
 
     private let folderWatcher = FolderWatcher()
 
+    /// Whether the folder watcher is actively running. False if FSEvents failed
+    /// to start — DocumentView checks this so it keeps the per-file watcher as a
+    /// fallback for the open document instead of silently relying on a dead watch.
+    private(set) var isWatching = false
+
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
         let node = FileTreeNode(url: url, isDirectory: true)
@@ -43,7 +48,7 @@ final class FileTreeModel {
         rootNode = node
         // Watch the whole tree; the callback (on main) fans out to the tree,
         // the link index, and the open document via a single notification.
-        folderWatcher.start(root: url) { paths in
+        isWatching = folderWatcher.start(root: url) { paths in
             NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
         }
     }
@@ -51,6 +56,7 @@ final class FileTreeModel {
     /// Close the current folder.
     func closeFolder() {
         folderWatcher.stop()
+        isWatching = false
         scopedNode = nil
         rootNode = nil
     }
@@ -238,12 +244,18 @@ final class FileTreeModel {
         }
 
         var merged: [FileTreeNode] = desired.map { entry in
-            existingByPath[entry.url.standardizedFileURL.path]
-                ?? FileTreeNode(
-                    url: entry.url,
-                    isDirectory: entry.isDir,
-                    parentFolderName: entry.isDir ? "" : folderName
-                )
+            // Reuse only when the type still matches — an external `rm x && mkdir x`
+            // (or the reverse) keeps the path but flips file<->dir, and the stale
+            // node's `isDirectory`/`documentType` are immutable, so it must be rebuilt.
+            if let reused = existingByPath[entry.url.standardizedFileURL.path],
+               reused.isDirectory == entry.isDir {
+                return reused
+            }
+            return FileTreeNode(
+                url: entry.url,
+                isDirectory: entry.isDir,
+                parentFolderName: entry.isDir ? "" : folderName
+            )
         }
 
         // Match loadChildren's storage order: directories first, then alpha.
@@ -252,10 +264,10 @@ final class FileTreeModel {
             return a.name.localizedStandardCompare(b.name) == .orderedAscending
         }
 
-        // Only reassign when membership actually changed, to avoid view churn.
-        let oldKeys = existing.map { $0.url.standardizedFileURL.path }
-        let newKeys = merged.map { $0.url.standardizedFileURL.path }
-        if oldKeys != newKeys {
+        // Reassign when the set of (type, path) entries changed — keying on type
+        // too means a file<->dir flip at the same path counts as a change.
+        let typedKey: (FileTreeNode) -> String = { "\($0.isDirectory ? "d" : "f"):\($0.url.standardizedFileURL.path)" }
+        if existing.map(typedKey) != merged.map(typedKey) {
             node.children = merged
         }
 

@@ -116,7 +116,11 @@ struct DocumentView: View {
             // clobbering the editor buffer.
             guard !isEditing, let url = fileURL,
                   let paths = notification.object as? [String] else { return }
-            if paths.contains(url.standardizedFileURL.path) {
+            // FSEvents reports symlink-resolved paths (/private/...), so resolve
+            // the open file's path before comparing — otherwise a vault under a
+            // symlinked root (e.g. /tmp) never matches and never live-reloads.
+            let target = url.resolvingSymlinksInPath().path
+            if paths.contains(target) {
                 reloadContent(url: url)
             }
         }
@@ -223,12 +227,18 @@ struct DocumentView: View {
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             renderAsync(content, url: url)
+        } else {
+            // Read failed (e.g. mid atomic save-via-rename) — clear the spinner so
+            // we don't strand a ProgressView over stale content with no recovery.
+            isLoading = false
         }
     }
 
-    /// Whether the open file lives under the currently watched vault root.
+    /// Whether the open file lives under the actively watched vault root.
+    /// Requires `isWatching` so that if FSEvents failed to start, we fall back to
+    /// the per-file watcher rather than leaving the open doc with no change detection.
     private var isCoveredByFolderWatcher: Bool {
-        guard let fileURL, let root = fileTree.rootNode?.url else { return false }
+        guard fileTree.isWatching, let fileURL, let root = fileTree.rootNode?.url else { return false }
         let filePath = fileURL.standardizedFileURL.path
         let rootPath = root.standardizedFileURL.path
         return filePath == rootPath || filePath.hasPrefix(rootPath + "/")

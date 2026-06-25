@@ -233,4 +233,30 @@ struct RefreshTests {
 
         #expect(subNode.children == nil)
     }
+
+    @Test("Reconcile rebuilds a node when its path flips file<->directory")
+    @MainActor
+    func reconcileTypeFlip() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let path = tmpDir.appendingPathComponent("notes.md")
+        try "hi".write(to: path, atomically: true, encoding: .utf8)
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let fileNode = try #require(model.rootNode?.children?.first)
+        #expect(fileNode.isDirectory == false)
+
+        // Externally replace the file with a directory of the same name.
+        try FileManager.default.removeItem(at: path)
+        try FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+        model.refreshAfterFileChange()
+
+        // The node must be rebuilt as a directory, not reuse the stale file node.
+        let flipped = try #require(model.rootNode?.children?.first)
+        #expect(flipped.isDirectory == true)
+    }
 }
