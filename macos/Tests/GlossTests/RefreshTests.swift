@@ -259,4 +259,50 @@ struct RefreshTests {
         let flipped = try #require(model.rootNode?.children?.first)
         #expect(flipped.isDirectory == true)
     }
+
+    @Test("Scoped folder externally deleted clears scopedNode")
+    @MainActor
+    func scopedFolderDeletedExternally() throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        let subDir = tmpDir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let subNode = try #require(model.rootNode?.children?.first(where: { $0.isDirectory }))
+        model.scopeToFolder(subNode)
+        #expect(model.isScoped)
+
+        try FileManager.default.removeItem(at: subDir)
+        model.refreshAfterFileChange()
+
+        #expect(model.scopedNode == nil)
+        #expect(!model.isScoped)
+    }
+
+    @Test("Reconcile updates modificationDate after external edit")
+    @MainActor
+    func reconcileUpdatesModificationDate() async throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("gloss-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let file = tmpDir.appendingPathComponent("editable.md")
+        try "v1".write(to: file, atomically: true, encoding: .utf8)
+
+        let model = FileTreeModel()
+        model.openFolder(tmpDir)
+        let node = try #require(model.rootNode?.children?.first)
+        let before = node.modificationDate
+
+        // Small pause so APFS records a different nanosecond-precision mtime.
+        try await Task.sleep(for: .milliseconds(20))
+        try "v2".write(to: file, atomically: true, encoding: .utf8)
+        model.refreshAfterFileChange()
+
+        #expect(node.modificationDate != before)
+    }
 }

@@ -43,14 +43,18 @@ final class FileTreeModel {
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
         let node = FileTreeNode(url: url, isDirectory: true)
-        node.loadChildren()
-        node.isExpanded = true
-        rootNode = node
-        // Watch the whole tree; the callback (on main) fans out to the tree,
-        // the link index, and the open document via a single notification.
+        // Arm the watcher BEFORE enumerating children. Since FileTreeModel is
+        // @MainActor, the FSEvents callback can't be dispatched to the main queue
+        // until after openFolder returns, so there is no interleaving risk. Any
+        // change that occurs between arm and the completion of loadChildren is
+        // guaranteed to fire an event and trigger a reconcile — closing the
+        // kFSEventStreamEventIdSinceNow gap that existed when we enumerated first.
         isWatching = folderWatcher.start(root: url) { paths in
             NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
         }
+        node.loadChildren()
+        node.isExpanded = true
+        rootNode = node
     }
 
     /// Close the current folder.
@@ -192,6 +196,13 @@ final class FileTreeModel {
         if let scoped = scopedNode, scoped !== rootNode {
             reconcileNode(scoped)
         }
+        // If the scoped folder was externally deleted, reconcileNode removed it
+        // from the tree but scopedNode still points at the orphaned node — clear
+        // it so the sidebar returns to the full root view automatically.
+        if let scoped = scopedNode,
+           !FileManager.default.fileExists(atPath: scoped.url.path) {
+            scopedNode = nil
+        }
     }
 
     // MARK: - Tag Filtering
@@ -249,6 +260,10 @@ final class FileTreeModel {
             // node's `isDirectory`/`documentType` are immutable, so it must be rebuilt.
             if let reused = existingByPath[entry.url.standardizedFileURL.path],
                reused.isDirectory == entry.isDir {
+                // Refresh modificationDate in-place so Date-sort stays accurate
+                // after an external in-place edit (the node is reused, not rebuilt).
+                reused.modificationDate = (try? entry.url.resourceValues(
+                    forKeys: [.contentModificationDateKey]))?.contentModificationDate
                 return reused
             }
             return FileTreeNode(

@@ -124,6 +124,18 @@ struct DocumentView: View {
                 reloadContent(url: url)
             }
         }
+        .onChange(of: isEditing) { _, nowEditing in
+            // When the user exits edit mode, re-read from disk so any external
+            // change that arrived while .glossVaultFilesChanged was suppressed
+            // (the `!isEditing` guard) is picked up immediately in read mode.
+            guard !nowEditing, let url = fileURL else { return }
+            reloadContent(url: url)
+        }
+        .onChange(of: fileTree.isWatching) { _, _ in
+            // Re-evaluate whether this file is covered by the folder watcher.
+            // `loadAndWatch` arms or disarms the per-file FileWatcher accordingly.
+            loadAndWatch()
+        }
         .onChange(of: colorScheme) {
             if let content = fileContent, let url = fileURL {
                 renderAsync(content, url: url)
