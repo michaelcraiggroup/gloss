@@ -197,7 +197,10 @@ struct ContentView: View {
     private var navigationSubtitle: String {
         if settings.isZenMode { return "" }
         guard settings.currentFileURL != nil else { return "" }
-        return isEditing ? "Edit Mode" : "Reading Mode"
+        if isEditing {
+            return isEditorDirty ? "Edit Mode • Modified" : "Edit Mode"
+        }
+        return "Reading Mode"
     }
 
     // MARK: - Toolbar
@@ -269,12 +272,6 @@ struct ContentView: View {
                 .disabled(settings.currentFileURL == nil)
                 .spotlightTarget(.toolbarInspectorToggle)
             }
-
-            if settings.currentFileURL != nil {
-                ToolbarItem(placement: .status) {
-                    statusText
-                }
-            }
         }
     }
 
@@ -292,23 +289,6 @@ struct ContentView: View {
                 .help("Close Graph (Esc)")
                 .keyboardShortcut(.escape, modifiers: [])
             }
-        }
-    }
-
-    @ViewBuilder
-    private var statusText: some View {
-        if isEditing && isEditorDirty {
-            Text("Modified")
-                .font(.caption)
-                .foregroundStyle(.orange)
-        } else if isEditing {
-            Text("Editing")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        } else {
-            Text("j/k to scroll")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
     }
 
