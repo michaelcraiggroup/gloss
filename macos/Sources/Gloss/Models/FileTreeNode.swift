@@ -9,7 +9,7 @@ final class FileTreeNode: Identifiable {
     let name: String
     let isDirectory: Bool
     let documentType: DocumentType
-    let modificationDate: Date?
+    var modificationDate: Date?
 
     /// nil = children not yet loaded, empty = loaded but no matching children
     var children: [FileTreeNode]?

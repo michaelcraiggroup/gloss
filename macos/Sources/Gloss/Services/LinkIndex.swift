@@ -86,7 +86,7 @@ final class LinkIndex {
         guard let db = database, let rootURL else { return }
 
         // Record so handleExternalChanges can ignore the FSEvents echo of this save.
-        recentSelfUpdates[fileURL.standardizedFileURL.path] = Date()
+        recentSelfUpdates[fileURL.resolvingSymlinksInPath().path] = Date()
 
         Task.detached { [weak self] in
             do {
@@ -114,7 +114,7 @@ final class LinkIndex {
     /// Update the index after a file is deleted.
     func removeFromIndex(url: URL) {
         guard let db = database else { return }
-        let standardizedPath = url.standardizedFileURL.path
+        let standardizedPath = url.resolvingSymlinksInPath().path
         Task.detached { [weak self] in
             do {
                 try db.deleteFile(path: standardizedPath)
@@ -168,7 +168,7 @@ final class LinkIndex {
         // Swallow the FSEvents echo of our own saves (one-shot: a genuine later
         // external edit to the same file is not suppressed).
         markdownPaths = markdownPaths.filter { path in
-            let key = URL(fileURLWithPath: path).standardizedFileURL.path
+            let key = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
             if let t = recentSelfUpdates[key], Date().timeIntervalSince(t) < 2.0 {
                 recentSelfUpdates[key] = nil
                 return false
@@ -193,7 +193,7 @@ final class LinkIndex {
                 if FileManager.default.fileExists(atPath: path) {
                     try? Self.indexFile(url, rootURL: rootURL, database: db)
                 } else {
-                    try? db.deleteFile(path: url.standardizedFileURL.path)
+                    try? db.deleteFile(path: url.resolvingSymlinksInPath().path)
                 }
             }
             try? db.resolveAllLinks()
@@ -214,7 +214,7 @@ final class LinkIndex {
     /// Update the index after a file rename.
     func handleRename(oldURL: URL, newURL: URL) {
         guard let db = database, let rootURL else { return }
-        let oldPath = oldURL.standardizedFileURL.path
+        let oldPath = oldURL.resolvingSymlinksInPath().path
         Task.detached { [weak self] in
             do {
                 try db.deleteFile(path: oldPath)
@@ -240,7 +240,7 @@ final class LinkIndex {
             return
         }
 
-        let standardizedPath = fileURL.standardizedFileURL.path
+        let standardizedPath = fileURL.resolvingSymlinksInPath().path
 
         // Refresh tags for current file
         if let fileId = try? db.fileId(forPath: standardizedPath),
@@ -329,7 +329,7 @@ final class LinkIndex {
 
         let modDate = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date()
         let title = fileURL.deletingPathExtension().lastPathComponent
-        let standardizedPath = fileURL.standardizedFileURL.path
+        let standardizedPath = fileURL.resolvingSymlinksInPath().path
 
         let fileId = try database.upsertFile(path: standardizedPath, title: title, modifiedAt: modDate)
 
