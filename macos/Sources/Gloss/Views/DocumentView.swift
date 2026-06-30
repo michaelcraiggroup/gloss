@@ -46,7 +46,7 @@ struct DocumentView: View {
                 }
             }
 
-            if isLoading {
+            if isLoading && !isEditing {
                 ProgressView()
                     .controlSize(.small)
                     .padding(10)
@@ -125,10 +125,21 @@ struct DocumentView: View {
             }
         }
         .onChange(of: isEditing) { _, nowEditing in
+            if nowEditing {
+                // Entering edit mode unmounts the read-mode WebView, so it can no
+                // longer post .glossWebViewDidFinishLoad to clear isLoading. Cancel
+                // any in-flight read render and drop the spinner now so it can't
+                // strand over the editor — this is what hangs when a freshly created
+                // file auto-opens in edit mode (the read render kicked off on open
+                // never gets a WebView to finish it).
+                renderTask?.cancel()
+                isLoading = false
+                return
+            }
             // When the user exits edit mode, re-read from disk so any external
             // change that arrived while .glossVaultFilesChanged was suppressed
             // (the `!isEditing` guard) is picked up immediately in read mode.
-            guard !nowEditing, let url = fileURL else { return }
+            guard let url = fileURL else { return }
             reloadContent(url: url)
         }
         .onChange(of: fileTree.isWatching) { _, _ in
@@ -238,6 +249,12 @@ struct DocumentView: View {
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+            // While editing, the read-mode WebView isn't mounted — so renderAsync's
+            // spinner would never be cleared (it waits on .glossWebViewDidFinishLoad,
+            // which only the read WebView posts), stranding the ProgressView over the
+            // editor on Cmd+S. Skip the unseen render; exiting edit mode re-reads and
+            // renders via .onChange(of: isEditing). The inspector still refreshes above.
+            guard !isEditing else { return }
             renderAsync(content, url: url)
         } else {
             // Read failed (e.g. mid atomic save-via-rename) — clear the spinner so
