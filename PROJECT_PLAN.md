@@ -1,169 +1,95 @@
 ---
 project: "gloss"
-title: "Gloss — Distraction-free markdown reading"
+title: "Gloss — A knowledgebase that opens to read"
 status: "active"
-phase: "macOS App - Dogfooding & Light Editing"
-progress: 90
-stack: "TypeScript (VS Code Extension), Swift/SwiftUI (macOS App)"
+phase: "Knowledgebase (Path B) — M1: Query layer"
+progress: 62
+stack: "Swift/SwiftUI (macOS app, GlossKit), TypeScript (VS Code extension)"
+strategic_direction: "Path B — become a full knowledgebase (queries, transclusion, capture, properties, sync, iOS). Reader-first survives as the differentiator: it opens to read."
 next_steps:
-  - "Code signing + notarization"
-  - "DMG packaging or App Store submission"
-  - "VS Code integration tests"
-  - "Custom CSS theme support"
-last_updated: "2026-03-18"
+  - "M1: type:query md+ block over LinkDatabase"
+  - "M1: frontmatter properties table in .gloss/index.sqlite"
+  - "M1: saved searches in sidebar"
+  - "M2: transclusion, unlinked mentions, [[ autocomplete"
+open_questions:
+  - "Sync = the user's own iCloud (confirm) — keeps the no-subscription promise"
+  - "Positioning revisit when M3 capture ships"
+  - "Pricing under KB scope — leaning all one-time, iCloud sync free"
+last_updated: "2026-06-30"
 ---
 
-# Gloss - Project Plan
+# Gloss — Project Plan
 
-**Gloss** — Gloss through your markdown without touching it.
+> **Like Preview.app, but for markdown.** Opens to read; edits when you ask.
 
-A distraction-free markdown reader as a VS Code extension and standalone macOS app.
+A distraction-free markdown reader — VS Code extension and macOS app — on a path to become a **privacy-first, local-first knowledgebase** that opens to read.
 
-## Current Focus: VS Code Extension MVP
+📋 Roadmap: [plans/gloss/2026-06-30-knowledgebase-path-b.md](../mcg-operations/plans/gloss/2026-06-30-knowledgebase-path-b.md)
+📖 Full product history: [gloss-project-plan.md](gloss-project-plan.md)
 
-See [gloss-project-plan.md](gloss-project-plan.md) for full product specification.
+## Strategic Direction — Path B: become the knowledgebase
 
-### MVP Features (v0.1.0)
+Gloss already owns the *navigation* half of a knowledgebase: typed wiki-links (`[[concept::relates]]`), backlinks, tags + filtering, full-text search, a D3 force-directed graph, and a persistent **SQLite link index** (`.gloss/index.sqlite`). With Jotto re-created as **Syncopate** (a task manager), capture no longer cannibalizes a sibling — so Gloss commits to **Path B**: a full knowledgebase, not a reader-only tool.
 
-- [x] Auto-preview on open (configurable patterns)
-- [x] Close source tab automatically
-- [x] Disable double-click-to-edit (custom webview)
-- [x] "Edit This File" command
-- [x] Status bar indicator
-- [x] **Merrily Integration** — Browse operational docs in sidebar
+**Reconciliations:**
 
-### Merrily Integration Features
+- **Positioning survives.** Every other knowledgebase opens into an editor; Gloss opens to *read*. The line evolves toward *"the knowledgebase that opens to read."* Reader-first is the category differentiator, not a scope limit.
+- **No subscription, still.** Sync = the user's **own iCloud** (plain-markdown vault, zero server cost, more private). The one-time-price promise holds.
+- **md+ is the spine.** Queries, embeds, and templates are md+ blocks — *"markdown that's alive,"* not an Obsidian clone.
 
-- [x] Sidebar tree view with folder browser
-- [x] Local folder configuration
-- [x] Document type icons (pitch, retro, strategy, etc.)
-- [x] Merrily API client (pitches, cycles, retrospectives)
-- [x] API connection/disconnection commands
-- [x] Open documents in reading mode
+## Knowledgebase roadmap (M1 → M5)
 
-### Milestones
+| Milestone | Unlocks | Builds on | Cost |
+|---|---|---|---|
+| **M1 · Query layer** | interrogate the corpus | `LinkDatabase` + md+ | Low |
+| **M2 · Compose & densify** | transclusion, unlinked mentions, `[[` autocomplete | index + WKWebView + CM6 | Low–Med |
+| **M3 · Capture & properties** | daily notes, quick capture, editable fields | SwiftData + index | Med |
+| **M4 · Durability & reach** | iCloud sync, version history, iOS | GlossKit + iCloud | High |
+| **M5 · Parity polish** | panes/tabs, folding, nested tags | app shell | Ongoing |
 
-**Phase 1: Foundation (Week 1)** ✅
+### M1 — Query layer (current — spec in review)
+- [ ] `type: query` md+ block over `LinkDatabase` (tags, links, frontmatter fields)
+- [ ] Frontmatter **properties** table in `.gloss/index.sqlite`, populated by `LinkIndex`
+- [ ] Saved searches in the sidebar
+- [ ] Detailed spec: see archived roadmap + plan-mode signoff
 
-- [x] Scaffold extension
-- [x] Document open listener
-- [x] Configuration schema
-- [x] Manual preview triggering
-- [x] Merrily tree provider
+### M2 — Compose & densify
+- [ ] Transclusion: `![[note]]` / `![[note#heading]]` inline (read mode)
+- [ ] Unlinked mentions panel in the inspector
+- [ ] `[[` autocomplete in the CM6 editor
 
-**Phase 2: Core Features (Week 2)**
+### M3 — Capture & properties
+- [ ] Daily notes + calendar navigation
+- [ ] Quick capture (menu-bar `NSStatusItem` + global hotkey)
+- [ ] Editable frontmatter properties (write back + re-index)
 
-- [x] Pattern matching (include/exclude)
-- [x] Tab closing logic
-- [x] Edit command
-- [x] Status bar
-- [ ] Integration tests
+### M4 — Durability & reach
+- [ ] iCloud sync (markdown only; exclude `.gloss/` derived cache)
+- [ ] Version history (local snapshots / git-backed)
+- [ ] iOS companion (read + capture; reuses GlossKit renderer)
 
-**Phase 3: Polish (Week 3)**
+### M5 — Parity polish
+- [ ] Split panes / tabs
+- [ ] Outline folding
+- [ ] Hierarchical tags
 
-- [ ] Edge cases (remote, WSL, already open)
-- [ ] README with screenshots
-- [ ] Marketplace assets
-- [ ] Merrily API authentication flow
+## Status (2026-06-30)
 
-**Phase 4: Release (Week 4)** ✅
+**Reader + light-KB foundation: shipped** (macOS app through v1.11.2) — rendering (syntax / Mermaid / KaTeX), folder sidebar, full-text search, Quick Look, find / print / PDF, editor mode (CM6 live preview), file CRUD, typed wiki-links + backlinks, tags UI + filtering, GRDB SQLite link index, force-directed graph, md+ fillable templates, feature walkthroughs. **283 tests.**
 
-- [x] Beta testing
-- [x] Marketplace submission
-- [x] Announce on michaelcraig.group
+**In flight — PR [#16](https://github.com/michaelcraiggroup/gloss/pull/16) (Chiat\Day pre-launch pass):** feature-gating copy reconciliation, version sync → v1.11.3, reader-first positioning + standardized tagline, **amber brand** recolor.
 
----
+**Next — Path B, M1:** the query layer.
 
-## macOS Standalone App
+## VS Code extension
 
-### macOS Phase 1: Foundation ✅
+Free / MIT — published. Trust-builder and funnel to the macOS app.
 
-- [x] Swift Package with swift-markdown dependency
-- [x] MarkdownRenderer (swift-markdown → HTML with Gloss CSS theme)
-- [x] WKWebView wrapper (NSViewRepresentable)
-- [x] Editor model with URL schemes (Cursor, Windsurf, VS Code, VSCodium, System)
-- [x] AppSettings with @AppStorage persistence
-- [x] ContentView with file importer, drag-and-drop, toolbar
-- [x] DocumentView with empty/error/render states
-- [x] SettingsView (editor picker, appearance picker)
-- [x] GlossApp entry point with menu commands
-- [x] Dark/light theme ported from VS Code extension
-- [x] highlight.js syntax highlighting (CDN)
-- [x] 13 passing tests (MarkdownRenderer + Editor)
+## Cross-project integrations
 
-### macOS Phase 2: File Browser ✅
-
-- [x] NavigationSplitView with sidebar + detail
-- [x] Recursive file tree using FileManager
-- [x] Document type icons (pitch, retro, strategy, etc.)
-- [x] Folder picker via NSOpenPanel
-- [x] RecentDocument SwiftData model
-- [x] File watcher for live reload (DispatchSource)
-- [x] Content search (full-text across folder)
-- [x] Filename search with scoped subfolder support
-- [x] Favorites system (SwiftData, star/unstar, context menus)
-- [x] Recent documents list
-
-### macOS Phase 3: Quick Look & Polish ✅
-
-- [x] Quick Look extension target
-- [x] Bundle highlight.js locally (remove CDN)
-- [x] Keyboard shortcuts (j/k scroll, Space page up/down, gg/G)
-- [x] App icon
-- [x] Find in page (Cmd+F)
-- [x] Copy button on code blocks
-- [x] Print support (Cmd+P via native NSPrintOperation)
-- [x] Font size controls
-- [x] Zen mode
-- [ ] Custom CSS theme support
-
-### macOS Phase 4: Sidebar Improvements & Release
-
-- [x] Full directory path in sidebar header
-- [x] Periodic directory polling (3s) to detect new/deleted files
-- [x] Sortable file list (Name/Date, ascending/descending)
-- [ ] Code signing + notarization
-- [ ] DMG packaging or App Store submission
+- **Syncopate (tasks):** a `type: query` block could surface Syncopate tasks tied to a note (notes ↔ tasks). A Syncopate MCP exists.
+- **nocmeout (runbooks):** Gloss as the rendering layer for operational runbooks via md+ `shell` / `chart` blocks (depends on md+ shell + trust config). See `docs/MD_PLUS_SPEC.md`.
 
 ---
 
-### macOS Phase 5: Dogfooding — Pitch Reading & Light Editing
-
-_Cross-project pitch: [2026-03-18-dogfooding-pitch-imports.md](../mcg-operations/plans/gloss/2026-03-18-dogfooding-pitch-imports.md)_
-
-- [ ] Code signing + notarization (prerequisite for daily use)
-- [ ] Light editing mode — clean, distraction-free markdown editing (CodeMirror 6)
-- [ ] "Open in Merrily" action — deep link into Merrily pitch import/shaping
-- [ ] Pitch template support — new file from Shape Up pitch template
-- [ ] Operational role: reading/editing LLM-generated pitches before Merrily shaping
-
----
-
-### Future: md+ Executable Markdown
-
-- [ ] md+ block parser (HTML comments with YAML)
-- [ ] Calculator block type
-- [ ] Chart block type
-- [ ] Embed block type (include other files)
-- [ ] Shell block type (with security model)
-- [ ] Trust configuration system (.md+config.yaml)
-
-See [docs/MD_PLUS_SPEC.md](docs/MD_PLUS_SPEC.md) for full specification.
-
----
-
-### Future: nocmeout Operational Runbook Integration
-
-_nocmeout is the MCG chat-first NOC tool. Gloss is the natural rendering layer for operational runbooks._
-
-**Integration Points:**
-- nocmeout captures runbooks from operational experience (symptom → fix mappings)
-- nocmeout exports runbooks as markdown (md+ format) for Gloss rendering
-- Gloss renders interactive checklists with persistent step completion state
-- md+ `shell` blocks provide "Run" buttons for runbook commands, gated by trust policy
-- Wiki-links (`[[runbook::fixes]]`) connect alerts to runbook documents
-- Diagnostic data rendered inline via md+ `chart`/`calculator` blocks
-
-**Dependency:** md+ shell block type + trust configuration system must land first.
-
-See [nocmeout PROJECT_PLAN on minimac](~/nocmeout/PROJECT_PLAN.md) for the runbook feature design.
+_Full product history and the original phase-by-phase plan: [gloss-project-plan.md](gloss-project-plan.md). md+ design: [docs/MD_PLUS_SPEC.md](docs/MD_PLUS_SPEC.md)._
