@@ -43,10 +43,11 @@ public struct MarkdownRenderer: Sendable {
         _ source: String,
         isDark: Bool? = nil,
         fontSize: Int = 16,
-        resolveWikiLink: ((String) -> String?)? = nil
+        resolveWikiLink: ((String) -> String?)? = nil,
+        resolveQuery: ((MdPlusQuery) -> [MdPlusQueryRow])? = nil
     ) -> String {
         let stripped = stripFrontmatter(source)
-        let mdPlus = MdPlusParser.parse(stripped)
+        let mdPlus = MdPlusParser.parse(stripped, resolveQuery: resolveQuery)
         let preprocessed = resolveWikiLink != nil
             ? preprocessWikiLinks(mdPlus.processedSource, resolver: resolveWikiLink!)
             : mdPlus.processedSource
@@ -345,6 +346,33 @@ public struct MarkdownRenderer: Sendable {
                 .filter { !$0.isEmpty }
         }
         return []
+    }
+
+    /// Extract scalar frontmatter properties (key → value) for the link index,
+    /// EXCLUDING `tags` (which has its own table). Non-scalar values (lists,
+    /// maps) are skipped in v1.
+    public static func extractProperties(_ source: String) -> [(key: String, value: String)] {
+        guard let raw = extractRawFrontmatter(source),
+              let parsed = try? Yams.load(yaml: raw),
+              let dict = parsed as? [String: Any] else { return [] }
+        var result: [(key: String, value: String)] = []
+        for (key, value) in dict {
+            if key == "tags" { continue }
+            switch value {
+            case let s as String:
+                let trimmed = s.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { result.append((key: key, value: trimmed)) }
+            case let n as Int:
+                result.append((key: key, value: String(n)))
+            case let n as Double:
+                result.append((key: key, value: String(n)))
+            case let b as Bool:
+                result.append((key: key, value: b ? "true" : "false"))
+            default:
+                continue
+            }
+        }
+        return result.sorted { $0.key < $1.key }
     }
 
     /// Wrap HTML body content in a full document with CSS theme.

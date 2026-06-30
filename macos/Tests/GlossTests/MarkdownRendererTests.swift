@@ -11,6 +11,31 @@ struct MarkdownRendererTests {
         #expect(html.contains("Hello World"))
     }
 
+    @Test("extractProperties returns scalar frontmatter, excluding tags")
+    func extractProperties() {
+        let source = """
+        ---
+        title: My Note
+        status: open
+        priority: 2
+        done: false
+        tags: [project, idea]
+        items:
+          - one
+          - two
+        ---
+        # Body
+        """
+        let props = MarkdownRenderer.extractProperties(source)
+        let dict = Dictionary(uniqueKeysWithValues: props.map { ($0.key, $0.value) })
+        #expect(dict["title"] == "My Note")
+        #expect(dict["status"] == "open")
+        #expect(dict["priority"] == "2")
+        #expect(dict["done"] == "false")
+        #expect(dict["tags"] == nil)    // excluded — tags has its own table
+        #expect(dict["items"] == nil)   // list value skipped in v1
+    }
+
     @Test("Renders code block with language class")
     func codeBlock() {
         let source = """

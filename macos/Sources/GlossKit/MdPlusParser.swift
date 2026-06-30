@@ -16,19 +16,25 @@ public struct MdPlusParser: Sendable {
     public struct Result: Sendable {
         public let processedSource: String
         public let blocks: [MdPlusBlock]
+        public let queries: [MdPlusQuery]
 
-        public init(processedSource: String, blocks: [MdPlusBlock]) {
+        public init(processedSource: String, blocks: [MdPlusBlock], queries: [MdPlusQuery] = []) {
             self.processedSource = processedSource
             self.blocks = blocks
+            self.queries = queries
         }
     }
 
     /// Parse a markdown source string, extracting md+ blocks and replacing
     /// them with rendered HTML in the returned `processedSource`.
-    public static func parse(_ source: String) -> Result {
+    public static func parse(
+        _ source: String,
+        resolveQuery: ((MdPlusQuery) -> [MdPlusQueryRow])? = nil
+    ) -> Result {
         let lines = source.components(separatedBy: "\n")
         var out: [String] = []
         var blocks: [MdPlusBlock] = []
+        var queries: [MdPlusQuery] = []
         var inFence = false
         var autoId = 0
         var i = 0
@@ -61,17 +67,23 @@ public struct MdPlusParser: Sendable {
                 if found {
                     let yaml = yamlLines.joined(separator: "\n")
                     autoId += 1
-                    if let block = parseBlock(yaml: yaml, fallbackId: "mdplus-\(autoId)") {
+                    let fallbackId = "mdplus-\(autoId)"
+                    // Surround with blank lines so swift-markdown treats as an HTML block
+                    out.append("")
+                    if blockType(of: yaml) == "query" {
+                        if let query = parseQuery(yaml: yaml, fallbackId: fallbackId) {
+                            queries.append(query)
+                            out.append(renderQueryHTML(query, rows: resolveQuery?(query)))
+                        } else {
+                            out.append(renderErrorHTML(yaml: yaml))
+                        }
+                    } else if let block = parseBlock(yaml: yaml, fallbackId: fallbackId) {
                         blocks.append(block)
-                        // Surround with blank lines so swift-markdown treats as an HTML block
-                        out.append("")
                         out.append(renderBlockHTML(block))
-                        out.append("")
                     } else {
-                        out.append("")
                         out.append(renderErrorHTML(yaml: yaml))
-                        out.append("")
                     }
+                    out.append("")
                     i = j + 1
                     continue
                 }
@@ -85,7 +97,7 @@ public struct MdPlusParser: Sendable {
             i += 1
         }
 
-        return Result(processedSource: out.joined(separator: "\n"), blocks: blocks)
+        return Result(processedSource: out.joined(separator: "\n"), blocks: blocks, queries: queries)
     }
 
     /// Heuristic: does the source contain interactive content that should
@@ -146,6 +158,59 @@ public struct MdPlusParser: Sendable {
         return MdPlusBlock(id: id, name: name, type: type, fields: fields, rawYAML: yaml)
     }
 
+    /// Peek the `type:` of a raw md+ YAML block without fully parsing it.
+    private static func blockType(of yaml: String) -> String? {
+        guard let loaded = try? Yams.load(yaml: yaml),
+              let dict = loaded as? [String: Any] else { return nil }
+        return dict["type"] as? String
+    }
+
+    /// Parse a `type: query` block into an `MdPlusQuery`. Returns nil for
+    /// non-query or unloadable YAML (caller renders an error callout).
+    private static func parseQuery(yaml: String, fallbackId: String) -> MdPlusQuery? {
+        guard let loaded = try? Yams.load(yaml: yaml),
+              let dict = loaded as? [String: Any],
+              (dict["type"] as? String) == "query" else {
+            return nil
+        }
+        let id = (dict["id"] as? String) ?? fallbackId
+        let title = dict["title"] as? String
+
+        // `tag:` (string or list); also accept `tags:`. AND-combined.
+        var tags: [String] = []
+        for key in ["tag", "tags"] {
+            if let s = dict[key] as? String {
+                tags.append(s)
+            } else if let arr = dict[key] as? [Any] {
+                tags.append(contentsOf: arr.compactMap { stringifyYamlValue($0) })
+            }
+        }
+        tags = tags.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+
+        // `where:` — frontmatter equality filters (AND).
+        var properties: [MdPlusPropertyFilter] = []
+        if let whereDict = dict["where"] as? [String: Any] {
+            for (k, v) in whereDict.sorted(by: { $0.key < $1.key }) {
+                if let val = stringifyYamlValue(v) {
+                    properties.append(MdPlusPropertyFilter(key: k, value: val))
+                }
+            }
+        }
+
+        let linksTo = (dict["links-to"] as? String) ?? (dict["linksTo"] as? String)
+        let rawSearch = stringifyYamlValue(dict["search"])?.trimmingCharacters(in: .whitespaces)
+        let search = (rawSearch?.isEmpty ?? true) ? nil : rawSearch
+        let sort = MdPlusQuerySort(rawValue: ((dict["sort"] as? String) ?? "").lowercased()) ?? .title
+        let order = MdPlusQueryOrder(rawValue: ((dict["order"] as? String) ?? "").lowercased()) ?? .asc
+        let limit = (dict["limit"] as? Int).map { max(1, min($0, 500)) } ?? 50
+
+        return MdPlusQuery(
+            id: id, title: title, tags: tags, properties: properties,
+            linksTo: linksTo, search: search,
+            sort: sort, order: order, limit: limit, rawYAML: yaml
+        )
+    }
+
     private static func stringifyYamlValue(_ value: Any?) -> String? {
         switch value {
         case let s as String: return s
@@ -202,6 +267,37 @@ public struct MdPlusParser: Sendable {
 
     private static func renderErrorHTML(yaml: String) -> String {
         "<div class=\"gloss-mdplus-error\"><strong>md+ block parse error</strong><pre><code>\(escapeHTML(yaml))</code></pre></div>"
+    }
+
+    /// Render a `type: query` block. `rows == nil` means no resolver was
+    /// supplied (e.g. Quick Look has no index) — render a static placeholder.
+    /// Result links use `file://` hrefs so the WebView's wiki-link
+    /// interception navigates them.
+    private static func renderQueryHTML(_ query: MdPlusQuery, rows: [MdPlusQueryRow]?) -> String {
+        var html = "<div class=\"gloss-mdplus gloss-mdplus-query\" data-gloss-query-id=\"\(escapeAttr(query.id))\">"
+        if let title = query.title, !title.isEmpty {
+            html += "<div class=\"gloss-query-title\">\(escapeHTML(title))</div>"
+        }
+        guard let rows else {
+            html += "<div class=\"gloss-query-placeholder\">Open in Gloss to run this query.</div></div>"
+            return html
+        }
+        if rows.isEmpty {
+            html += "<div class=\"gloss-query-empty\">No matching notes.</div></div>"
+            return html
+        }
+        html += "<ul class=\"gloss-query-results\">"
+        for row in rows {
+            html += "<li><a class=\"gloss-query-link\" href=\"\(escapeAttr(row.url))\">\(escapeHTML(row.title))</a>"
+            if let sub = row.subtitle, !sub.isEmpty {
+                html += "<span class=\"gloss-query-meta\">\(escapeHTML(sub))</span>"
+            }
+            html += "</li>"
+        }
+        html += "</ul>"
+        let noun = rows.count == 1 ? "result" : "results"
+        html += "<div class=\"gloss-query-count\">\(rows.count) \(noun)</div></div>"
+        return html
     }
 
     // MARK: - Escaping

@@ -12,6 +12,7 @@ struct DocumentView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(StoreManager.self) private var store
     @Environment(TemplateFillService.self) private var templateFill
+    @Environment(LinkIndex.self) private var linkIndex
     @Environment(\.colorScheme) private var colorScheme
     @State private var fileContent: String?
     @State private var renderedHTML: String?
@@ -284,6 +285,7 @@ struct DocumentView: View {
         let wikiLinkMap = buildWikiLinkSnapshot(for: content, from: url)
         let isDark = colorScheme == .dark
         let fontSize = settings.fontSize
+        let db = linkIndex.databaseRef
 
         renderTask = Task.detached(priority: .userInitiated) {
             guard !Task.isCancelled else { return }
@@ -293,6 +295,9 @@ struct DocumentView: View {
                 fontSize: fontSize,
                 resolveWikiLink: wikiLinkMap.isEmpty ? nil : { target in
                     wikiLinkMap[target.lowercased()]
+                },
+                resolveQuery: db.map { database in
+                    { query in (try? database.runQuery(query)) ?? [] }
                 }
             )
             guard !Task.isCancelled else { return }

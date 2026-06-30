@@ -344,6 +344,10 @@ final class LinkIndex {
         let tags = MarkdownRenderer.extractTags(content)
         try database.replaceTags(fileId: fileId, tags: tags)
 
+        // Extract and store scalar frontmatter properties (for `type: query` filters)
+        let properties = MarkdownRenderer.extractProperties(content)
+        try database.replaceProperties(fileId: fileId, properties: properties)
+
         // WS5 — full-text index the raw markdown body. Keeping the raw
         // source (not rendered HTML) matches what users actually search for
         // and lets FTS5 tokenize against wiki-link syntax.
