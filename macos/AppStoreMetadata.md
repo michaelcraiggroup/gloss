@@ -14,6 +14,7 @@ Unlike editors that want you to change things, Gloss is built for reading. Open 
 
 FREE FEATURES:
 - Open any markdown file with beautiful rendering
+- Live-preview editor (⇧⌘E) for when you do want to edit
 - Syntax highlighting for 180+ languages
 - Mermaid diagrams and KaTeX math rendering
 - Dark and light themes that follow your system
@@ -30,7 +31,9 @@ GLOSS FULL ($4.99 one-time):
 - Folder sidebar with file tree browser
 - Table of contents inspector with click-to-jump
 - Frontmatter metadata display
+- Backlinks — every note that links to the one you're reading
 - Wiki-link navigation ([[links]] between your notes)
+- Link graph — a force-directed map of how your notes connect
 - Full-text content search across all files
 - Favorites and recent documents
 - Font size control

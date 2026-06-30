@@ -39,6 +39,7 @@ A native markdown browser — like Preview.app, but for markdown.
 ### Free
 
 - Single-file reading with full rendering
+- **Live-preview editor** (`⇧⌘E`) — CodeMirror 6, Obsidian-style inline rendering, for when you _do_ want to edit
 - Open in Editor (Cursor, VS Code, Windsurf, VSCodium)
 - Quick Look extension — spacebar preview for `.md` in Finder
 - Dark/light theme with Night Owl colors
@@ -46,22 +47,22 @@ A native markdown browser — like Preview.app, but for markdown.
 - Keyboard navigation (vim-style: `j`/`k`, `gg`/`G`, Space)
 - Syntax highlighting, Mermaid diagrams, KaTeX math
 - Copy buttons on code blocks, heading anchors
+- Find-in-page (`⌘F`) with match navigation
+- Print & PDF export (`⌘P`)
 
-### Paid ($4.99 one-time)
+### Paid — Gloss Full ($4.99 one-time)
 
-- **Folder sidebar** — file tree browser with drag-and-drop
-- **Inspector** — table of contents, YAML frontmatter viewer, backlinks panel
-- **Wiki-links** — `[[link]]` resolution with typed relationships (`[[target::type]]`)
-- **Link index** — persistent SQLite index with backlinks and tag extraction
-- **Full-text search** — content search across all files in a folder
+Use Gloss as a vault, not just a viewer:
+
+- **Folder sidebar** — file tree browser; create, rename, and delete files in place
+- **Inspector** — table of contents, YAML frontmatter, tags, and a backlinks panel
+- **Wiki-links** — follow `[[link]]` navigation with typed relationships (`[[target::type]]`)
+- **Link graph** — D3 force-directed view of how your notes connect, centered on the current file
+- **Full-text search** — content search across every file in a folder
 - **Favorites & recents** — bookmark files, quick access to recent docs
-- **Find-in-page** — `Cmd+F` with match navigation
-- **Editor mode** — CodeMirror 6 live preview with Obsidian-style inline rendering
-- **File management** — create, rename, delete files from the sidebar
-- **Print & PDF export** — `Cmd+P` to print, export to PDF
-- **Font size controls** — adjustable reading size
+- **Font size control** — adjustable reading size
 
-No subscription. No ads. Ever.
+Powered by a persistent local SQLite link index. No subscription. No ads. Ever.
 
 ## Privacy
 
