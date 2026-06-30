@@ -1,6 +1,6 @@
 # Gloss
 
-> **Gloss through your markdown without touching it.**
+> **Like Preview.app, but for markdown.** Opens to read; edits when you ask.
 
 A distraction-free markdown reader — VS Code extension and native macOS app. Reading is the default; editing is explicit.
 
