@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import Gloss
+import GlossKit
 
 @Suite("Link Database")
 struct LinkDatabaseTests {
@@ -50,6 +51,67 @@ struct LinkDatabaseTests {
             (targetName: "target3", linkType: "contradicts", displayText: nil, lineNumber: 1)
         ])
         #expect(try db.linkCount() == 1)
+    }
+
+    // MARK: - Properties + Query (M1)
+
+    @Test("Replaces frontmatter properties and clears old ones")
+    func replaceProperties() throws {
+        let db = try LinkDatabase()
+        let fileId = try db.upsertFile(path: "/v/a.md", title: "a", modifiedAt: Date())
+        try db.replaceProperties(fileId: fileId, properties: [
+            (key: "status", value: "open"), (key: "priority", value: "high")
+        ])
+        let open = MdPlusQuery(id: "q", properties: [MdPlusPropertyFilter(key: "status", value: "open")])
+        #expect(try db.runQuery(open).count == 1)
+
+        try db.replaceProperties(fileId: fileId, properties: [(key: "status", value: "done")])
+        #expect(try db.runQuery(open).isEmpty)
+    }
+
+    @Test("runQuery filters by tag and property, AND-combined")
+    func runQueryFilters() throws {
+        let db = try LinkDatabase()
+        let a = try db.upsertFile(path: "/v/a.md", title: "Alpha", modifiedAt: Date(timeIntervalSince1970: 100))
+        let b = try db.upsertFile(path: "/v/b.md", title: "Beta", modifiedAt: Date(timeIntervalSince1970: 200))
+        try db.replaceTags(fileId: a, tags: ["project"])
+        try db.replaceTags(fileId: b, tags: ["project"])
+        try db.replaceProperties(fileId: a, properties: [(key: "status", value: "open")])
+        try db.replaceProperties(fileId: b, properties: [(key: "status", value: "done")])
+
+        #expect(try db.runQuery(MdPlusQuery(id: "q", tags: ["project"])).count == 2)
+
+        let open = MdPlusQuery(id: "q", tags: ["project"],
+                               properties: [MdPlusPropertyFilter(key: "status", value: "open")])
+        let rows = try db.runQuery(open)
+        #expect(rows.count == 1)
+        #expect(rows.first?.title == "Alpha")
+        #expect(rows.first?.url.hasPrefix("file://") == true)
+    }
+
+    @Test("runQuery honors sort, order, and limit")
+    func runQuerySortLimit() throws {
+        let db = try LinkDatabase()
+        let a = try db.upsertFile(path: "/v/a.md", title: "Alpha", modifiedAt: Date(timeIntervalSince1970: 100))
+        let b = try db.upsertFile(path: "/v/b.md", title: "Beta", modifiedAt: Date(timeIntervalSince1970: 200))
+        try db.replaceTags(fileId: a, tags: ["x"])
+        try db.replaceTags(fileId: b, tags: ["x"])
+
+        let descByModified = MdPlusQuery(id: "q", tags: ["x"], sort: .modified, order: .desc)
+        #expect(try db.runQuery(descByModified).first?.title == "Beta")
+
+        let limited = MdPlusQuery(id: "q", tags: ["x"], limit: 1)
+        #expect(try db.runQuery(limited).count == 1)
+    }
+
+    @Test("Cascading delete removes properties")
+    func cascadeDeleteProperties() throws {
+        let db = try LinkDatabase()
+        let fileId = try db.upsertFile(path: "/v/a.md", title: "a", modifiedAt: Date())
+        try db.replaceProperties(fileId: fileId, properties: [(key: "status", value: "open")])
+        try db.deleteFile(path: "/v/a.md")
+        let open = MdPlusQuery(id: "q", properties: [MdPlusPropertyFilter(key: "status", value: "open")])
+        #expect(try db.runQuery(open).isEmpty)
     }
 
     @Test("Cascading delete removes links and tags")

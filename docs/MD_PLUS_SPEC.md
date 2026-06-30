@@ -139,6 +139,7 @@ The formula uses standard compound interest: P(1 + r)^t
 | Type | Purpose | Security | Parameters | Status |
 |------|---------|----------|------------|--------|
 | `template` | Fillable form that saves as plain markdown | Safe | `name`, `fields[]` | **Shipped in Gloss v1.10.0** |
+| `query` | List notes matching a query over the link index | Safe (read-only) | `tag`, `where`, `links-to`, `search`, `sort`, `limit` | **Shipped in Gloss v1.12.0** |
 | `calculator` | Formula evaluation | Safe | `formula`, `inputs[]`, `output` | Planned |
 | `chart` | Data visualization | Safe | `chartType`, `data`, `options` | Planned |
 | `embed` | Include another file | Read-only | `path`, `lines`, `language` | Planned |
@@ -209,6 +210,29 @@ fields:
 3. The original source is never mutated — the template stays reusable.
 
 **Portability:** In GitHub, VS Code, or any other renderer, the block is an invisible HTML comment — the document still reads as normal markdown with whatever task lists or prose surround the template block.
+
+### query
+
+**Status:** Shipped in Gloss v1.12.0.
+
+Runs a declarative query over the vault's link index (`.gloss/index.sqlite`) and renders the matching notes as a clickable list inline. Read-only — it never modifies anything. Outside the Gloss app (e.g. Quick Look, where there is no index) it renders a static "open in Gloss" placeholder instead.
+
+All filters are optional and **AND-combined**.
+
+```yaml
+type: query
+title: Open project notes   # Optional label shown above the results
+tag: project                # Has this tag. A list [a, b] requires ALL of them.
+where:                      # Frontmatter properties that must equal (AND)
+  status: open
+links-to: Roadmap           # Notes whose links resolve to this target (optional)
+search: deadline            # Full-text (FTS5) match (optional)
+sort: modified              # title | modified   (default: title)
+order: desc                 # asc | desc          (default: asc)
+limit: 25                   # Max results         (default: 50)
+```
+
+Only **scalar** frontmatter fields (strings, numbers, booleans) are indexed for `where:`; list/map values are skipped. Results refresh automatically when the vault is re-indexed — e.g. after you edit a note's frontmatter. Each result links to the note and navigates on click, exactly like a wiki-link.
 
 ### calculator
 

@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import GlossKit
 
 /// Sendable database layer for the link index. Wraps a GRDB `DatabaseQueue`
 /// stored at `.gloss/index.sqlite` in the vault root.
@@ -67,6 +68,20 @@ struct LinkDatabase: Sendable {
                 t.column("title")
                 t.column("body")
             }
+        }
+
+        // M1 — index scalar frontmatter properties so `type: query` blocks can
+        // filter on fields like `status: open`. Tags keep their own table; this
+        // covers everything else. Cascades on file delete.
+        migrator.registerMigration("v3_properties") { db in
+            try db.create(table: "properties") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("fileId", .integer).notNull()
+                    .references("files", onDelete: .cascade)
+                t.column("key", .text).notNull()
+                t.column("value", .text).notNull()
+            }
+            try db.create(index: "properties_key_value", on: "properties", columns: ["key", "value"])
         }
 
         try migrator.migrate(dbQueue)
@@ -208,6 +223,19 @@ struct LinkDatabase: Sendable {
                 try db.execute(
                     sql: "INSERT INTO tags (fileId, tag) VALUES (?, ?)",
                     arguments: [fileId, tag]
+                )
+            }
+        }
+    }
+
+    /// Replace all scalar frontmatter properties for a file.
+    func replaceProperties(fileId: Int64, properties: [(key: String, value: String)]) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "DELETE FROM properties WHERE fileId = ?", arguments: [fileId])
+            for prop in properties {
+                try db.execute(
+                    sql: "INSERT INTO properties (fileId, key, value) VALUES (?, ?, ?)",
+                    arguments: [fileId, prop.key, prop.value]
                 )
             }
         }
@@ -596,5 +624,62 @@ struct LinkDatabase: Sendable {
         try dbQueue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM files_fts") ?? 0
         }
+    }
+
+    // MARK: - Query Block (M1)
+
+    /// Run a declarative `md+` query (`type: query`) and return matching notes.
+    /// All filters are AND-combined; SQL is fully parameterized (no injection).
+    func runQuery(_ query: MdPlusQuery) throws -> [MdPlusQueryRow] {
+        try dbQueue.read { db in
+            var sql = "SELECT f.path, f.title, f.modifiedAt FROM files f WHERE 1=1"
+            var args: [(any DatabaseValueConvertible)?] = []
+
+            for tag in query.tags {
+                sql += " AND f.id IN (SELECT fileId FROM tags WHERE tag = ?)"
+                args.append(tag)
+            }
+            for prop in query.properties {
+                sql += " AND f.id IN (SELECT fileId FROM properties WHERE key = ? AND value = ?)"
+                args.append(prop.key)
+                args.append(prop.value)
+            }
+            if let linksTo = query.linksTo, !linksTo.isEmpty {
+                sql += " AND f.id IN (SELECT sourceFileId FROM links"
+                    + " WHERE targetName = ?"
+                    + " OR targetFileId = (SELECT id FROM files WHERE title = ? LIMIT 1))"
+                args.append(linksTo)
+                args.append(linksTo)
+            }
+            if let search = query.search, !search.isEmpty,
+               let pattern = FTS5Pattern(matchingAllPrefixesIn: search) {
+                sql += " AND f.id IN (SELECT rowid FROM files_fts WHERE files_fts MATCH ?)"
+                args.append(pattern)
+            }
+
+            switch query.sort {
+            case .title: sql += " ORDER BY f.title COLLATE NOCASE"
+            case .modified: sql += " ORDER BY f.modifiedAt"
+            }
+            sql += (query.order == .desc) ? " DESC" : " ASC"
+            sql += " LIMIT ?"
+            args.append(query.limit)
+
+            let rows = try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args))
+            return rows.map { row in
+                let path: String = row["path"]
+                return MdPlusQueryRow(
+                    title: row["title"],
+                    url: URL(fileURLWithPath: path).absoluteString,
+                    subtitle: Self.folderSubtitle(for: path)
+                )
+            }
+        }
+    }
+
+    /// A short subtitle for a query result — the containing folder name.
+    private static func folderSubtitle(for path: String) -> String? {
+        let folder = ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent
+        return folder.isEmpty ? nil : folder
     }
 }

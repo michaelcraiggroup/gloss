@@ -123,6 +123,91 @@ struct MdPlusParserTests {
         #expect(result.blocks.isEmpty)
     }
 
+    // MARK: - type: query (M1)
+
+    @Test("Parses a query block into Result.queries")
+    func parsesQuery() {
+        let source = """
+        <!--md+
+        type: query
+        title: Open project notes
+        tag: project
+        where:
+          status: open
+        sort: modified
+        order: desc
+        limit: 25
+        -->
+        """
+        let result = MdPlusParser.parse(source)
+        #expect(result.queries.count == 1)
+        #expect(result.blocks.isEmpty)   // queries are not fillable blocks
+        let q = result.queries[0]
+        #expect(q.title == "Open project notes")
+        #expect(q.tags == ["project"])
+        #expect(q.properties == [MdPlusPropertyFilter(key: "status", value: "open")])
+        #expect(q.sort == .modified)
+        #expect(q.order == .desc)
+        #expect(q.limit == 25)
+    }
+
+    @Test("Query renders results via the resolver")
+    func queryRendersResults() {
+        let source = """
+        <!--md+
+        type: query
+        tag: project
+        -->
+        """
+        let rows = [
+            MdPlusQueryRow(title: "Alpha", url: "file:///vault/alpha.md", subtitle: "vault"),
+            MdPlusQueryRow(title: "Beta", url: "file:///vault/beta.md")
+        ]
+        let result = MdPlusParser.parse(source) { _ in rows }
+        #expect(result.processedSource.contains("file:///vault/alpha.md"))
+        #expect(result.processedSource.contains("Beta"))
+        #expect(result.processedSource.contains("2 results"))
+    }
+
+    @Test("Query without a resolver renders a placeholder")
+    func queryPlaceholder() {
+        let source = """
+        <!--md+
+        type: query
+        tag: project
+        -->
+        """
+        let result = MdPlusParser.parse(source)
+        #expect(result.queries.count == 1)
+        #expect(result.processedSource.contains("Open in Gloss"))
+    }
+
+    @Test("Empty resolver result renders an empty state")
+    func queryEmptyResults() {
+        let source = """
+        <!--md+
+        type: query
+        tag: nope
+        -->
+        """
+        let result = MdPlusParser.parse(source) { _ in [] }
+        #expect(result.processedSource.contains("No matching notes"))
+    }
+
+    @Test("Query inside fenced code is ignored")
+    func queryInFence() {
+        let source = """
+        ```
+        <!--md+
+        type: query
+        tag: project
+        -->
+        ```
+        """
+        let result = MdPlusParser.parse(source)
+        #expect(result.queries.isEmpty)
+    }
+
     @Test("Assigns fallback ID when none provided")
     func fallbackId() {
         let source = """
