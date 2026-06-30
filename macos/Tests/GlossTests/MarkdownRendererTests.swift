@@ -36,6 +36,111 @@ struct MarkdownRendererTests {
         #expect(dict["items"] == nil)   // list value skipped in v1
     }
 
+    // MARK: - Transclusion (M2)
+
+    @Test("extractSection pulls a section, includes subsections, stops at next same-level")
+    func extractSectionBasic() {
+        let source = """
+        # Title
+
+        intro
+
+        ## Overview
+
+        overview body
+
+        ### Detail
+
+        detail body
+
+        ## Next
+
+        next body
+        """
+        let section = MarkdownRenderer.extractSection(source, heading: "Overview")
+        #expect(section != nil)
+        #expect(section!.contains("## Overview"))
+        #expect(section!.contains("overview body"))
+        #expect(section!.contains("### Detail"))   // deeper subsection included
+        #expect(!section!.contains("## Next"))      // stops at next same-level heading
+        #expect(!section!.contains("intro"))        // excludes content before the section
+    }
+
+    @Test("extractSection matches by slug, returns nil when missing")
+    func extractSectionSlugAndMissing() {
+        let source = "# A\n\n## My Section\n\nbody\n"
+        #expect(MarkdownRenderer.extractSection(source, heading: "my-section")?.contains("body") == true)
+        #expect(MarkdownRenderer.extractSection(source, heading: "Nope") == nil)
+    }
+
+    @Test("extractSection ignores headings inside code fences")
+    func extractSectionFenceAware() {
+        let source = """
+        ## Real
+
+        ```
+        ## Fake heading in code
+        ```
+
+        still real
+        """
+        let section = MarkdownRenderer.extractSection(source, heading: "Real")
+        #expect(section?.contains("Fake heading in code") == true)
+        #expect(section?.contains("still real") == true)
+    }
+
+    @Test("Transclusion embeds resolved content")
+    func transclusionEmbeds() {
+        let html = MarkdownRenderer.render(
+            "Before\n\n![[note]]\n\nAfter", isDark: false,
+            resolveEmbed: { target, _ in target == "note" ? "# Embedded\n\nhello world" : nil })
+        #expect(html.contains("gloss-embed"))
+        #expect(html.contains("Embedded"))
+        #expect(html.contains("hello world"))
+        #expect(html.contains("Before"))
+        #expect(html.contains("After"))
+    }
+
+    @Test("Transclusion runs before wiki-links (no broken image)")
+    func transclusionBeforeWikiLinks() {
+        let html = MarkdownRenderer.render(
+            "![[note]]", isDark: false,
+            resolveWikiLink: { _ in "file:///x.md" },
+            resolveEmbed: { _, _ in "embedded body" })
+        #expect(html.contains("embedded body"))
+        #expect(!html.contains("<img"))
+    }
+
+    @Test("Transclusion with heading embeds only that section")
+    func transclusionSection() {
+        let note = "# Doc\n\n## Alpha\n\nalpha text\n\n## Beta\n\nbeta text"
+        let html = MarkdownRenderer.render(
+            "![[doc#Beta]]", isDark: false,
+            resolveEmbed: { target, heading in
+                target == "doc" ? MarkdownRenderer.extractSection(note, heading: heading ?? "") : nil
+            })
+        #expect(html.contains("beta text"))
+        #expect(!html.contains("alpha text"))
+    }
+
+    @Test("Unresolved embed renders a placeholder")
+    func transclusionPlaceholder() {
+        let html = MarkdownRenderer.render("![[missing]]", isDark: false)
+        #expect(html.contains("gloss-embed-unresolved"))
+        #expect(html.contains("open in Gloss"))
+    }
+
+    @Test("Embeds do not recurse (one level only)")
+    func transclusionNoRecursion() {
+        let html = MarkdownRenderer.render(
+            "![[outer]]", isDark: false,
+            resolveEmbed: { target, _ in
+                target == "outer" ? "outer body ![[inner]]" : "INNER BODY"
+            })
+        #expect(html.contains("outer body"))
+        #expect(!html.contains("INNER BODY"))   // nested embed not expanded
+    }
+
     @Test("Renders code block with language class")
     func codeBlock() {
         let source = """

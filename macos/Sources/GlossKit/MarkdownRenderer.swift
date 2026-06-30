@@ -44,13 +44,19 @@ public struct MarkdownRenderer: Sendable {
         isDark: Bool? = nil,
         fontSize: Int = 16,
         resolveWikiLink: ((String) -> String?)? = nil,
-        resolveQuery: ((MdPlusQuery) -> [MdPlusQueryRow])? = nil
+        resolveQuery: ((MdPlusQuery) -> [MdPlusQueryRow])? = nil,
+        resolveEmbed: ((String, String?) -> String?)? = nil
     ) -> String {
         let stripped = stripFrontmatter(source)
         let mdPlus = MdPlusParser.parse(stripped, resolveQuery: resolveQuery)
-        let preprocessed = resolveWikiLink != nil
-            ? preprocessWikiLinks(mdPlus.processedSource, resolver: resolveWikiLink!)
+        // Transclusion runs BEFORE wiki-links: it consumes `![[…]]` so the
+        // wiki-link pass never mistakes it for a markdown image.
+        let transcluded = mdPlus.processedSource.contains("![[")
+            ? preprocessTransclusions(mdPlus.processedSource, resolve: resolveEmbed)
             : mdPlus.processedSource
+        let preprocessed = resolveWikiLink != nil
+            ? preprocessWikiLinks(transcluded, resolver: resolveWikiLink!)
+            : transcluded
         let document = Document(parsing: preprocessed, options: [.parseBlockDirectives, .parseSymbolLinks])
         var bodyHTML = HTMLFormatter.format(document)
         bodyHTML = escapeCodeContent(bodyHTML)
@@ -68,6 +74,111 @@ public struct MarkdownRenderer: Sendable {
             hasMath: hasMath,
             hasFillable: hasFillable
         )
+    }
+
+    // MARK: - Transclusion (M2)
+
+    /// Replace `![[target]]` / `![[target#heading]]` with rendered embed HTML
+    /// blocks. Runs before `preprocessWikiLinks`. A nil `resolve` (or an
+    /// unresolved/empty target) yields an "open in Gloss" placeholder.
+    private static func preprocessTransclusions(_ source: String, resolve: ((String, String?) -> String?)?) -> String {
+        let pattern = #"!\[\[([^\]]+)\]\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
+        var result = source
+        let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range, in: result),
+                  let innerRange = Range(match.range(at: 1), in: result) else { continue }
+            let inner = String(result[innerRange])
+            let hashParts = inner.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+            let target = hashParts[0].trimmingCharacters(in: .whitespaces)
+            let heading = hashParts.count > 1 ? hashParts[1].trimmingCharacters(in: .whitespaces) : nil
+
+            let block: String
+            if let content = resolve?(target, heading), !content.isEmpty {
+                let label = heading.map { "\(target) › \($0)" } ?? target
+                block = "<div class=\"gloss-embed\">"
+                    + "<div class=\"gloss-embed-header\">\(escapeHTMLText(label))</div>"
+                    + "<div class=\"gloss-embed-body\">\(embedBodyHTML(content))</div></div>"
+            } else {
+                let label = heading.map { "\(target)#\($0)" } ?? target
+                block = "<div class=\"gloss-embed-unresolved\">Embed: \(escapeHTMLText(label)) — open in Gloss to view</div>"
+            }
+            result.replaceSubrange(fullRange, with: "\n\n\(block)\n\n")
+        }
+        return result
+    }
+
+    /// Render embedded note content to a body HTML fragment. Does NOT recurse
+    /// into transclusions (one level only), assigns no heading IDs (avoids
+    /// collisions with the host document), and renders the embed's own
+    /// wiki-links as inert display text.
+    private static func embedBodyHTML(_ source: String) -> String {
+        var src = stripFrontmatter(source)
+        src = neutralizeNestedEmbeds(src)
+        src = preprocessWikiLinks(src, resolver: { _ in nil })
+        let document = Document(parsing: src, options: [.parseBlockDirectives, .parseSymbolLinks])
+        var html = HTMLFormatter.format(document)
+        html = escapeCodeContent(html)
+        html = processTaskCheckboxes(html)
+        // Collapse blank lines so the embed stays a single HTML block — a blank
+        // line would otherwise terminate the wrapping <div> in CommonMark.
+        html = html.replacingOccurrences(of: #"\n{2,}"#, with: "\n", options: .regularExpression)
+        return html
+    }
+
+    /// Render nested `![[…]]` inside an embed as a non-expanded marker.
+    private static func neutralizeNestedEmbeds(_ source: String) -> String {
+        let pattern = #"!\[\[([^\]]+)\]\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
+        let range = NSRange(source.startIndex..., in: source)
+        return regex.stringByReplacingMatches(in: source, range: range, withTemplate: "_↪ $1_")
+    }
+
+    /// Extract a single markdown section — an ATX heading and everything under
+    /// it, up to the next heading of the same or higher level. Fence-aware.
+    /// Matches `heading` by slug or case-insensitive text; nil if not found.
+    public static func extractSection(_ source: String, heading: String) -> String? {
+        let lines = stripFrontmatter(source).components(separatedBy: "\n")
+        let targetSlug = generateSlug(heading)
+        let targetLower = heading.lowercased()
+        var inFence = false
+        var startIndex: Int?
+        var startLevel = 0
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") { inFence.toggle(); continue }
+            if inFence { continue }
+            guard let (level, text) = parseATXHeading(trimmed) else { continue }
+            if startIndex == nil {
+                if generateSlug(text) == targetSlug || text.lowercased() == targetLower {
+                    startIndex = i
+                    startLevel = level
+                }
+            } else if level <= startLevel {
+                return lines[startIndex!..<i].joined(separator: "\n")
+            }
+        }
+        guard let start = startIndex else { return nil }
+        return lines[start...].joined(separator: "\n")
+    }
+
+    private static func parseATXHeading(_ trimmedLine: String) -> (level: Int, text: String)? {
+        guard trimmedLine.hasPrefix("#") else { return nil }
+        var level = 0
+        for ch in trimmedLine {
+            if ch == "#" { level += 1 } else { break }
+        }
+        guard (1...6).contains(level) else { return nil }
+        let rest = trimmedLine.dropFirst(level)
+        guard rest.first == " " else { return nil }   // ATX requires a space after the hashes
+        return (level, rest.trimmingCharacters(in: .whitespaces))
+    }
+
+    private static func escapeHTMLText(_ s: String) -> String {
+        s.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 
     /// Whether this source contains interactive content (GFM task lists or
