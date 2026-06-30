@@ -123,7 +123,7 @@ struct GuidePopover: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 4)
-                        .background(Color.accentColor)
+                        .background(Color.glossAccent)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }

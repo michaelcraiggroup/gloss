@@ -18,8 +18,8 @@ struct GlossKitTests {
     func quickLookIncludesCSS() {
         let html = MarkdownRenderer.render("test")
         #expect(html.contains("prefers-color-scheme: dark"))
-        // Night Owl light-mode accent — updated from the old Teal #0d9488
-        #expect(html.contains("--accent: #4876d6"))
+        // Brand amber light-mode accent (was Night Owl blue #4876d6)
+        #expect(html.contains("--accent: #B45309"))
     }
 
     @Test("Quick Look mode includes copy buttons and keyboard nav")

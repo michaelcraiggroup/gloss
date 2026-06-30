@@ -23,11 +23,11 @@ struct PaywallView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 featureRow("Folder sidebar & file browser")
-                featureRow("Table of contents & frontmatter inspector")
-                featureRow("Full-text search & find in page")
+                featureRow("Table of contents, frontmatter & backlinks")
+                featureRow("Full-text content search")
                 featureRow("Wiki-link navigation")
                 featureRow("Favorites & recents")
-                featureRow("Print & PDF export")
+                featureRow("Link graph view")
                 featureRow("Font size control")
             }
             .padding(.vertical, 8)

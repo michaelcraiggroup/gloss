@@ -1,8 +1,8 @@
 # Gloss
 
-> **Gloss through your markdown without touching it.**
+> **Like Preview.app, but for markdown.** Opens to read; edits when you ask.
 
-A distraction-free markdown reader — as a VS Code extension and a standalone macOS app. Read your docs, don't edit them.
+A distraction-free markdown reader — VS Code extension and standalone macOS app. Reads first; edits the moment you want it.
 
 ---
 
@@ -10,7 +10,7 @@ A distraction-free markdown reader — as a VS Code extension and a standalone m
 
 **ORGANIZE** — Tools that structure workflow
 
-**Gradient:** `teal-900 → cyan-900 → sky-950`
+**Gradient:** `stone-950 → amber-700 → amber-400` — charcoal → amber → gold, matching the app icon (overrides the prior teal)
 
 ---
 
@@ -143,8 +143,9 @@ The extension is a trust-builder and lead generator for the macOS app. A free, w
 | **Full-text search** | Search across all files in a folder |
 | **Favorites** | Star documents, Cmd+D toggle |
 | **Recents** | Recently opened files list |
-| **Inspector sidebar** | TOC + frontmatter metadata |
+| **Inspector sidebar** | TOC + frontmatter + tags + backlinks |
 | **Wiki-link navigation** | [[links]] between your notes |
+| **Link graph** | D3 force-directed map of note connections |
 | **Font size control** | Customize reading experience (12-24px) |
 
 ### Pricing Rationale
@@ -293,10 +294,11 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] Help menu integration, onboarding AppStorage tracking
 - [x] 201 tests passing (no regressions)
 
-#### Phase 9: Graph Visualization (Planned)
-- [ ] D3.js force-directed graph in WKWebView tab
-- [ ] Filter by link type, tag, depth, document type
-- [ ] Node navigation and hover preview
+#### Phase 9: Graph Visualization ✅
+- [x] D3.js force-directed graph in WKWebView (`GraphView` + `GraphService`)
+- [x] Filter by link type, tag, depth, document type
+- [x] Node navigation (click to open file)
+- [x] Gated as a Gloss Full paid feature (`PaidFeature.graphView`)
 
 #### Phase 10: Conventions & Templates (Planned)
 - [ ] `.gloss/conventions.yaml` parser
