@@ -46,7 +46,7 @@ struct DocumentView: View {
                 }
             }
 
-            if isLoading {
+            if isLoading && !isEditing {
                 ProgressView()
                     .controlSize(.small)
                     .padding(10)
@@ -238,6 +238,12 @@ struct DocumentView: View {
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
+            // While editing, the read-mode WebView isn't mounted — so renderAsync's
+            // spinner would never be cleared (it waits on .glossWebViewDidFinishLoad,
+            // which only the read WebView posts), stranding the ProgressView over the
+            // editor on Cmd+S. Skip the unseen render; exiting edit mode re-reads and
+            // renders via .onChange(of: isEditing). The inspector still refreshes above.
+            guard !isEditing else { return }
             renderAsync(content, url: url)
         } else {
             // Read failed (e.g. mid atomic save-via-rename) — clear the spinner so
