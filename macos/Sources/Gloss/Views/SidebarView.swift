@@ -159,7 +159,7 @@ struct SidebarView: View {
                                 } label: {
                                     Label("Unfavorite", systemImage: "star.slash")
                                 }
-                                .tint(.yellow)
+                                .tint(.glossAccent)
                             }
                         }
                     }
@@ -438,9 +438,9 @@ struct SidebarView: View {
         .padding(.vertical, 3)
         .background(
             RoundedRectangle(cornerRadius: 4)
-                .fill(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                .fill(isActive ? Color.glossAccent.opacity(0.2) : Color.secondary.opacity(0.1))
         )
-        .foregroundStyle(isActive ? Color.accentColor : .secondary)
+        .foregroundStyle(isActive ? Color.glossAccent : .secondary)
     }
 
     // MARK: - Browse Section

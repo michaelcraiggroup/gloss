@@ -5,7 +5,7 @@ tags: [guide, gloss, onboarding]
 
 # Welcome to Gloss
 
-Gloss is a distraction-free markdown reader for macOS. Open any `.md` file and see it beautifully rendered — no editing distractions, no clutter. This guide walks through everything Gloss can do.
+Gloss is like Preview.app, but for Markdown. It opens any `.md` file to *read* — beautifully rendered, no clutter — and becomes a live-preview editor the moment you want it (⇧⌘E). This guide walks through everything Gloss can do.
 
 ## Beautiful Rendering
 

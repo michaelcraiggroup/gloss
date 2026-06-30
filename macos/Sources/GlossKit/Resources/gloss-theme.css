@@ -5,8 +5,8 @@
 :root {
     --bg: #FBFBFB;
     --fg: #403f53;
-    --accent: #4876d6;
-    --accent-light: #0c969b;
+    --accent: #B45309;
+    --accent-light: #B45309;
     --code-bg: #F0F0F0;
     --border: #E0E0E0;
     --toolbar-bg: #F0F0F0;
@@ -20,8 +20,8 @@
     :root {
         --bg: #011627;
         --fg: #d6deeb;
-        --accent: #82AAFF;
-        --accent-light: #7fdbca;
+        --accent: #B45309;
+        --accent-light: #FBBF24;
         --code-bg: #0b253a;
         --border: #102a44;
         --toolbar-bg: #001122;
@@ -34,8 +34,8 @@
 html.light {
     --bg: #FBFBFB;
     --fg: #403f53;
-    --accent: #4876d6;
-    --accent-light: #0c969b;
+    --accent: #B45309;
+    --accent-light: #B45309;
     --code-bg: #F0F0F0;
     --border: #E0E0E0;
     --toolbar-bg: #F0F0F0;
@@ -46,8 +46,8 @@ html.light {
 html.dark {
     --bg: #011627;
     --fg: #d6deeb;
-    --accent: #82AAFF;
-    --accent-light: #7fdbca;
+    --accent: #B45309;
+    --accent-light: #FBBF24;
     --code-bg: #0b253a;
     --border: #102a44;
     --toolbar-bg: #001122;

@@ -49,6 +49,7 @@ struct GlossApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .tint(.glossAccent)
                 .environmentObject(settings)
                 .environment(fileTree)
                 .environment(enhancedSearch)
