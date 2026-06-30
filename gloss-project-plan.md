@@ -10,7 +10,7 @@ A distraction-free markdown reader — VS Code extension and standalone macOS ap
 
 **ORGANIZE** — Tools that structure workflow
 
-**Gradient:** `teal-900 → cyan-900 → sky-950`
+**Gradient:** `stone-950 → amber-700 → amber-400` — charcoal → amber → gold, matching the app icon (overrides the prior teal)
 
 ---
 
