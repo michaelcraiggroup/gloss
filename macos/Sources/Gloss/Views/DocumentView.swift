@@ -125,10 +125,21 @@ struct DocumentView: View {
             }
         }
         .onChange(of: isEditing) { _, nowEditing in
+            if nowEditing {
+                // Entering edit mode unmounts the read-mode WebView, so it can no
+                // longer post .glossWebViewDidFinishLoad to clear isLoading. Cancel
+                // any in-flight read render and drop the spinner now so it can't
+                // strand over the editor — this is what hangs when a freshly created
+                // file auto-opens in edit mode (the read render kicked off on open
+                // never gets a WebView to finish it).
+                renderTask?.cancel()
+                isLoading = false
+                return
+            }
             // When the user exits edit mode, re-read from disk so any external
             // change that arrived while .glossVaultFilesChanged was suppressed
             // (the `!isEditing` guard) is picked up immediately in read mode.
-            guard !nowEditing, let url = fileURL else { return }
+            guard let url = fileURL else { return }
             reloadContent(url: url)
         }
         .onChange(of: fileTree.isWatching) { _, _ in
