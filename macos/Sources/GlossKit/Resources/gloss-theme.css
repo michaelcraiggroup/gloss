@@ -421,6 +421,40 @@ pre.mermaid svg {
     font-style: italic;
 }
 
+/* Transclusion — embedded note or section (![[note]] / ![[note#heading]]) */
+.gloss-embed {
+    margin: 1.25em 0;
+    padding: 2px 16px 8px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-light);
+    border-radius: 0 8px 8px 0;
+}
+
+.gloss-embed-header {
+    font-size: 0.8em;
+    color: var(--fg);
+    opacity: 0.55;
+    margin-top: 8px;
+}
+
+.gloss-embed-body > :first-child {
+    margin-top: 0.3em;
+}
+
+.gloss-embed-body > :last-child {
+    margin-bottom: 0;
+}
+
+.gloss-embed-unresolved {
+    margin: 1em 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--border);
+    color: var(--fg);
+    opacity: 0.55;
+    font-style: italic;
+}
+
 /* Print styles — light theme, clean layout */
 @media print {
     :root {

@@ -283,6 +283,7 @@ struct DocumentView: View {
         // Pre-resolve wiki-links on the main thread (accesses @MainActor FileTreeModel),
         // then pass the resolved map to the background task.
         let wikiLinkMap = buildWikiLinkSnapshot(for: content, from: url)
+        let embedMap = buildEmbedSnapshot(for: content, from: url)
         let isDark = colorScheme == .dark
         let fontSize = settings.fontSize
         let db = linkIndex.databaseRef
@@ -298,6 +299,12 @@ struct DocumentView: View {
                 },
                 resolveQuery: db.map { database in
                     { query in (try? database.runQuery(query)) ?? [] }
+                },
+                resolveEmbed: embedMap.isEmpty ? nil : { target, heading in
+                    guard let embedURL = embedMap[target.lowercased()],
+                          let raw = try? String(contentsOf: embedURL, encoding: .utf8) else { return nil }
+                    if let heading { return MarkdownRenderer.extractSection(raw, heading: heading) }
+                    return raw
                 }
             )
             guard !Task.isCancelled else { return }
@@ -327,6 +334,27 @@ struct DocumentView: View {
             if map[target.lowercased()] == nil,
                let resolved = resolveWikiLink(target, from: url) {
                 map[target.lowercased()] = resolved
+            }
+        }
+        return map
+    }
+
+    /// Pre-resolve `![[embed]]` targets to file URLs on the main thread
+    /// (mirrors `buildWikiLinkSnapshot`). The off-main render reads each file.
+    private func buildEmbedSnapshot(for content: String, from url: URL) -> [String: URL] {
+        guard content.contains("![[") else { return [:] }
+        var map: [String: URL] = [:]
+        let pattern = try? NSRegularExpression(pattern: #"!\[\[([^\]]+)\]\]"#)
+        let range = NSRange(content.startIndex..., in: content)
+        pattern?.enumerateMatches(in: content, options: [], range: range) { match, _, _ in
+            guard let match, let r = Range(match.range(at: 1), in: content) else { return }
+            let inner = String(content[r])
+            let target = (inner.components(separatedBy: "#").first ?? inner)
+                .trimmingCharacters(in: .whitespaces)
+            if map[target.lowercased()] == nil,
+               let resolved = resolveWikiLink(target, from: url),
+               let resolvedURL = URL(string: resolved) {
+                map[target.lowercased()] = resolvedURL
             }
         }
         return map

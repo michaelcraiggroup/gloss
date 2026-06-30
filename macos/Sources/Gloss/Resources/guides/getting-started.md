@@ -102,6 +102,7 @@ Link between documents using wiki-link syntax:
 - `[[another-file]]` — navigates to the file within your folder
 - `[[target|display text]]` — custom display text
 - `[[target::related]]` — typed link for categorized relationships
+- `![[another-file]]` — **embed** the whole note inline; `![[another-file#Section]]` embeds just that section
 
 The Inspector's backlinks panel shows every document that links back to the one you're reading, grouped by relationship type.
 
