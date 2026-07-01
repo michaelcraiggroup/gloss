@@ -682,4 +682,33 @@ struct LinkDatabase: Sendable {
         let folder = ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent
         return folder.isEmpty ? nil : folder
     }
+
+    // MARK: - Unlinked Mentions (M2)
+
+    /// Notes whose body mentions `title` (FTS phrase match) but which do NOT
+    /// already link to the current note, excluding the current note itself.
+    /// Returns [] for titles shorter than 3 characters (too noisy to be useful).
+    func unlinkedMentions(forTitle title: String, currentFileId: Int64) throws -> [UnlinkedMention] {
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 3, let pattern = FTS5Pattern(matchingPhrase: trimmed) else { return [] }
+        return try dbQueue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT f.path, f.title,
+                       snippet(files_fts, 1, '«', '»', '…', 12) AS snippet
+                FROM files_fts
+                JOIN files f ON f.id = files_fts.rowid
+                WHERE files_fts MATCH ?
+                  AND f.id != ?
+                  AND f.id NOT IN (
+                      SELECT sourceFileId FROM links
+                      WHERE targetFileId = ? OR targetName = ?
+                  )
+                ORDER BY bm25(files_fts)
+                LIMIT 20
+                """, arguments: [pattern, currentFileId, currentFileId, title])
+            return rows.map { row in
+                UnlinkedMention(path: row["path"], title: row["title"], snippet: row["snippet"])
+            }
+        }
+    }
 }

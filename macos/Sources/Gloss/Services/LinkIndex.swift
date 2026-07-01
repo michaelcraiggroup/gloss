@@ -11,6 +11,7 @@ final class LinkIndex {
     var recentlyChanged: [(path: String, title: String, modifiedAt: Date)] = []
     var allTags: [(tag: String, count: Int)] = []
     var currentFileTags: [String] = []
+    var unlinkedMentions: [UnlinkedMention] = []
     var linkHealth: LinkHealthStats = .empty
     var isIndexing: Bool = false
 
@@ -237,6 +238,7 @@ final class LinkIndex {
             backlinks = []
             forwardLinks = []
             currentFileTags = []
+            unlinkedMentions = []
             return
         }
 
@@ -270,6 +272,15 @@ final class LinkIndex {
             }
         } else {
             forwardLinks = []
+        }
+
+        // Refresh unlinked mentions — notes that mention this title but don't link
+        let title = fileURL.deletingPathExtension().lastPathComponent
+        if let fileId = try? db.fileId(forPath: standardizedPath),
+           let mentions = try? db.unlinkedMentions(forTitle: title, currentFileId: fileId) {
+            unlinkedMentions = mentions
+        } else {
+            unlinkedMentions = []
         }
     }
 
