@@ -141,6 +141,48 @@ struct MarkdownRendererTests {
         #expect(!html.contains("INNER BODY"))   // nested embed not expanded
     }
 
+    // MARK: - Editable frontmatter (M3)
+
+    @Test("setFrontmatterValue changes a scalar, preserving other keys and body")
+    func setFrontmatterExisting() {
+        let source = "---\ntitle: Note\nstatus: draft\ntags: [a, b]\n---\n# Body\n\ntext"
+        let out = MarkdownRenderer.setFrontmatterValue(source, key: "status", value: "open")
+        #expect(out.contains("status: open"))
+        #expect(!out.contains("status: draft"))
+        #expect(out.contains("title: Note"))     // other keys preserved
+        #expect(out.contains("tags: [a, b]"))     // untouched
+        #expect(out.contains("# Body") && out.contains("text"))
+        #expect(MarkdownRenderer.extractProperties(out).contains { $0.key == "status" && $0.value == "open" })
+    }
+
+    @Test("setFrontmatterValue adds a missing key")
+    func setFrontmatterAdd() {
+        let out = MarkdownRenderer.setFrontmatterValue("---\ntitle: Note\n---\nbody", key: "status", value: "open")
+        #expect(out.contains("title: Note") && out.contains("status: open") && out.contains("body"))
+    }
+
+    @Test("setFrontmatterValue creates a block when there's no frontmatter")
+    func setFrontmatterCreate() {
+        let out = MarkdownRenderer.setFrontmatterValue("# Just a heading\n\ntext", key: "status", value: "open")
+        #expect(out.hasPrefix("---\nstatus: open\n---\n"))
+        #expect(out.contains("# Just a heading"))
+    }
+
+    @Test("setFrontmatterValue leaves the body byte-for-byte identical")
+    func setFrontmatterBodyPreserved() {
+        let body = "# Title\n\nSome *markdown* with `code`.\n"
+        let out = MarkdownRenderer.setFrontmatterValue("---\nstatus: draft\n---\n\(body)", key: "status", value: "done")
+        #expect(MarkdownRenderer.stripFrontmatter(out) == body)
+    }
+
+    @Test("removeFrontmatterKey drops the key, and the block when empty")
+    func removeFrontmatterKeyDropsBlock() {
+        let afterOne = MarkdownRenderer.removeFrontmatterKey("---\ntitle: Note\nstatus: draft\n---\nbody", key: "status")
+        #expect(!afterOne.contains("status") && afterOne.contains("title: Note"))
+        let afterAll = MarkdownRenderer.removeFrontmatterKey("---\nstatus: draft\n---\nbody", key: "status")
+        #expect(!afterAll.contains("---") && afterAll.contains("body"))
+    }
+
     @Test("Renders code block with language class")
     func codeBlock() {
         let source = """
