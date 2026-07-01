@@ -166,7 +166,8 @@ struct GlossApp: App {
                     let printWebView = WKWebView(frame: NSRect(x: 0, y: 0, width: paperWidth, height: 800), configuration: config)
                     printWebView.setValue(false, forKey: "drawsBackground")
                     objc_setAssociatedObject(webView, "printHelper", printWebView, .OBJC_ASSOCIATION_RETAIN)
-                    webView.evaluateJavaScript("document.documentElement.outerHTML") { htmlResult, _ in
+                    // Strip find highlights first so they don't bake into the printout.
+                    webView.evaluateJavaScript("if (typeof clearHighlights === 'function') clearHighlights(); document.documentElement.outerHTML") { htmlResult, _ in
                         guard let html = htmlResult as? String else { return }
                         DispatchQueue.main.async {
                             // Force light theme and tighten margins for print
@@ -212,7 +213,7 @@ struct GlossApp: App {
                 .disabled(settings.currentFileURL == nil)
 
                 Button("Export as PDF…") {
-                    NotificationCenter.default.post(name: .glossExportPDF, object: nil)
+                    DropAcceptingWebView.current?.exportToPDF()
                 }
                 .keyboardShortcut("e", modifiers: [.command])
                 .disabled(settings.currentFileURL == nil)
