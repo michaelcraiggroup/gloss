@@ -187,7 +187,7 @@
             indentOnInput, bracketMatching, foldGutter, foldKeymap,
             markdown, markdownLanguage,
             defaultKeymap, history, historyKeymap,
-            closeBrackets, closeBracketsKeymap,
+            closeBrackets, closeBracketsKeymap, autocompletion,
             searchKeymap, highlightSelectionMatches
         } = CM;
 
@@ -197,6 +197,33 @@
 
         function postMessage(msg) {
             window.webkit?.messageHandlers?.glossEditor?.postMessage(JSON.stringify(msg));
+        }
+
+        // ── Wiki-link autocomplete ([[ → note titles, injected from Swift) ──
+        let wikiTargets = [];
+        function wikiCompletions(context) {
+            const before = context.matchBefore(/\[\[([^\]\n]*)$/);
+            if (!before) return null;
+            const typed = before.text.slice(2).toLowerCase();
+            const options = wikiTargets
+                .filter(t => typed === '' || t.toLowerCase().includes(typed))
+                .slice(0, 50)
+                .map(t => ({
+                    label: t,
+                    type: 'text',
+                    apply: (view, completion, from, to) => {
+                        // Consume a closing ]] that closeBrackets may have auto-inserted.
+                        let end = to;
+                        if (view.state.doc.sliceString(to, to + 2) === ']]') end = to + 2;
+                        const insert = t + ']]';
+                        view.dispatch({
+                            changes: { from, to: end, insert },
+                            selection: { anchor: from + insert.length }
+                        });
+                    }
+                }));
+            if (options.length === 0) return null;
+            return { from: before.from + 2, options, validFor: /^[^\]\n]*$/ };
         }
 
         // ── Live Preview Widgets ──
@@ -510,6 +537,7 @@
                     syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
                     bracketMatching(),
                     closeBrackets(),
+                    autocompletion({ override: [wikiCompletions] }),
                     rectangularSelection(),
                     crosshairCursor(),
                     highlightActiveLine(),
@@ -565,6 +593,9 @@
             },
             focus() {
                 view.focus();
+            },
+            setWikiTargets(titles) {
+                wikiTargets = Array.isArray(titles) ? titles : [];
             }
         };
 

@@ -8,11 +8,13 @@ struct InspectorView: View {
     let tags: [String]
     let forwardLinks: [ForwardLinkGroup]
     let backlinks: [BacklinkGroup]
+    var unlinkedMentions: [UnlinkedMention] = []
     var hasDocument: Bool = false
     var onHeadingTap: ((String) -> Void)?
     var onTagTap: ((String) -> Void)?
     var onForwardLinkTap: ((IndexedLink) -> Void)?
     var onBacklinkTap: ((String) -> Void)?
+    var onUnlinkedMentionTap: ((String) -> Void)?
 
     private var hasContent: Bool {
         !headings.isEmpty
@@ -20,6 +22,7 @@ struct InspectorView: View {
             || !tags.isEmpty
             || !forwardLinks.isEmpty
             || !backlinks.isEmpty
+            || !unlinkedMentions.isEmpty
     }
 
     var body: some View {
@@ -159,6 +162,30 @@ struct InspectorView: View {
                                 .buttonStyle(.plain)
                                 .padding(.leading, 8)
                             }
+                        }
+                    }
+                }
+
+                if !unlinkedMentions.isEmpty {
+                    Section("Unlinked Mentions") {
+                        ForEach(unlinkedMentions) { mention in
+                            Button {
+                                onUnlinkedMentionTap?(mention.path)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(mention.title)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Text(mention.snippet)
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                        .lineLimit(2)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

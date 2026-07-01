@@ -30,7 +30,8 @@ struct DocumentView: View {
                         EditorWebView(
                             fileURL: url,
                             isDark: colorScheme == .dark,
-                            fontSize: settings.fontSize
+                            fontSize: settings.fontSize,
+                            wikiTargets: linkIndex.allTitles
                         )
                     } else if let html = renderedHTML, let content = fileContent, renderURL == url {
                         WebView(

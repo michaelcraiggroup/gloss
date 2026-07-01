@@ -14,7 +14,7 @@ import {
 } from '@codemirror/language';
 import {markdown, markdownLanguage} from '@codemirror/lang-markdown';
 import {defaultKeymap, history, historyKeymap} from '@codemirror/commands';
-import {closeBrackets, closeBracketsKeymap} from '@codemirror/autocomplete';
+import {closeBrackets, closeBracketsKeymap, autocompletion} from '@codemirror/autocomplete';
 import {searchKeymap, highlightSelectionMatches} from '@codemirror/search';
 
 export {
@@ -27,6 +27,6 @@ export {
     indentOnInput, bracketMatching, foldGutter, foldKeymap,
     markdown, markdownLanguage,
     defaultKeymap, history, historyKeymap,
-    closeBrackets, closeBracketsKeymap,
+    closeBrackets, closeBracketsKeymap, autocompletion,
     searchKeymap, highlightSelectionMatches
 };

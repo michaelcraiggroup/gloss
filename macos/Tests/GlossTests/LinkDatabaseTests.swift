@@ -114,6 +114,34 @@ struct LinkDatabaseTests {
         #expect(try db.runQuery(open).isEmpty)
     }
 
+    @Test("unlinkedMentions finds text mentions that aren't linked")
+    func unlinkedMentions() throws {
+        let db = try LinkDatabase()
+        let target = try db.upsertFile(path: "/v/shape-up.md", title: "Shape Up", modifiedAt: Date())
+        let mentions = try db.upsertFile(path: "/v/notes.md", title: "notes", modifiedAt: Date())
+        let linker = try db.upsertFile(path: "/v/plan.md", title: "plan", modifiedAt: Date())
+        try db.indexFileContent(fileId: target, title: "Shape Up", body: "The Shape Up method.")
+        try db.indexFileContent(fileId: mentions, title: "notes", body: "We should use Shape Up here.")
+        try db.indexFileContent(fileId: linker, title: "plan", body: "See Shape Up.")
+        try db.replaceLinks(fileId: linker, links: [
+            (targetName: "Shape Up", linkType: "related", displayText: nil, lineNumber: 1)
+        ])
+        try db.resolveAllLinks()
+
+        let paths = try db.unlinkedMentions(forTitle: "Shape Up", currentFileId: target).map(\.path)
+        #expect(paths.contains("/v/notes.md"))       // mentions, not linked → included
+        #expect(!paths.contains("/v/plan.md"))        // already links → excluded
+        #expect(!paths.contains("/v/shape-up.md"))    // the note itself → excluded
+    }
+
+    @Test("unlinkedMentions ignores very short titles")
+    func unlinkedMentionsShortTitle() throws {
+        let db = try LinkDatabase()
+        let id = try db.upsertFile(path: "/v/a.md", title: "a", modifiedAt: Date())
+        try db.indexFileContent(fileId: id, title: "a", body: "a a a")
+        #expect(try db.unlinkedMentions(forTitle: "a", currentFileId: 999).isEmpty)
+    }
+
     @Test("Cascading delete removes links and tags")
     func cascadingDelete() throws {
         let db = try LinkDatabase()

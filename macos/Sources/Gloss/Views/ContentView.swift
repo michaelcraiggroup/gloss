@@ -166,6 +166,7 @@ struct ContentView: View {
                 tags: linkIndex.currentFileTags,
                 forwardLinks: linkIndex.forwardLinks,
                 backlinks: linkIndex.backlinks,
+                unlinkedMentions: linkIndex.unlinkedMentions,
                 hasDocument: settings.currentFileURL != nil,
                 onHeadingTap: { headingID in
                     NotificationCenter.default.post(
@@ -184,6 +185,11 @@ struct ContentView: View {
                 },
                 onBacklinkTap: { sourcePath in
                     let url = URL(fileURLWithPath: sourcePath)
+                    settings.currentFileURL = url
+                    settings.lastOpenedFile = url.standardizedFileURL.path
+                },
+                onUnlinkedMentionTap: { path in
+                    let url = URL(fileURLWithPath: path)
                     settings.currentFileURL = url
                     settings.lastOpenedFile = url.standardizedFileURL.path
                 }
