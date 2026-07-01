@@ -10,6 +10,7 @@ final class LinkIndex {
     var forwardLinks: [ForwardLinkGroup] = []
     var recentlyChanged: [(path: String, title: String, modifiedAt: Date)] = []
     var allTags: [(tag: String, count: Int)] = []
+    var allTitles: [String] = []
     var currentFileTags: [String] = []
     var unlinkedMentions: [UnlinkedMention] = []
     var linkHealth: LinkHealthStats = .empty
@@ -61,6 +62,7 @@ final class LinkIndex {
                 // Collect aggregates off-main
                 let recent = (try? db.recentlyChangedFiles()) ?? []
                 let tags = (try? db.allTagCounts()) ?? []
+                let titles = (try? db.graphFiles())?.map(\.title) ?? []
                 let health = Self.computeHealth(database: db)
 
                 // Hop back to main actor for the state swap + notification
@@ -69,6 +71,7 @@ final class LinkIndex {
                     self.database = db
                     self.recentlyChanged = recent
                     self.allTags = tags
+                    self.allTitles = titles
                     self.linkHealth = health
                     self.isIndexing = false
                     NotificationCenter.default.post(name: .glossIndexUpdated, object: nil)

@@ -46,6 +46,7 @@ struct EditorWebView: NSViewRepresentable {
     let fileURL: URL
     var isDark: Bool
     var fontSize: Int
+    var wikiTargets: [String] = []
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -61,6 +62,7 @@ struct EditorWebView: NSViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.fileURL = fileURL
         context.coordinator.webView = webView
+        context.coordinator.wikiTargets = wikiTargets
         GlossEditorWebView.current = webView
 
         loadTemplate(into: webView, context: context)
@@ -91,6 +93,11 @@ struct EditorWebView: NSViewRepresentable {
             context.coordinator.lastFileURL = fileURL
             webView.fileURL = fileURL
             context.coordinator.loadFileContent()
+        }
+
+        if wikiTargets != context.coordinator.wikiTargets {
+            context.coordinator.wikiTargets = wikiTargets
+            context.coordinator.injectWikiTargets()
         }
     }
 
@@ -148,6 +155,7 @@ struct EditorWebView: NSViewRepresentable {
         var lastFontSize = 16
         var lastFileURL: URL?
         var isReady = false
+        var wikiTargets: [String] = []
 
         // MARK: - WKScriptMessageHandler
 
@@ -166,6 +174,7 @@ struct EditorWebView: NSViewRepresentable {
                 case "ready":
                     isReady = true
                     loadFileContent()
+                    injectWikiTargets()
                 case "save":
                     webView?.saveCurrentContent()
                 case "dirty":
@@ -208,6 +217,13 @@ struct EditorWebView: NSViewRepresentable {
         }
 
         // MARK: - Content
+
+        func injectWikiTargets() {
+            guard isReady, let webView,
+                  let data = try? JSONEncoder().encode(wikiTargets),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            webView.evaluateJavaScript("glossEditor.setWikiTargets(\(json))", completionHandler: nil)
+        }
 
         func loadFileContent() {
             guard isReady, let url = lastFileURL else { return }
