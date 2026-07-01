@@ -43,6 +43,7 @@ struct GlossApp: App {
     @FocusedValue(\.toggleEditMode) var toggleEditMode
     @FocusedValue(\.saveDocument) var saveDocument
     @FocusedValue(\.createNewFile) var createNewFile
+    @FocusedValue(\.todaysNote) var todaysNote
     @FocusedValue(\.isEditingDocument) var isEditingDocument
     @Environment(\.openWindow) private var openWindow
 
@@ -85,6 +86,12 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("n", modifiers: .command)
                 .disabled(createNewFile == nil || (!fileTree.hasFolder && settings.currentFileURL == nil))
+
+                Button("Today's Note") {
+                    todaysNote?()
+                }
+                .keyboardShortcut("t", modifiers: .command)
+                .disabled(todaysNote == nil || !fileTree.hasFolder)
 
                 Divider()
 

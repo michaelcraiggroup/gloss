@@ -56,6 +56,22 @@ struct SettingsView: View {
                     .gridColumnAlignment(.trailing)
                 FontSizeStepper(fontSize: $settings.fontSize)
             }
+
+            GridRow {
+                Text("Daily notes folder:")
+                    .gridColumnAlignment(.trailing)
+                TextField("(vault root)", text: $settings.dailyNotesFolder)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+            }
+
+            GridRow {
+                Text("Daily note date format:")
+                    .gridColumnAlignment(.trailing)
+                TextField("yyyy-MM-dd", text: $settings.dailyNotesDateFormat)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

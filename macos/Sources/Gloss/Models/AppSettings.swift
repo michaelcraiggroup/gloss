@@ -11,6 +11,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("customEditorPath") var customEditorPath: String = ""
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
     @AppStorage("lastSeenVersion") var lastSeenVersion: String = ""
+    @AppStorage("dailyNotesFolder") var dailyNotesFolder: String = ""
+    @AppStorage("dailyNotesDateFormat") var dailyNotesDateFormat: String = "yyyy-MM-dd"
 
     @Published var currentFileURL: URL?
     @Published var isZenMode: Bool = false

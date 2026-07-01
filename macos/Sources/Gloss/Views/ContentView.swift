@@ -39,6 +39,7 @@ struct ContentView: View {
             toggleEditMode: { toggleEditMode() },
             saveDocument: { GlossEditorWebView.current?.saveCurrentContent() },
             createNewFile: { newFileName = ""; showingNewFileAlert = true },
+            todaysNote: { openTodaysNote() },
             isEditing: isEditing
         ))
         .focusedSceneValue(\.toggleFavorite, {
@@ -353,6 +354,40 @@ struct ContentView: View {
 
     // MARK: - New File
 
+    /// Open today's daily note, creating it (from a minimal template) if absent.
+    private func openTodaysNote() {
+        guard !settings.rootFolderPath.isEmpty else { return }
+        let root = URL(fileURLWithPath: settings.rootFolderPath)
+        let subfolder = settings.dailyNotesFolder.trimmingCharacters(in: .whitespaces)
+        let dir = subfolder.isEmpty ? root : root.appendingPathComponent(subfolder)
+
+        let formatter = DateFormatter()
+        let fmt = settings.dailyNotesDateFormat.trimmingCharacters(in: .whitespaces)
+        formatter.dateFormat = fmt.isEmpty ? "yyyy-MM-dd" : fmt
+        let dateString = formatter.string(from: Date())
+        guard !dateString.isEmpty else { return }
+        let fileURL = dir.appendingPathComponent("\(dateString).md")
+
+        let existed = FileManager.default.fileExists(atPath: fileURL.path)
+        if !existed {
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let template = "---\ntitle: \(dateString)\ntags: [daily]\n---\n\n"
+                try template.write(to: fileURL, atomically: true, encoding: .utf8)
+                fileTree.refreshAfterFileChange()
+                linkIndex.updateIndex(for: fileURL)
+            } catch {
+                return
+            }
+        }
+        settings.currentFileURL = fileURL
+        settings.lastOpenedFile = fileURL.path
+        if !existed {
+            isEditorDirty = false
+            Task { @MainActor in isEditing = true }   // brand-new note opens ready to write
+        }
+    }
+
     /// Write a changed/added frontmatter property back to the current file and re-index.
     private func updateProperty(key: String, value: String) {
         guard !isEditing, let url = settings.currentFileURL,
@@ -503,6 +538,7 @@ struct FocusedEditValues: ViewModifier {
     var toggleEditMode: () -> Void
     var saveDocument: () -> Void
     var createNewFile: () -> Void
+    var todaysNote: () -> Void
     var isEditing: Bool
 
     func body(content: Content) -> some View {
@@ -510,6 +546,7 @@ struct FocusedEditValues: ViewModifier {
             .focusedSceneValue(\.toggleEditMode, toggleEditMode)
             .focusedSceneValue(\.saveDocument, saveDocument)
             .focusedSceneValue(\.createNewFile, createNewFile)
+            .focusedSceneValue(\.todaysNote, todaysNote)
             .focusedSceneValue(\.isEditingDocument, isEditing)
     }
 }
@@ -541,6 +578,10 @@ struct SaveDocumentKey: FocusedValueKey {
 }
 
 struct CreateNewFileKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+struct TodaysNoteKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
@@ -582,6 +623,11 @@ extension FocusedValues {
     var createNewFile: (() -> Void)? {
         get { self[CreateNewFileKey.self] }
         set { self[CreateNewFileKey.self] = newValue }
+    }
+
+    var todaysNote: (() -> Void)? {
+        get { self[TodaysNoteKey.self] }
+        set { self[TodaysNoteKey.self] = newValue }
     }
 
     var isEditingDocument: Bool? {
