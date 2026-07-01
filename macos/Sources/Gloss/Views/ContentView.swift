@@ -193,7 +193,9 @@ struct ContentView: View {
                     let url = URL(fileURLWithPath: path)
                     settings.currentFileURL = url
                     settings.lastOpenedFile = url.standardizedFileURL.path
-                }
+                },
+                onPropertyChange: { key, value in updateProperty(key: key, value: value) },
+                onPropertyRemove: { key in removeProperty(key: key) }
             )
             .inspectorColumnWidth(min: 250, ideal: 280, max: 400)
         }
@@ -383,6 +385,36 @@ struct ContentView: View {
         if !existed {
             isEditorDirty = false
             Task { @MainActor in isEditing = true }   // brand-new note opens ready to write
+        }
+    }
+
+    /// Write a changed/added frontmatter property back to the current file and re-index.
+    private func updateProperty(key: String, value: String) {
+        guard !isEditing, let url = settings.currentFileURL,
+              let content = try? String(contentsOf: url, encoding: .utf8) else { return }
+        let updated = MarkdownRenderer.setFrontmatterValue(content, key: key, value: value)
+        guard updated != content else { return }
+        do {
+            try updated.write(to: url, atomically: true, encoding: .utf8)
+            frontmatter = MarkdownRenderer.extractFrontmatter(updated)
+            linkIndex.updateIndex(for: url)
+        } catch {
+            // write failed — leave state unchanged
+        }
+    }
+
+    /// Remove a frontmatter property from the current file and re-index.
+    private func removeProperty(key: String) {
+        guard !isEditing, let url = settings.currentFileURL,
+              let content = try? String(contentsOf: url, encoding: .utf8) else { return }
+        let updated = MarkdownRenderer.removeFrontmatterKey(content, key: key)
+        guard updated != content else { return }
+        do {
+            try updated.write(to: url, atomically: true, encoding: .utf8)
+            frontmatter = MarkdownRenderer.extractFrontmatter(updated)
+            linkIndex.updateIndex(for: url)
+        } catch {
+            // write failed — leave state unchanged
         }
     }
 

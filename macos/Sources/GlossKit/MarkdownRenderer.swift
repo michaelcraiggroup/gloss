@@ -261,6 +261,48 @@ public struct MarkdownRenderer: Sendable {
         return String(source[closingRange.upperBound...])
     }
 
+    // MARK: - Editable frontmatter (M3)
+
+    /// Surgically set a scalar frontmatter `key: value`, preserving the rest of
+    /// the frontmatter (comments, key order) and the markdown body verbatim.
+    /// Adds the key if absent; creates a `---` block if the file has none.
+    public static func setFrontmatterValue(_ source: String, key: String, value: String) -> String {
+        let line = frontmatterLine(key: key, value: value)
+        guard let raw = extractRawFrontmatter(source) else {
+            return "---\n\(line)\n---\n\n\(source)"
+        }
+        var lines = raw.components(separatedBy: "\n")
+        let keyPattern = "^\(NSRegularExpression.escapedPattern(for: key))\\s*:"
+        if let idx = lines.firstIndex(where: { $0.range(of: keyPattern, options: .regularExpression) != nil }) {
+            lines[idx] = line
+        } else {
+            lines.append(line)
+        }
+        return "---\n\(lines.joined(separator: "\n"))\n---\n\(stripFrontmatter(source))"
+    }
+
+    /// Surgically remove a top-level frontmatter key. Drops the whole block if
+    /// nothing is left. No-op if the file has no frontmatter.
+    public static func removeFrontmatterKey(_ source: String, key: String) -> String {
+        guard let raw = extractRawFrontmatter(source) else { return source }
+        let keyPattern = "^\(NSRegularExpression.escapedPattern(for: key))\\s*:"
+        let kept = raw.components(separatedBy: "\n")
+            .filter { $0.range(of: keyPattern, options: .regularExpression) == nil }
+        if kept.allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+            return stripFrontmatter(source)
+        }
+        return "---\n\(kept.joined(separator: "\n"))\n---\n\(stripFrontmatter(source))"
+    }
+
+    /// Serialize one `key: value` line via Yams so the value is correctly quoted.
+    private static func frontmatterLine(key: String, value: String) -> String {
+        if let dumped = try? Yams.dump(object: [key: value]) {
+            let trimmed = dumped.trimmingCharacters(in: .newlines)
+            if !trimmed.isEmpty { return trimmed }
+        }
+        return "\(key): \(value)"
+    }
+
     // MARK: - Task Checkboxes (GFM)
 
     /// Post-process HTML to make GFM task-list checkboxes interactive.

@@ -15,6 +15,13 @@ struct InspectorView: View {
     var onForwardLinkTap: ((IndexedLink) -> Void)?
     var onBacklinkTap: ((String) -> Void)?
     var onUnlinkedMentionTap: ((String) -> Void)?
+    var onPropertyChange: ((String, String) -> Void)?
+    var onPropertyRemove: ((String) -> Void)?
+
+    @State private var editingKey: String?
+    @State private var editingValue: String = ""
+    @State private var newPropertyKey: String = ""
+    @State private var newPropertyValue: String = ""
 
     private var hasContent: Bool {
         !headings.isEmpty
@@ -23,6 +30,7 @@ struct InspectorView: View {
             || !forwardLinks.isEmpty
             || !backlinks.isEmpty
             || !unlinkedMentions.isEmpty
+            || hasDocument
     }
 
     var body: some View {
@@ -46,18 +54,14 @@ struct InspectorView: View {
                     }
                 }
 
-                if let fm = frontmatter, !fm.fields.isEmpty {
-                    Section("Frontmatter") {
-                        ForEach(Array(fm.fields.enumerated()), id: \.offset) { _, field in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(field.key)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(field.value)
-                                    .font(.caption)
-                                    .lineLimit(3)
+                if hasDocument {
+                    Section("Properties") {
+                        if let fm = frontmatter {
+                            ForEach(Array(fm.fields.enumerated()), id: \.offset) { _, field in
+                                propertyRow(key: field.key, value: field.value)
                             }
                         }
+                        addPropertyRow
                     }
                 }
 
@@ -211,6 +215,68 @@ struct InspectorView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
+        }
+    }
+
+    @ViewBuilder
+    private func propertyRow(key: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(key)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if editingKey == key {
+                    TextField("value", text: $editingValue)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                        .onSubmit {
+                            onPropertyChange?(key, editingValue)
+                            editingKey = nil
+                        }
+                } else {
+                    Text(value.isEmpty ? "—" : value)
+                        .font(.caption)
+                        .lineLimit(3)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            editingValue = value
+                            editingKey = key
+                        }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                onPropertyRemove?(key)
+            } label: {
+                Image(systemName: "minus.circle").font(.caption2)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tertiary)
+            .help("Remove property")
+        }
+    }
+
+    private var addPropertyRow: some View {
+        HStack(spacing: 6) {
+            TextField("key", text: $newPropertyKey)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+                .frame(width: 90)
+            TextField("value", text: $newPropertyValue)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+            Button {
+                let k = newPropertyKey.trimmingCharacters(in: .whitespaces)
+                guard !k.isEmpty else { return }
+                onPropertyChange?(k, newPropertyValue)
+                newPropertyKey = ""
+                newPropertyValue = ""
+            } label: {
+                Image(systemName: "plus.circle").font(.caption2)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .disabled(newPropertyKey.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
 
