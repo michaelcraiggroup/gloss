@@ -7,7 +7,6 @@ extension Notification.Name {
     static let glossFindPrevious = Notification.Name("glossFindPrevious")
     static let glossFileDrop = Notification.Name("glossFileDrop")
     static let glossPrint = Notification.Name("glossPrint")
-    static let glossExportPDF = Notification.Name("glossExportPDF")
     static let glossScrollToHeading = Notification.Name("glossScrollToHeading")
     static let glossDocumentLoaded = Notification.Name("glossDocumentLoaded")
     static let glossNavigateWikiLink = Notification.Name("glossNavigateWikiLink")
@@ -139,6 +138,55 @@ class DropAcceptingWebView: WKWebView {
         }
         return url
     }
+
+    // MARK: - PDF Export
+
+    /// Export the current document to a user-chosen PDF location.
+    ///
+    /// This is a single-owner action driven directly from the menu (like Print),
+    /// not a broadcast — so exactly one save panel appears regardless of how many
+    /// web views are alive. Find-in-page highlights are stripped before capture so
+    /// they don't bake into the exported PDF.
+    func exportToPDF() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = "document.pdf"
+        panel.title = "Export as PDF"
+        guard panel.runModal() == .OK, let saveURL = panel.url else { return }
+
+        // Clear transient find/search highlights so the PDF is clean, then capture.
+        evaluateJavaScript("if (typeof clearHighlights === 'function') clearHighlights();") { [weak self] _, _ in
+            self?.createPDF { result in
+                DispatchQueue.main.async {
+                    guard case .success(let data) = result else { return }
+                    do {
+                        try data.write(to: saveURL)
+                        DropAcceptingWebView.showExportConfirmation(for: saveURL)
+                    } catch {
+                        // Write failed silently
+                    }
+                }
+            }
+        }
+    }
+
+    private static func showExportConfirmation(for url: URL) {
+        let alert = NSAlert()
+        alert.messageText = "PDF Exported"
+        alert.informativeText = url.lastPathComponent
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Open PDF")
+        alert.addButton(withTitle: "Reveal in Finder")
+        alert.addButton(withTitle: "OK")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            NSWorkspace.shared.open(url)
+        case .alertSecondButtonReturn:
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        default:
+            break
+        }
+    }
 }
 
 /// NSViewRepresentable wrapper around WKWebView for rendering HTML content.
@@ -182,6 +230,15 @@ struct WebView: NSViewRepresentable {
         }
     }
 
+    /// SwiftUI permanently tears the view down here. Remove the script-message
+    /// handlers so the WKWebView's `userContentController` stops strongly retaining
+    /// the Coordinator — otherwise coordinators (and their notification observers)
+    /// accumulate across read/edit toggles and document opens. That leak is what
+    /// let one "Export as PDF" trigger fire a save panel per stale coordinator.
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+        nsView.configuration.userContentController.removeAllScriptMessageHandlers()
+    }
+
     class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, @unchecked Sendable {
         weak var webView: WKWebView?
         var lastHTML: String?
@@ -218,16 +275,6 @@ struct WebView: NSViewRepresentable {
                         let escaped = headingID.replacingOccurrences(of: "'", with: "\\'")
                         let js = "document.getElementById('\(escaped)')?.scrollIntoView({behavior:'smooth',block:'start'})"
                         self?.webView?.evaluateJavaScript(js, completionHandler: nil)
-                    }
-                }
-            )
-            // Export as PDF
-            observers.append(
-                NotificationCenter.default.addObserver(
-                    forName: .glossExportPDF, object: nil, queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated {
-                        self?.exportPDF()
                     }
                 }
             )
@@ -417,49 +464,6 @@ struct WebView: NSViewRepresentable {
             })()
             """
             webView?.evaluateJavaScript(js, completionHandler: nil)
-        }
-
-        private func exportPDF() {
-            guard let webView else { return }
-            let panel = NSSavePanel()
-            panel.allowedContentTypes = [.pdf]
-            panel.nameFieldStringValue = "document.pdf"
-            panel.title = "Export as PDF"
-            guard panel.runModal() == .OK, let saveURL = panel.url else { return }
-
-            webView.createPDF { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let data):
-                        do {
-                            try data.write(to: saveURL)
-                            self.showExportConfirmation(for: saveURL)
-                        } catch {
-                            // Write failed silently
-                        }
-                    case .failure:
-                        break
-                    }
-                }
-            }
-        }
-
-        private func showExportConfirmation(for url: URL) {
-            let alert = NSAlert()
-            alert.messageText = "PDF Exported"
-            alert.informativeText = url.lastPathComponent
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "Open PDF")
-            alert.addButton(withTitle: "Reveal in Finder")
-            alert.addButton(withTitle: "OK")
-            switch alert.runModal() {
-            case .alertFirstButtonReturn:
-                NSWorkspace.shared.open(url)
-            case .alertSecondButtonReturn:
-                NSWorkspace.shared.activateFileViewerSelecting([url])
-            default:
-                break
-            }
         }
 
         deinit {
