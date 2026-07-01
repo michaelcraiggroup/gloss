@@ -66,29 +66,27 @@ xcodegen generate
 # real version so the archived app is stamped correctly.
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Scripts/Info.plist
 
-step "Archiving ($CONFIG, hardened runtime, Developer ID)"
+step "Archiving ($CONFIG) — signed directly with Developer ID (manual)"
+# Manual signing with the Developer ID cert. A Developer ID Mac app needs no
+# development cert and no provisioning profile (Gloss has no profile-requiring
+# entitlements), which sidesteps the automatic-signing conflict and the fact
+# that the only development cert here belongs to a different team. All nested
+# code (Quick Look appex, GRDB / GlossKit frameworks) is signed + hardened +
+# secure-timestamped in the same pass — exactly what notarization requires.
 xcodebuild -project Gloss.xcodeproj -scheme "$SCHEME" -configuration "$CONFIG" \
   -archivePath "$ARCHIVE" archive \
   DEVELOPMENT_TEAM="$TEAM_ID" \
-  CODE_SIGN_STYLE=Automatic \
-  CODE_SIGN_IDENTITY="Developer ID Application" \
-  ENABLE_HARDENED_RUNTIME=YES
+  CODE_SIGN_STYLE=Manual \
+  CODE_SIGN_IDENTITY="$DEV_ID_IDENTITY" \
+  PROVISIONING_PROFILE_SPECIFIER="" \
+  ENABLE_HARDENED_RUNTIME=YES \
+  OTHER_CODE_SIGN_FLAGS="--timestamp"
 
-step "Exporting the signed .app"
-cat > "$BUILD/ExportOptions.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>method</key><string>developer-id</string>
-  <key>teamID</key><string>$TEAM_ID</string>
-  <key>signingStyle</key><string>automatic</string>
-</dict></plist>
-PLIST
-xcodebuild -exportArchive -archivePath "$ARCHIVE" \
-  -exportOptionsPlist "$BUILD/ExportOptions.plist" -exportPath "$EXPORT_DIR"
-
+step "Collecting the signed .app from the archive"
+mkdir -p "$EXPORT_DIR"
+cp -R "$ARCHIVE/Products/Applications/Gloss.app" "$EXPORT_DIR/"
 APP="$EXPORT_DIR/Gloss.app"
-[ -d "$APP" ] || die "Export did not produce Gloss.app at $APP"
+[ -d "$APP" ] || die "Archive did not produce Gloss.app at $APP"
 
 step "Verifying the app is Developer ID signed + hardened"
 codesign --verify --deep --strict --verbose=2 "$APP"
