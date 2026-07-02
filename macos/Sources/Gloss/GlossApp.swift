@@ -36,6 +36,7 @@ struct GlossApp: App {
     @State private var graphService = GraphService()
     @State private var guideService = GlossGuideService()
     @State private var templateFill = TemplateFillService()
+    @StateObject private var quickCapture = QuickCaptureController()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
     @FocusedValue(\.goBack) var goBack
@@ -66,6 +67,13 @@ struct GlossApp: App {
                     setAppIcon()
                     handleCLIArguments()
                     restoreFolder()
+                    quickCapture.start(settings: settings) { url in
+                        fileTree.refreshAfterFileChange()
+                        linkIndex.updateIndex(for: url)
+                    }
+                }
+                .onChange(of: settings.quickCaptureEnabled) { _, enabled in
+                    quickCapture.setEnabled(enabled)
                 }
                 .onOpenURL { url in
                     openPath(url)
@@ -308,6 +316,19 @@ struct GlossApp: App {
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 320, height: 140)
+
+        MenuBarExtra("Gloss Quick Capture", systemImage: "bolt.fill", isInserted: $settings.quickCaptureMenuBar) {
+            Button("Quick Capture…") {
+                quickCapture.showPanel()
+            }
+            Divider()
+            Button("Quick Capture Settings…") {
+                openWindow(id: "settings")
+            }
+            Button("Quit Gloss") {
+                NSApplication.shared.terminate(nil)
+            }
+        }
     }
 
     private func openGuide(_ guide: WalkthroughGuide) {

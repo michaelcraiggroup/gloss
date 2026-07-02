@@ -72,6 +72,34 @@ struct SettingsView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 180)
             }
+
+            GridRow {
+                Text("Quick capture:")
+                    .gridColumnAlignment(.trailing)
+                Toggle("Capture on hot corner", isOn: $settings.quickCaptureEnabled)
+                    .toggleStyle(.checkbox)
+            }
+
+            GridRow {
+                Text("Hot corner:")
+                    .gridColumnAlignment(.trailing)
+                Picker("", selection: $settings.quickCaptureCorner) {
+                    ForEach(ScreenCorner.allCases) { corner in
+                        Text(corner.displayName).tag(corner.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 180)
+                .disabled(!settings.quickCaptureEnabled)
+            }
+
+            GridRow {
+                Text("Menu bar icon:")
+                    .gridColumnAlignment(.trailing)
+                Toggle("Show Gloss in the menu bar", isOn: $settings.quickCaptureMenuBar)
+                    .toggleStyle(.checkbox)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

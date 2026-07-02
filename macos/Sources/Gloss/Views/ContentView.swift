@@ -356,24 +356,13 @@ struct ContentView: View {
 
     /// Open today's daily note, creating it (from a minimal template) if absent.
     private func openTodaysNote() {
-        guard !settings.rootFolderPath.isEmpty else { return }
-        let root = URL(fileURLWithPath: settings.rootFolderPath)
-        let subfolder = settings.dailyNotesFolder.trimmingCharacters(in: .whitespaces)
-        let dir = subfolder.isEmpty ? root : root.appendingPathComponent(subfolder)
-
-        let formatter = DateFormatter()
-        let fmt = settings.dailyNotesDateFormat.trimmingCharacters(in: .whitespaces)
-        formatter.dateFormat = fmt.isEmpty ? "yyyy-MM-dd" : fmt
-        let dateString = formatter.string(from: Date())
-        guard !dateString.isEmpty else { return }
-        let fileURL = dir.appendingPathComponent("\(dateString).md")
-
+        guard let fileURL = settings.dailyNoteURL() else { return }
         let existed = FileManager.default.fileExists(atPath: fileURL.path)
         if !existed {
             do {
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                let template = "---\ntitle: \(dateString)\ntags: [daily]\n---\n\n"
-                try template.write(to: fileURL, atomically: true, encoding: .utf8)
+                try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                let title = fileURL.deletingPathExtension().lastPathComponent
+                try AppSettings.dailyNoteTemplate(title: title).write(to: fileURL, atomically: true, encoding: .utf8)
                 fileTree.refreshAfterFileChange()
                 linkIndex.updateIndex(for: fileURL)
             } catch {
