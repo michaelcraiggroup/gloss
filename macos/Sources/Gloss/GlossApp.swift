@@ -30,6 +30,7 @@ struct GlossApp: App {
     @StateObject private var settings = AppSettings()
     @State private var fileTree = FileTreeModel()
     @State private var enhancedSearch = EnhancedSearchService()
+    @State private var filenameSearch = FilenameSearchService()
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
     @State private var vaultOverview = VaultOverviewService()
@@ -55,6 +56,7 @@ struct GlossApp: App {
                 .environmentObject(settings)
                 .environment(fileTree)
                 .environment(enhancedSearch)
+                .environment(filenameSearch)
                 .environment(store)
                 .environment(linkIndex)
                 .environment(vaultOverview)
@@ -396,7 +398,11 @@ struct GlossApp: App {
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
             fileTree.openFolder(url)
-            linkIndex.buildIndex(rootURL: url)
+            // Defer indexing one tick so first-frame rendering isn't racing
+            // the vault scan (the scan itself is mtime-incremental now).
+            Task { @MainActor in
+                linkIndex.buildIndex(rootURL: url)
+            }
         }
     }
 

@@ -51,7 +51,23 @@ final class GraphService {
     var isBuilding: Bool = false
     var lastBuiltAt: Date?
 
+    /// Set when an index update arrives while the graph isn't on screen.
+    /// The view refreshes on appear instead of rebuilding the whole graph
+    /// after every index tick.
+    private(set) var isStale = false
+
     private var buildTask: Task<Void, Never>?
+
+    /// Note that the underlying index changed while the graph was hidden.
+    func markStale() {
+        isStale = true
+    }
+
+    /// Refresh only if a hidden-time index update was recorded.
+    func refreshIfStale(database: LinkDatabase?) {
+        guard isStale else { return }
+        refresh(database: database)
+    }
 
     /// Rebuild the graph from the current database snapshot using the current filter.
     func refresh(database: LinkDatabase?) {
@@ -61,6 +77,7 @@ final class GraphService {
             isBuilding = false
             return
         }
+        isStale = false
         isBuilding = true
         let snapshotFilter = filter
 
@@ -87,6 +104,7 @@ final class GraphService {
         data = .empty
         filter = .unfiltered
         isBuilding = false
+        isStale = false
         lastBuiltAt = nil
     }
 

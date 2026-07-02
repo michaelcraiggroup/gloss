@@ -52,7 +52,22 @@ final class VaultOverviewService {
     var isRefreshing: Bool = false
     var lastRefreshedAt: Date?
 
+    /// Set when an index update arrives while the dashboard isn't visible.
+    /// The view refreshes on appear instead of after every index tick.
+    private(set) var isStale = false
+
     private var refreshTask: Task<Void, Never>?
+
+    /// Note that the underlying index changed while the dashboard was hidden.
+    func markStale() {
+        isStale = true
+    }
+
+    /// Refresh only if a hidden-time index update was recorded.
+    func refreshIfStale(database: LinkDatabase?) {
+        guard isStale else { return }
+        refresh(database: database)
+    }
 
     /// Kick off a full dashboard refresh using the given database. Runs
     /// all queries off-main, then hops back for a single atomic state swap.
@@ -63,6 +78,7 @@ final class VaultOverviewService {
         }
 
         refreshTask?.cancel()
+        isStale = false
         isRefreshing = true
 
         refreshTask = Task.detached { [weak self] in
@@ -110,6 +126,7 @@ final class VaultOverviewService {
     /// Reset all state to empty (called when the vault is closed).
     func clear() {
         refreshTask?.cancel()
+        isStale = false
         fileCount = 0
         linkCount = 0
         tagCount = 0

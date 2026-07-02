@@ -19,12 +19,10 @@ final class FolderWatcher: @unchecked Sendable {
     private var onChange: (@Sendable ([String]) -> Void)?
     /// Symlink-resolved root, used to strip the prefix before the exclude check.
     private var rootPath: String = ""
+    /// Exclusion rules for the watched vault (set before the stream starts,
+    /// read from the callback on `queue`, cleared after the stop() fence).
+    private var rules: ExclusionRules = .standard
     private let queue = DispatchQueue(label: "group.gloss.folderwatcher", qos: .utility)
-
-    /// Path components whose subtrees are ignored (mirrors FileTreeNode.excludedNames).
-    private static let excludedComponents: Set<String> = [
-        "node_modules", ".git", ".build", ".swiftpm", "__pycache__", ".gloss"
-    ]
 
     /// Start watching `root` and all descendants. Replaces any existing watch.
     /// `onChange` is delivered on the main queue with the changed paths.
@@ -32,13 +30,18 @@ final class FolderWatcher: @unchecked Sendable {
     /// should fall back (e.g. keep the per-file watcher) rather than assume the
     /// vault is being watched.
     @discardableResult
-    func start(root: URL, onChange: @escaping @Sendable ([String]) -> Void) -> Bool {
+    func start(
+        root: URL,
+        rules: ExclusionRules = .standard,
+        onChange: @escaping @Sendable ([String]) -> Void
+    ) -> Bool {
         stop()
 
         // FSEvents reports symlink-resolved paths (e.g. /private/var, /private/tmp).
         // Resolve the root so the prefix we strip below actually matches them.
         let resolvedRoot = root.resolvingSymlinksInPath()
         self.rootPath = resolvedRoot.path
+        self.rules = rules
         self.onChange = onChange
 
         let pathsToWatch = [resolvedRoot.path] as CFArray
@@ -101,18 +104,20 @@ final class FolderWatcher: @unchecked Sendable {
         queue.sync { }
         self.onChange = nil
         self.rootPath = ""
+        self.rules = .standard
     }
 
     /// Filter excluded subtrees and forward changed paths on the main queue.
     /// Called from the FSEvents callback on `queue`.
     fileprivate func handleEvents(_ paths: [String]) {
         let root = rootPath
+        let rules = rules
         let filtered = paths.filter { path in
             // Only inspect components BELOW the watched root — the root prefix
             // itself may legitimately contain an excluded name (e.g. a vault
             // under .../node_modules/...).
-            let relative = path.hasPrefix(root) ? String(path.dropFirst(root.count)) : path
-            return !relative.split(separator: "/").contains { Self.excludedComponents.contains(String($0)) }
+            let relative = path.hasPrefix(root) ? path.dropFirst(root.count) : path[...]
+            return !rules.isExcludedRelativePath(relative)
         }
         guard !filtered.isEmpty, let onChange else { return }
         DispatchQueue.main.async {

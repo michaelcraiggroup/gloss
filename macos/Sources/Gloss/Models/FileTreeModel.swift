@@ -35,13 +35,28 @@ final class FileTreeModel {
 
     private let folderWatcher = FolderWatcher()
 
+    /// Coalesces watcher callbacks so sustained churn (builds, git, agent
+    /// sessions writing into the vault) costs one reconcile + index pass per
+    /// window instead of one per FSEvents batch.
+    private let eventDebouncer = VaultEventDebouncer { paths in
+        NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
+    }
+
     /// Whether the folder watcher is actively running. False if FSEvents failed
     /// to start — DocumentView checks this so it keeps the per-file watcher as a
     /// fallback for the open document instead of silently relying on a dead watch.
     private(set) var isWatching = false
 
+    /// Symlink-resolved root path, for mapping FSEvents paths (which are
+    /// resolved, e.g. /private/...) onto tree nodes by relative components.
+    private var resolvedRootPath = ""
+
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
+        // Vault-wide exclusion rules (defaults + .gloss/config.json overrides)
+        // must be in place before the watcher arms or the tree loads.
+        ExclusionRules.current = ExclusionRules.forVault(root: url)
+        resolvedRootPath = url.resolvingSymlinksInPath().path
         let node = FileTreeNode(url: url, isDirectory: true)
         // Arm the watcher BEFORE enumerating children. Since FileTreeModel is
         // @MainActor, the FSEvents callback can't be dispatched to the main queue
@@ -49,8 +64,11 @@ final class FileTreeModel {
         // change that occurs between arm and the completion of loadChildren is
         // guaranteed to fire an event and trigger a reconcile — closing the
         // kFSEventStreamEventIdSinceNow gap that existed when we enumerated first.
-        isWatching = folderWatcher.start(root: url) { paths in
-            NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
+        isWatching = folderWatcher.start(root: url, rules: ExclusionRules.current) { [weak self] paths in
+            // FolderWatcher delivers on the main queue.
+            MainActor.assumeIsolated {
+                self?.eventDebouncer.add(paths)
+            }
         }
         node.loadChildren()
         node.isExpanded = true
@@ -60,6 +78,9 @@ final class FileTreeModel {
     /// Close the current folder.
     func closeFolder() {
         folderWatcher.stop()
+        eventDebouncer.cancel()
+        ExclusionRules.current = .standard
+        resolvedRootPath = ""
         isWatching = false
         scopedNode = nil
         rootNode = nil
@@ -182,27 +203,78 @@ final class FileTreeModel {
         }
     }
 
-    /// Reconcile the tree against the current disk state after a file-system
-    /// change (external edit, file op, or a folder-watcher event). Recurses
-    /// through every loaded directory and preserves existing nodes — and their
-    /// expansion + loaded subtrees — wherever the path still exists.
+    /// Reconcile the whole loaded tree against disk. Used for user-initiated
+    /// operations (manual Refresh, in-app file create/rename/delete) where no
+    /// specific changed paths are known. Watcher events go through the cheaper
+    /// `reconcile(changedPaths:)` instead.
     func refreshAfterFileChange() {
         if let root = rootNode {
-            reconcileNode(root)
+            reconcileNode(root, recurseIntoLoadedChildren: true)
         }
         // scopedNode lives within root's tree, but reconcileNode only recurses
         // into already-loaded directories; reconcile it explicitly in case the
         // path from root to it isn't fully loaded.
         if let scoped = scopedNode, scoped !== rootNode {
-            reconcileNode(scoped)
+            reconcileNode(scoped, recurseIntoLoadedChildren: true)
         }
-        // If the scoped folder was externally deleted, reconcileNode removed it
-        // from the tree but scopedNode still points at the orphaned node — clear
-        // it so the sidebar returns to the full root view automatically.
+        clearScopedNodeIfDeleted()
+    }
+
+    /// Reconcile only the loaded directories that contain the changed paths.
+    ///
+    /// FSEvents file events carry the changed entry's own (symlink-resolved)
+    /// path, so the listing that may have changed is its parent directory's.
+    /// Walking the loaded tree by root-relative name components finds that
+    /// node without any per-node symlink resolution — and without the
+    /// full-tree `contentsOfDirectory` walk that used to run per event batch
+    /// (the main-thread hot spot in the 2026-07-02 CPU diagnostics).
+    func reconcile(changedPaths: [String]) {
+        guard rootNode != nil else { return }
+        guard !resolvedRootPath.isEmpty else {
+            refreshAfterFileChange()
+            return
+        }
+        var reconciled = Set<ObjectIdentifier>()
+        for path in changedPaths {
+            guard let node = deepestLoadedDirectory(forParentOf: path) else { continue }
+            if reconciled.insert(ObjectIdentifier(node)).inserted {
+                reconcileNode(node, recurseIntoLoadedChildren: false)
+            }
+        }
+        clearScopedNodeIfDeleted()
+    }
+
+    /// If the scoped folder was externally deleted, reconciliation removed it
+    /// from the tree but scopedNode still points at the orphaned node — clear
+    /// it so the sidebar returns to the full root view automatically.
+    private func clearScopedNodeIfDeleted() {
         if let scoped = scopedNode,
            !FileManager.default.fileExists(atPath: scoped.url.path) {
             scopedNode = nil
         }
+    }
+
+    /// Walk the loaded tree toward the parent directory of `path` (a
+    /// symlink-resolved absolute path) and return the deepest directory node
+    /// whose children are loaded — the only listing a change there can affect.
+    /// Returns nil when the change lies under an unloaded (invisible) subtree
+    /// or outside the root.
+    private func deepestLoadedDirectory(forParentOf path: String) -> FileTreeNode? {
+        guard let root = rootNode, path.hasPrefix(resolvedRootPath) else { return nil }
+        let relative = path.dropFirst(resolvedRootPath.count)
+        var components = relative.split(separator: "/")
+        guard !components.isEmpty else { return root }
+        components.removeLast()
+
+        var node = root
+        for component in components {
+            guard let children = node.children else { break }
+            guard let child = children.first(where: {
+                $0.isDirectory && $0.name == String(component)
+            }) else { break }
+            node = child
+        }
+        return node.children != nil ? node : nil
     }
 
     // MARK: - Tag Filtering
@@ -221,12 +293,11 @@ final class FileTreeModel {
 
     // MARK: - Tree Reconciliation
 
-    /// Reconcile a single loaded directory node against disk, then recurse into
-    /// its loaded subdirectories. Reuses existing child nodes by path so that
-    /// expansion state and already-loaded grandchildren survive the refresh —
-    /// only added/removed entries change. Cost is bounded by the directories
-    /// the user has actually expanded (children != nil), not the whole tree.
-    private func reconcileNode(_ node: FileTreeNode) {
+    /// Reconcile a single loaded directory node against disk — and, for
+    /// full-tree refreshes, recurse into its loaded subdirectories. Reuses
+    /// existing child nodes by path so that expansion state and already-loaded
+    /// grandchildren survive the refresh — only added/removed entries change.
+    private func reconcileNode(_ node: FileTreeNode, recurseIntoLoadedChildren: Bool) {
         guard node.isDirectory, let existing = node.children else { return }
 
         let fm = FileManager.default
@@ -261,9 +332,14 @@ final class FileTreeModel {
             if let reused = existingByPath[entry.url.standardizedFileURL.path],
                reused.isDirectory == entry.isDir {
                 // Refresh modificationDate in-place so Date-sort stays accurate
-                // after an external in-place edit (the node is reused, not rebuilt).
-                reused.modificationDate = (try? entry.url.resourceValues(
+                // after an external in-place edit. Only assign on a real change:
+                // the node is @Observable, so an unconditional write invalidates
+                // every row's view on every reconcile pass.
+                let newDate = (try? entry.url.resourceValues(
                     forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                if reused.modificationDate != newDate {
+                    reused.modificationDate = newDate
+                }
                 return reused
             }
             return FileTreeNode(
@@ -286,37 +362,14 @@ final class FileTreeModel {
             node.children = merged
         }
 
-        // Recurse into loaded subdirectories only.
-        for child in merged where child.isDirectory && child.children != nil {
-            reconcileNode(child)
-        }
-    }
-
-    // MARK: - Search
-
-    /// When search is active, returns a flat list of matching file nodes.
-    /// Recursively walks the tree, loading children as needed.
-    var searchResults: [FileTreeNode]? {
-        guard !searchQuery.isEmpty, let node = activeNode else { return nil }
-        var results: [FileTreeNode] = []
-        collectMatching(node: node, query: searchQuery.lowercased(), into: &results)
-        return results
-    }
-
-    private func collectMatching(node: FileTreeNode, query: String, into results: inout [FileTreeNode]) {
-        if node.isDirectory {
-            if node.children == nil {
-                node.loadChildren()
-            }
-            for child in node.children ?? [] {
-                collectMatching(node: child, query: query, into: &results)
-            }
-        } else {
-            if node.name.lowercased().contains(query) {
-                results.append(node)
+        // Recurse into loaded subdirectories only (full-tree refresh path).
+        if recurseIntoLoadedChildren {
+            for child in merged where child.isDirectory && child.children != nil {
+                reconcileNode(child, recurseIntoLoadedChildren: true)
             }
         }
     }
+
 }
 
 /// Search scope for the sidebar search bar.

@@ -35,6 +35,9 @@ struct VaultOverviewView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .background(Color(nsColor: .textBackgroundColor))
+        .onAppear {
+            overview.refreshIfStale(database: linkIndex.databaseRef)
+        }
     }
 
     // MARK: - Header

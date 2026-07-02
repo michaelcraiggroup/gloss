@@ -5,6 +5,28 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.19.0] - 2026-07-02
+
+Performance overhaul: fixes sustained high CPU, main-thread hangs, and
+multi-GB memory growth when the open vault is (or contains) a development
+workspace ([#35](https://github.com/michaelcraiggroup/gloss/issues/35)).
+
+### Fixed
+
+- **Dev build artifacts excluded everywhere** — `target`, `dist`, `build`, `DerivedData`, `Pods`, `.venv`, and other standard artifact folders are now ignored by the folder watcher, the sidebar tree, and the link index. Per-vault overrides via `.gloss/config.json` (`excludeAdd` / `excludeRemove`)
+- **Watcher batches debounced** — sustained churn (builds, git, agent sessions) coalesces into one reconcile + index pass per window instead of one per FSEvents callback
+- **Targeted tree reconciliation** — file-system events re-list only the loaded parent directories of the changed paths; the whole-tree re-enumeration that pegged the main thread is gone
+- **Filename search & wiki-links query the index** — no more force-loading the entire vault tree on the main thread during search or when a wiki-link can't resolve
+- **Serialized, incremental indexing** — index mutations run on one cancellable pipeline; rebuilds skip files whose mtime hasn't changed; watcher-triggered full rebuilds are rate-limited and coalesced
+- **Indexed link resolution** — per-save resolution is incremental and index-backed; the O(links × files) full-table scan after every save is gone
+- **Dashboard/graph refresh gated by visibility** — vault-wide aggregates and the full graph no longer rebuild on every index tick while hidden (the graph was also refreshing twice per tick when visible)
+- **Symlinked-vault rebuild bug** — stale-file cleanup compared unresolved against resolved paths, wiping and re-indexing the whole vault on every build for vaults under `/tmp`-style roots
+
+### Added
+
+- Large-workspace notice in the sidebar (one-time) pointing at `.gloss/config.json`
+- Launch restore defers indexing off the first frame
+
 ## [0.2.2] - 2026-03-10
 
 ### Added
