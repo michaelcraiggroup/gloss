@@ -34,12 +34,13 @@ struct GraphView: View {
         }
         .background(Color(nsColor: .textBackgroundColor))
         .onAppear {
+            // While hidden, index updates only mark the graph stale (the
+            // per-tick refresh here doubled up with VaultOverviewRefresh's).
             if graphService.data.nodes.isEmpty {
                 graphService.refresh(database: linkIndex.databaseRef)
+            } else {
+                graphService.refreshIfStale(database: linkIndex.databaseRef)
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .glossIndexUpdated)) { _ in
-            graphService.refresh(database: linkIndex.databaseRef)
         }
         .navigationTitle("Vault Graph")
         .navigationSubtitle(subtitle)

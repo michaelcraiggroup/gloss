@@ -398,7 +398,11 @@ struct GlossApp: App {
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
             fileTree.openFolder(url)
-            linkIndex.buildIndex(rootURL: url)
+            // Defer indexing one tick so first-frame rendering isn't racing
+            // the vault scan (the scan itself is mtime-incremental now).
+            Task { @MainActor in
+                linkIndex.buildIndex(rootURL: url)
+            }
         }
     }
 

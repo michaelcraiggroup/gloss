@@ -58,6 +58,11 @@ final class LinkIndex {
     }
     private(set) var lastBuildStats: BuildStats?
 
+    /// True when the vault scan crossed the large-workspace threshold —
+    /// the sidebar surfaces a one-time hint about `.gloss/config.json`.
+    private(set) var largeVaultDetected = false
+    nonisolated private static let largeVaultDirectoryThreshold = 5_000
+
     /// Chain an operation behind all previously enqueued index work.
     @discardableResult
     private func enqueue(_ op: @escaping @Sendable () async -> Void) -> Task<Void, Never> {
@@ -92,7 +97,9 @@ final class LinkIndex {
                 // Re-derive rules from the vault config rather than capturing
                 // main-actor state — order-independent of FileTreeModel.openFolder.
                 let rules = ExclusionRules.forVault(root: rootURL)
-                let files = Self.collectMarkdownFiles(under: rootURL, rules: rules)
+                let scan = Self.collectMarkdownFiles(under: rootURL, rules: rules)
+                let files = scan.files
+                let isLargeVault = scan.directoryCount > Self.largeVaultDirectoryThreshold
                 guard !Task.isCancelled else { return }
 
                 // Remove stale entries. Stale-detection must compare the same
@@ -142,6 +149,7 @@ final class LinkIndex {
                     self.allTitles = titles
                     self.linkHealth = health
                     self.lastBuildStats = stats
+                    self.largeVaultDetected = isLargeVault
                     self.isIndexing = false
                     NotificationCenter.default.post(name: .glossIndexUpdated, object: nil)
                 }
@@ -417,18 +425,21 @@ final class LinkIndex {
 
     /// Collect all markdown files under a directory, honoring the vault's
     /// exclusion rules (single source of truth shared with the watcher/tree).
+    /// Also reports how many directories were visited, which feeds the
+    /// large-workspace detection.
     nonisolated private static func collectMarkdownFiles(
         under url: URL,
         rules: ExclusionRules
-    ) -> [URL] {
+    ) -> (files: [URL], directoryCount: Int) {
         let fm = FileManager.default
         var files: [URL] = []
+        var directoryCount = 0
 
         guard let enumerator = fm.enumerator(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles]
-        ) else { return [] }
+        ) else { return ([], 0) }
 
         while let itemURL = enumerator.nextObject() as? URL {
             let name = itemURL.lastPathComponent
@@ -439,12 +450,14 @@ final class LinkIndex {
             }
 
             let isDir = (try? itemURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            if !isDir && markdownExtensions.contains(itemURL.pathExtension.lowercased()) {
+            if isDir {
+                directoryCount += 1
+            } else if markdownExtensions.contains(itemURL.pathExtension.lowercased()) {
                 files.append(itemURL)
             }
         }
 
-        return files
+        return (files, directoryCount)
     }
 
     /// Index a single file: read content, extract links/tags, persist to

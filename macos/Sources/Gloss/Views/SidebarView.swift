@@ -2,13 +2,24 @@ import AppKit
 import SwiftUI
 import SwiftData
 
+/// Recents query bounded to what the sidebar actually shows — the old
+/// unbounded sort-everything fetch re-ran inside List body evaluation
+/// (the render-loop stack in the 2026-07-01 CPU diagnostics).
+private func recentDocumentsDescriptor() -> FetchDescriptor<RecentDocument> {
+    var descriptor = FetchDescriptor<RecentDocument>(
+        sortBy: [SortDescriptor(\.lastOpened, order: .reverse)]
+    )
+    descriptor.fetchLimit = 10
+    return descriptor
+}
+
 /// File browser sidebar with recursive file tree, search, favorites, and recent documents.
 struct SidebarView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(StoreManager.self) private var store
-    @Query(sort: \RecentDocument.lastOpened, order: .reverse)
+    @Query(recentDocumentsDescriptor())
     private var recentDocuments: [RecentDocument]
     @Query(filter: #Predicate<RecentDocument> { $0.isFavorite },
            sort: \RecentDocument.title)
@@ -17,6 +28,7 @@ struct SidebarView: View {
     @Environment(FilenameSearchService.self) private var filenameSearch
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("largeVaultNoticeDismissed") private var largeVaultNoticeDismissed = false
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
     @State private var showingRenameAlert = false
@@ -29,6 +41,26 @@ struct SidebarView: View {
             get: { fileTree.selectedFileURL },
             set: { selectFile($0) }
         )) {
+            // One-time hint when the vault looks like a development workspace.
+            if linkIndex.largeVaultDetected && !largeVaultNoticeDismissed {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Large workspace", systemImage: "shippingbox")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Text("Build folders (target, dist, node_modules, …) are excluded automatically. Adjust via .gloss/config.json in the vault root.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Button("Got it") {
+                            largeVaultNoticeDismissed = true
+                        }
+                        .font(.caption2)
+                        .buttonStyle(.link)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
             // Tag filter banner (shown when filtering by tag from inspector or sidebar)
             if let activeTag = fileTree.activeTagFilter,
                let tagFiles = fileTree.tagFilteredFiles {
@@ -225,8 +257,12 @@ struct SidebarView: View {
                 }
 
                 if !recentDocuments.isEmpty {
+                    // One Set per body pass instead of an O(favorites) scan
+                    // per row per render.
+                    let favoritePaths = Set(favoriteDocuments.map(\.path))
                     Section("Recent Documents") {
-                        ForEach(recentDocuments.prefix(10)) { doc in
+                        ForEach(recentDocuments) { doc in
+                            let favorited = favoritePaths.contains(doc.path)
                             HStack {
                                 Label {
                                     Text(doc.title)
@@ -238,8 +274,8 @@ struct SidebarView: View {
                                 Button {
                                     toggleFavorite(url: doc.url)
                                 } label: {
-                                    Image(systemName: isFavorited(url: doc.url) ? "star.fill" : "star")
-                                        .foregroundStyle(isFavorited(url: doc.url) ? .yellow : .secondary)
+                                    Image(systemName: favorited ? "star.fill" : "star")
+                                        .foregroundStyle(favorited ? .yellow : .secondary)
                                         .font(.caption)
                                 }
                                 .buttonStyle(.plain)
@@ -739,10 +775,16 @@ struct SidebarView: View {
         contextMenuTargetURL = nil
     }
 
-    private func relativeDate(_ date: Date) -> String {
+    /// Shared formatter — allocating a RelativeDateTimeFormatter per row per
+    /// render is one of the more expensive things a List body can do.
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: .now)
+        return formatter
+    }()
+
+    private func relativeDate(_ date: Date) -> String {
+        Self.relativeDateFormatter.localizedString(for: date, relativeTo: .now)
     }
 
     private func openFolderFromSidebar() {

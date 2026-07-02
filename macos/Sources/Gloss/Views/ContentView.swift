@@ -482,8 +482,19 @@ struct VaultOverviewRefresh: ViewModifier {
         content
             .onReceive(NotificationCenter.default.publisher(for: .glossIndexUpdated)) { _ in
                 linkIndex.refreshBacklinks(for: currentFileURL)
-                vaultOverview.refresh(database: linkIndex.databaseRef)
-                graphService.refresh(database: linkIndex.databaseRef)
+                // Refresh the dashboard/graph only while they're on screen;
+                // hidden consumers mark stale and catch up on appear instead
+                // of recomputing vault-wide aggregates per index tick.
+                if hasFolder && currentFileURL == nil && !isShowingGraph {
+                    vaultOverview.refresh(database: linkIndex.databaseRef)
+                } else {
+                    vaultOverview.markStale()
+                }
+                if isShowingGraph {
+                    graphService.refresh(database: linkIndex.databaseRef)
+                } else {
+                    graphService.markStale()
+                }
             }
             .onChange(of: hasFolder) { _, nowHasFolder in
                 if nowHasFolder {
