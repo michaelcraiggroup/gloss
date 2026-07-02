@@ -93,13 +93,6 @@ struct SettingsView: View {
                 .frame(width: 180)
                 .disabled(!settings.quickCaptureEnabled)
             }
-
-            GridRow {
-                Text("Menu bar icon:")
-                    .gridColumnAlignment(.trailing)
-                Toggle("Show Gloss in the menu bar", isOn: $settings.quickCaptureMenuBar)
-                    .toggleStyle(.checkbox)
-            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

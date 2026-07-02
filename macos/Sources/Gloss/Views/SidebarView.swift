@@ -151,7 +151,8 @@ struct SidebarView: View {
                             } icon: {
                                 Text(doc.type.icon)
                             }
-                            .tag(doc.url)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectFile(doc.url) }
                             .contextMenu { favoriteContextMenu(for: doc.url) }
                             .swipeActions(edge: .trailing) {
                                 Button {
@@ -185,7 +186,8 @@ struct SidebarView: View {
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
                             }
-                            .tag(url)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectFile(url) }
                             .contextMenu { favoriteContextMenu(for: url) }
                         }
                     }
@@ -232,7 +234,8 @@ struct SidebarView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .tag(doc.url)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectFile(doc.url) }
                             .contextMenu { favoriteContextMenu(for: doc.url) }
                         }
                     }
@@ -639,18 +642,20 @@ struct SidebarView: View {
     // MARK: - Selection & Recents
 
     private func selectFile(_ url: URL?) {
-        // No-op on redundant re-selection. The List's selection binding can fire
-        // `set` with the already-selected value during reconciliation (the current
-        // file is tagged in the tree *and* in Recent/Favorites — duplicate tags).
-        // recordRecent() then bumps `lastOpened`, which reorders the lastOpened-
-        // sorted @Query, which re-renders the List, which fires `set` again → an
-        // infinite 100%-CPU loop. Only act on genuine selection changes.
+        // No-op on redundant re-selection (the List can fire `set` with the
+        // already-selected value during reconciliation — the open file is tagged
+        // in the tree AND in Recent/Favorites, i.e. duplicate tags).
         guard url != fileTree.selectedFileURL else { return }
         fileTree.selectedFileURL = url
         guard let url else { return }
         settings.currentFileURL = url
         settings.lastOpenedFile = url.standardizedFileURL.path
-        recordRecent(url: url)
+        // Defer the SwiftData write: recordRecent() bumps `lastOpened`, reordering
+        // the lastOpened-sorted Recent @Query. Doing that synchronously inside the
+        // List's selection update reorders rows mid-reconciliation and re-fires the
+        // selection → an infinite 100%-CPU render loop. Next-tick lets the current
+        // update settle first.
+        DispatchQueue.main.async { recordRecent(url: url) }
     }
 
     private func recordRecent(url: URL) {

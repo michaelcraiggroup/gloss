@@ -31,17 +31,15 @@ final class QuickCaptureController: NSObject, ObservableObject, NSWindowDelegate
     // MARK: - Lifecycle
 
     /// Begin watching the hot corner. `onCaptured` fires (main thread) with the
-    /// written note's URL so the app can refresh the tree / re-index.
+    /// written note's URL so the app can refresh the tree / re-index. The timer
+    /// runs unconditionally and `poll()` checks the enabled setting live — we do
+    /// NOT observe `quickCaptureEnabled` via SwiftUI `.onChange`, because tracking
+    /// an @AppStorage value nested in the ObservableObject there drives an
+    /// infinite view-update loop (100% CPU).
     func start(settings: AppSettings, onCaptured: @escaping (URL) -> Void) {
         self.settings = settings
         self.onCaptured = onCaptured
-        setEnabled(settings.quickCaptureEnabled)
-    }
-
-    func setEnabled(_ enabled: Bool) {
-        timer?.invalidate()
-        timer = nil
-        guard enabled else { return }
+        guard timer == nil else { return }   // idempotent — onAppear may fire more than once
         let t = Timer(timeInterval: 0.15, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.poll() }
         }
@@ -52,7 +50,8 @@ final class QuickCaptureController: NSObject, ObservableObject, NSWindowDelegate
     // MARK: - Hot-corner polling
 
     private func poll() {
-        guard let settings, panel == nil else { return }
+        // Live-check the setting here instead of via SwiftUI .onChange (see start()).
+        guard let settings, settings.quickCaptureEnabled, panel == nil else { return }
         let mouse = NSEvent.mouseLocation
         let corner = settings.screenCorner
         if let screen = NSScreen.screens.first(where: {
