@@ -238,10 +238,19 @@ struct DocumentView: View {
             return
         }
         loadingForURL = url
+        let previousContent = fileContent
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
-            renderAsync(content, url: url)
+            // Re-triggers with unchanged content (e.g. the folder watcher
+            // arming after launch restores the vault, which re-runs
+            // loadAndWatch for watcher coverage) don't need a re-render —
+            // and rendering identical HTML would strand the spinner (#40).
+            if content != previousContent || renderURL != url {
+                renderAsync(content, url: url)
+            } else {
+                isLoading = false
+            }
         } else {
             isLoading = false
         }
@@ -327,9 +336,18 @@ struct DocumentView: View {
             guard !Task.isCancelled else { return }
             let html = GuideInjector.injectGuideSDK(into: rendered)
             await MainActor.run {
-                renderedHTML = html
-                renderURL = url
-                // isLoading cleared by glossWebViewDidFinishLoad notification
+                if html == renderedHTML {
+                    // The WebView reloads only when the HTML actually changes,
+                    // so the didFinishLoad that normally clears the spinner
+                    // will never come for an identical render — clear it here
+                    // (the cold-launch stranded spinner, #40).
+                    renderURL = url
+                    isLoading = false
+                } else {
+                    renderedHTML = html
+                    renderURL = url
+                    // isLoading cleared by glossWebViewDidFinishLoad notification
+                }
             }
         }
     }

@@ -5,6 +5,14 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.19.1] - 2026-07-02
+
+### Fixed
+
+- **Stranded loading spinner on cold-launch external opens** — when the vault restored after the first document had already rendered, the resulting identical re-render never navigated, so the spinner never cleared. Identical renders now clear the loading state directly, and unchanged content skips the re-render entirely ([#40](https://github.com/michaelcraiggroup/gloss/issues/40))
+- **Vault silently not reopening on first launch of a fresh binary** — folder restore raced the App Store entitlement check with no retry; the restore now re-runs when the unlock lands ([#38](https://github.com/michaelcraiggroup/gloss/issues/38))
+- **`make-app.sh` refuses unsubstituted Info.plists** — a dev bundle built from a post-xcodegen working tree shipped a literal `$(PRODUCT_BUNDLE_IDENTIFIER)` identity that LaunchServices registered as a second app named "Gloss", hijacking name-based launches ([#39](https://github.com/michaelcraiggroup/gloss/issues/39))
+
 ## [macOS 1.19.0] - 2026-07-02
 
 Performance overhaul: fixes sustained high CPU, main-thread hangs, and

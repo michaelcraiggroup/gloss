@@ -47,7 +47,17 @@ done
 # Copy icon to Resources (for Finder/Dock via Info.plist CFBundleIconFile)
 cp "Sources/Gloss/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/"
 
-# Copy Info.plist
+# Copy Info.plist — refuse the unsubstituted xcodegen form. This plist is
+# consumed RAW (no Xcode variable substitution), and a working tree left in
+# the post-`xcodegen generate` state carries $(VARIABLE) placeholders; a
+# bundle shipped that way has a broken identity that LaunchServices registers
+# as a separate app named "Gloss" and can hand out for name-based launches
+# (gloss#39).
+if grep -q '\$(' "$SCRIPT_DIR/Info.plist"; then
+    echo "Error: Scripts/Info.plist contains unsubstituted \$(…) build variables." >&2
+    echo "       Restore the committed literal form first: git checkout -- macos/Scripts/Info.plist" >&2
+    exit 1
+fi
 cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
 
 # Ad-hoc sign so Gatekeeper allows the bundle to launch from /Applications.
