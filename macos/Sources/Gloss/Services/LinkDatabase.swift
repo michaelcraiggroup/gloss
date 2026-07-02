@@ -213,6 +213,60 @@ struct LinkDatabase: Sendable {
         }
     }
 
+    // MARK: - Filename Lookup
+
+    /// Lightweight file row for filename search and wiki-target resolution.
+    struct FileListRow: Sendable {
+        let path: String
+        let title: String
+        let modifiedAt: Date
+    }
+
+    /// All indexed files. Used for client-side filename filtering — bounded
+    /// by the vault's indexed markdown set (excluded dirs never enter the
+    /// index), and unicode-correct in a way SQL `LIKE` is not.
+    func allFiles() throws -> [FileListRow] {
+        try dbQueue.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: "SELECT path, title, modifiedAt FROM files ORDER BY title COLLATE NOCASE"
+            )
+            return rows.map {
+                FileListRow(
+                    path: $0["path"],
+                    title: $0["title"],
+                    modifiedAt: Date(timeIntervalSince1970: $0["modifiedAt"])
+                )
+            }
+        }
+    }
+
+    /// Resolve a wiki-link target to an indexed file path: exact title match
+    /// first, then (for `folder/note` targets) a path-suffix match. Replaces
+    /// the tree-walking BFS that force-loaded the whole sidebar tree.
+    func pathForWikiTarget(_ target: String) throws -> String? {
+        try dbQueue.read { db in
+            if let row = try Row.fetchOne(
+                db,
+                sql: "SELECT path FROM files WHERE title = ? LIMIT 1",
+                arguments: [target]
+            ) {
+                return row["path"]
+            }
+            guard target.contains("/") else { return nil }
+            return try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT path FROM files
+                    WHERE path LIKE '%/' || ? || '.md'
+                       OR path LIKE '%/' || ? || '.markdown'
+                    LIMIT 1
+                    """,
+                arguments: [target, target]
+            )?["path"]
+        }
+    }
+
     // MARK: - Tags CRUD
 
     /// Replace all tags for a file.

@@ -14,6 +14,7 @@ struct SidebarView: View {
            sort: \RecentDocument.title)
     private var favoriteDocuments: [RecentDocument]
     @Environment(EnhancedSearchService.self) private var enhancedSearch
+    @Environment(FilenameSearchService.self) private var filenameSearch
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
@@ -125,17 +126,25 @@ struct SidebarView: View {
                         }
                     }
                 }
-            } else if let results = fileTree.searchResults,
-                      searchScope == .filename {
+            } else if searchScope == .filename && !searchText.isEmpty {
                 Section("Search Results") {
-                    if results.isEmpty {
-                        Text("No matches")
-                            .foregroundStyle(.secondary)
+                    if let results = filenameSearch.results {
+                        if results.isEmpty {
+                            Text("No matches")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(results) { hit in
+                                filenameHitRow(hit)
+                                    .tag(hit.fileURL)
+                                    .contextMenu { favoriteContextMenu(for: hit.fileURL) }
+                            }
+                        }
                     } else {
-                        ForEach(results) { node in
-                            FileTreeRow(node: node)
-                                .tag(node.url)
-                                .contextMenu { favoriteContextMenu(for: node.url) }
+                        HStack {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Searching…")
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -257,6 +266,8 @@ struct SidebarView: View {
             fileTree.searchQuery = query
             if searchScope == .content {
                 enhancedSearch.search(query: query, database: linkIndex.databaseRef)
+            } else if searchScope == .filename {
+                filenameSearch.search(query: query, database: linkIndex.databaseRef)
             }
         }
         .onChange(of: searchScope) { _, scope in
@@ -268,8 +279,15 @@ struct SidebarView: View {
             fileTree.searchScope = scope
             if scope == .content && !searchText.isEmpty {
                 enhancedSearch.search(query: searchText, database: linkIndex.databaseRef)
-            } else if scope == .filename || scope == .tags {
+                filenameSearch.cancel()
+            } else if scope == .filename {
                 enhancedSearch.cancel()
+                if !searchText.isEmpty {
+                    filenameSearch.search(query: searchText, database: linkIndex.databaseRef)
+                }
+            } else {
+                enhancedSearch.cancel()
+                filenameSearch.cancel()
             }
         }
         .toolbar {
@@ -321,6 +339,19 @@ struct SidebarView: View {
             if let url = contextMenuTargetURL {
                 Text("\"\(url.lastPathComponent)\" will be moved to the Trash.")
             }
+        }
+    }
+
+    // MARK: - Filename Hit Row
+
+    private func filenameHitRow(_ hit: FilenameHit) -> some View {
+        let parentFolder = hit.fileURL.deletingLastPathComponent().lastPathComponent
+        let docType = DocumentType.detect(filename: hit.filename, folderName: parentFolder)
+        return Label {
+            Text(hit.filename)
+                .lineLimit(1)
+        } icon: {
+            Text(docType.icon)
         }
     }
 

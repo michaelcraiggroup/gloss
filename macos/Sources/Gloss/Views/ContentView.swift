@@ -519,9 +519,11 @@ struct FolderWatchHandler: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onReceive(NotificationCenter.default.publisher(for: .glossVaultFilesChanged)) { notification in
-                fileTree.refreshAfterFileChange()
                 if let paths = notification.object as? [String] {
+                    fileTree.reconcile(changedPaths: paths)
                     linkIndex.handleExternalChanges(paths: paths)
+                } else {
+                    fileTree.refreshAfterFileChange()
                 }
             }
     }
