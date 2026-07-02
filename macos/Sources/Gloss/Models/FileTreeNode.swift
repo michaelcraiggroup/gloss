@@ -17,10 +17,12 @@ final class FileTreeNode: Identifiable {
 
     /// Folders and markdown extensions to include
     static let markdownExtensions: Set<String> = ["md", "markdown"]
-    static let excludedNames: Set<String> = [
-        "node_modules", ".git", ".build", ".swiftpm", "__pycache__",
-        ".DS_Store", "Thumbs.db", ".gloss"
-    ]
+
+    /// Names excluded from the tree — the vault-wide rules (single source of
+    /// truth shared with the folder watcher and the link indexer).
+    static var excludedNames: Set<String> {
+        ExclusionRules.current.excludedNames
+    }
 
     init(url: URL, isDirectory: Bool, parentFolderName: String = "") {
         self.url = url

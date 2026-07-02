@@ -43,7 +43,11 @@ final class LinkIndex {
             do {
                 let db = try LinkDatabase(rootURL: rootURL)
 
-                let files = Self.collectMarkdownFiles(under: rootURL)
+                // Re-derive from the vault config rather than capturing
+                // main-actor state — keeps this helper order-independent of
+                // FileTreeModel.openFolder and off the main thread.
+                let rules = ExclusionRules.forVault(root: rootURL)
+                let files = Self.collectMarkdownFiles(under: rootURL, rules: rules)
                 guard !Task.isCancelled else { return }
 
                 // Remove stale entries
@@ -170,16 +174,17 @@ final class LinkIndex {
         }
 
         // Swallow the FSEvents echo of our own saves (one-shot: a genuine later
-        // external edit to the same file is not suppressed).
+        // external edit to the same file is not suppressed). The window covers
+        // FSEvents latency (0.3s) plus the debouncer's max delivery delay (1.5s).
         markdownPaths = markdownPaths.filter { path in
             let key = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-            if let t = recentSelfUpdates[key], Date().timeIntervalSince(t) < 2.0 {
+            if let t = recentSelfUpdates[key], Date().timeIntervalSince(t) < 3.0 {
                 recentSelfUpdates[key] = nil
                 return false
             }
             return true
         }
-        let cutoff = Date().addingTimeInterval(-2.0)
+        let cutoff = Date().addingTimeInterval(-3.0)
         recentSelfUpdates = recentSelfUpdates.filter { $0.value > cutoff }
 
         if hasStructuralChange || markdownPaths.count > 20 {
@@ -302,15 +307,14 @@ final class LinkIndex {
 
     // MARK: - Static Helpers (nonisolated for TaskGroup)
 
-    /// Names to skip during indexing (mirrors FileTreeNode.excludedNames + .gloss).
-    nonisolated private static let excludedNames: Set<String> = [
-        "node_modules", ".git", ".build", ".swiftpm", "__pycache__",
-        ".DS_Store", "Thumbs.db", ".gloss"
-    ]
     nonisolated private static let markdownExtensions: Set<String> = ["md", "markdown"]
 
-    /// Collect all markdown files under a directory.
-    nonisolated private static func collectMarkdownFiles(under url: URL) -> [URL] {
+    /// Collect all markdown files under a directory, honoring the vault's
+    /// exclusion rules (single source of truth shared with the watcher/tree).
+    nonisolated private static func collectMarkdownFiles(
+        under url: URL,
+        rules: ExclusionRules
+    ) -> [URL] {
         let fm = FileManager.default
         var files: [URL] = []
 
@@ -323,7 +327,7 @@ final class LinkIndex {
         while let itemURL = enumerator.nextObject() as? URL {
             let name = itemURL.lastPathComponent
 
-            if excludedNames.contains(name) {
+            if rules.isExcluded(name) {
                 enumerator.skipDescendants()
                 continue
             }

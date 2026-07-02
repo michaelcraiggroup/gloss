@@ -35,6 +35,13 @@ final class FileTreeModel {
 
     private let folderWatcher = FolderWatcher()
 
+    /// Coalesces watcher callbacks so sustained churn (builds, git, agent
+    /// sessions writing into the vault) costs one reconcile + index pass per
+    /// window instead of one per FSEvents batch.
+    private let eventDebouncer = VaultEventDebouncer { paths in
+        NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
+    }
+
     /// Whether the folder watcher is actively running. False if FSEvents failed
     /// to start — DocumentView checks this so it keeps the per-file watcher as a
     /// fallback for the open document instead of silently relying on a dead watch.
@@ -42,6 +49,9 @@ final class FileTreeModel {
 
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
+        // Vault-wide exclusion rules (defaults + .gloss/config.json overrides)
+        // must be in place before the watcher arms or the tree loads.
+        ExclusionRules.current = ExclusionRules.forVault(root: url)
         let node = FileTreeNode(url: url, isDirectory: true)
         // Arm the watcher BEFORE enumerating children. Since FileTreeModel is
         // @MainActor, the FSEvents callback can't be dispatched to the main queue
@@ -49,8 +59,11 @@ final class FileTreeModel {
         // change that occurs between arm and the completion of loadChildren is
         // guaranteed to fire an event and trigger a reconcile — closing the
         // kFSEventStreamEventIdSinceNow gap that existed when we enumerated first.
-        isWatching = folderWatcher.start(root: url) { paths in
-            NotificationCenter.default.post(name: .glossVaultFilesChanged, object: paths)
+        isWatching = folderWatcher.start(root: url, rules: ExclusionRules.current) { [weak self] paths in
+            // FolderWatcher delivers on the main queue.
+            MainActor.assumeIsolated {
+                self?.eventDebouncer.add(paths)
+            }
         }
         node.loadChildren()
         node.isExpanded = true
@@ -60,6 +73,8 @@ final class FileTreeModel {
     /// Close the current folder.
     func closeFolder() {
         folderWatcher.stop()
+        eventDebouncer.cancel()
+        ExclusionRules.current = .standard
         isWatching = false
         scopedNode = nil
         rootNode = nil
