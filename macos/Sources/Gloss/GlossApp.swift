@@ -72,9 +72,6 @@ struct GlossApp: App {
                         linkIndex.updateIndex(for: url)
                     }
                 }
-                .onChange(of: settings.quickCaptureEnabled) { _, enabled in
-                    quickCapture.setEnabled(enabled)
-                }
                 .onOpenURL { url in
                     openPath(url)
                 }
@@ -317,7 +314,7 @@ struct GlossApp: App {
         .windowResizability(.contentMinSize)
         .defaultSize(width: 320, height: 140)
 
-        MenuBarExtra("Gloss Quick Capture", systemImage: "bolt.fill", isInserted: $settings.quickCaptureMenuBar) {
+        MenuBarExtra("Gloss Quick Capture", systemImage: "bolt.fill") {
             Button("Quick Capture…") {
                 quickCapture.showPanel()
             }

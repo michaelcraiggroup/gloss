@@ -15,7 +15,6 @@ final class AppSettings: ObservableObject {
     @AppStorage("dailyNotesDateFormat") var dailyNotesDateFormat: String = "yyyy-MM-dd"
     @AppStorage("quickCaptureEnabled") var quickCaptureEnabled: Bool = true
     @AppStorage("quickCaptureCorner") var quickCaptureCorner: String = ScreenCorner.bottomLeft.rawValue
-    @AppStorage("quickCaptureMenuBar") var quickCaptureMenuBar: Bool = true
 
     @Published var currentFileURL: URL?
     @Published var isZenMode: Bool = false
