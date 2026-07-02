@@ -18,7 +18,6 @@ final class LinkIndex {
 
     private var database: LinkDatabase?
     private var rootURL: URL?
-    private var indexTask: Task<Void, Never>?
 
     /// Paths the app itself just (re)indexed, with a timestamp. Used to swallow
     /// the FSEvents echo of our own saves so an in-app edit doesn't get indexed
@@ -29,39 +28,104 @@ final class LinkIndex {
     /// `VaultOverviewService`) that need to run queries off-main.
     var databaseRef: LinkDatabase? { database }
 
+    // MARK: - Serialized Index Pipeline
+
+    /// Tail of the serialized pipeline. Every index mutation (full build,
+    /// per-file update, watcher batch, delete, rename) chains behind the
+    /// previous one. Overlapping untracked `Task.detached` workers were how a
+    /// burst of watcher batches piled up multi-GB of concurrent rebuild
+    /// state (#35).
+    private var pipelineTail: Task<Void, Never>?
+
+    /// The in-flight full build, if any; a newer full build cancels it
+    /// (checked per file inside the build loop).
+    private var buildTask: Task<Void, Never>?
+
+    /// Rate limiting for watcher-triggered full rebuilds.
+    private var lastFullBuildStartedAt: Date?
+    private var fullRebuildScheduled = false
+    /// Minimum spacing between full builds. Instance-var so tests can shrink it.
+    var fullRebuildMinInterval: TimeInterval = 30
+
+    /// Number of full builds that began executing (observability for tests).
+    private(set) var fullBuildCount = 0
+
+    /// Stats from the most recent completed full build.
+    struct BuildStats: Equatable, Sendable {
+        var indexed = 0
+        var skipped = 0
+        var removed = 0
+    }
+    private(set) var lastBuildStats: BuildStats?
+
+    /// Chain an operation behind all previously enqueued index work.
+    @discardableResult
+    private func enqueue(_ op: @escaping @Sendable () async -> Void) -> Task<Void, Never> {
+        let previous = pipelineTail
+        let task = Task.detached(priority: .utility) {
+            await previous?.value
+            await op()
+        }
+        pipelineTail = task
+        return task
+    }
+
+    // MARK: - Full Build
+
     /// Build the full index for a vault root. Creates `.gloss/index.sqlite`.
     ///
-    /// Runs the heavy indexing work off-main via `Task.detached` — otherwise
-    /// the nonisolated static helpers inherit main actor isolation from the
-    /// enclosing `@MainActor` class and block the UI thread for the whole scan.
+    /// Runs on the serialized pipeline off-main. Files whose stored mtime
+    /// matches disk are skipped, so a warm rebuild (app launch, structural
+    /// change) is a metadata scan rather than a full re-read of the vault.
     func buildIndex(rootURL: URL) {
         self.rootURL = rootURL
-        indexTask?.cancel()
+        fullRebuildScheduled = false
+        lastFullBuildStartedAt = Date()
+        fullBuildCount += 1
         isIndexing = true
+        buildTask?.cancel() // a newer full build supersedes an in-flight one
 
-        indexTask = Task.detached { [weak self] in
+        buildTask = enqueue { [weak self] in
             do {
                 let db = try LinkDatabase(rootURL: rootURL)
 
-                // Re-derive from the vault config rather than capturing
-                // main-actor state — keeps this helper order-independent of
-                // FileTreeModel.openFolder and off the main thread.
+                // Re-derive rules from the vault config rather than capturing
+                // main-actor state — order-independent of FileTreeModel.openFolder.
                 let rules = ExclusionRules.forVault(root: rootURL)
                 let files = Self.collectMarkdownFiles(under: rootURL, rules: rules)
                 guard !Task.isCancelled else { return }
 
-                // Remove stale entries
-                let existingPaths = Set(files.map(\.path))
-                try db.removeStaleFiles(existingPaths: existingPaths)
+                // Remove stale entries. Stale-detection must compare the same
+                // canonical form the index stores (symlink-resolved), or a
+                // vault under a symlinked root (/var → /private/var) wipes and
+                // re-indexes everything on every build.
+                let resolvedPaths = files.map { $0.resolvingSymlinksInPath().path }
+                let removed = try db.removeStaleFiles(existingPaths: Set(resolvedPaths))
 
-                // Index each file
-                for fileURL in files {
+                // Index each changed file; skip unchanged mtimes. The
+                // autoreleasepool bounds Foundation's bridged-string garbage,
+                // which otherwise accumulates for the whole scan.
+                let storedModTimes = (try? db.allFileModTimes()) ?? [:]
+                var stats = BuildStats(indexed: 0, skipped: 0, removed: removed)
+                for (fileURL, resolvedPath) in zip(files, resolvedPaths) {
                     guard !Task.isCancelled else { return }
-                    try Self.indexFile(fileURL, rootURL: rootURL, database: db)
+                    try autoreleasepool {
+                        let diskMod = (try? fileURL.resourceValues(
+                            forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                        if let diskMod, let stored = storedModTimes[resolvedPath],
+                           abs(diskMod.timeIntervalSince1970 - stored) < 0.001 {
+                            stats.skipped += 1
+                        } else {
+                            _ = try Self.indexFile(fileURL, rootURL: rootURL, database: db)
+                            stats.indexed += 1
+                        }
+                    }
                 }
 
-                // Resolve cross-references
-                try db.resolveAllLinks()
+                // Resolve cross-references once — skippable when nothing changed.
+                if stats.indexed > 0 || stats.removed > 0 {
+                    try db.resolveAllLinks()
+                }
 
                 // Collect aggregates off-main
                 let recent = (try? db.recentlyChangedFiles()) ?? []
@@ -77,6 +141,7 @@ final class LinkIndex {
                     self.allTags = tags
                     self.allTitles = titles
                     self.linkHealth = health
+                    self.lastBuildStats = stats
                     self.isIndexing = false
                     NotificationCenter.default.post(name: .glossIndexUpdated, object: nil)
                 }
@@ -85,9 +150,35 @@ final class LinkIndex {
                     self?.isIndexing = false
                 }
             }
-            _ = self  // silence unused-capture warning when the catch path fires
+            _ = self // silence unused-capture warning when the catch path fires
         }
     }
+
+    /// Request a full rebuild, coalescing repeated requests: dev churn can
+    /// otherwise ask for one per watcher batch. At most one build starts per
+    /// `fullRebuildMinInterval`; a request arriving inside the window schedules
+    /// exactly one trailing build, so the index still converges on the final
+    /// on-disk state.
+    func requestFullRebuild() {
+        guard let rootURL else { return }
+        guard !fullRebuildScheduled else { return }
+        let elapsed = lastFullBuildStartedAt.map { Date().timeIntervalSince($0) } ?? .infinity
+        if elapsed >= fullRebuildMinInterval {
+            buildIndex(rootURL: rootURL)
+        } else {
+            fullRebuildScheduled = true
+            let delay = fullRebuildMinInterval - elapsed
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, self.fullRebuildScheduled else { return }
+                if let root = self.rootURL {
+                    self.buildIndex(rootURL: root) // clears fullRebuildScheduled
+                }
+            }
+        }
+    }
+
+    // MARK: - Incremental Updates
 
     /// Incrementally update the index for a single file (e.g., after save).
     func updateIndex(for fileURL: URL) {
@@ -96,10 +187,10 @@ final class LinkIndex {
         // Record so handleExternalChanges can ignore the FSEvents echo of this save.
         recentSelfUpdates[fileURL.resolvingSymlinksInPath().path] = Date()
 
-        Task.detached { [weak self] in
+        enqueue { [weak self] in
             do {
-                try Self.indexFile(fileURL, rootURL: rootURL, database: db)
-                try db.resolveAllLinks()
+                guard let fileId = try Self.indexFile(fileURL, rootURL: rootURL, database: db) else { return }
+                try db.resolveLinksTouching(fileId: fileId)
 
                 let recent = (try? db.recentlyChangedFiles()) ?? []
                 let tags = (try? db.allTagCounts()) ?? []
@@ -119,14 +210,14 @@ final class LinkIndex {
         }
     }
 
-    /// Update the index after a file is deleted.
+    /// Update the index after a file is deleted. `deleteFile` un-resolves
+    /// inbound links itself, so no resolve pass is needed.
     func removeFromIndex(url: URL) {
         guard let db = database else { return }
         let standardizedPath = url.resolvingSymlinksInPath().path
-        Task.detached { [weak self] in
+        enqueue { [weak self] in
             do {
                 try db.deleteFile(path: standardizedPath)
-                try db.resolveAllLinks()
                 // Recompute aggregates too, otherwise the deleted file lingers in
                 // the Recently Changed list and its tags stay in the Tags browser.
                 let recent = (try? db.recentlyChangedFiles()) ?? []
@@ -149,24 +240,28 @@ final class LinkIndex {
     /// watcher. Re-indexes created/modified markdown files and drops deleted ones.
     ///
     /// - Directory-level changes (folder rename/move/delete) can't be mapped to
-    ///   the affected markdown files from the path alone, so they trigger a single
-    ///   full rebuild — as do large bursts (e.g. a git checkout).
-    /// - Otherwise all changed files are indexed/removed and links resolved ONCE
-    ///   for the whole batch, not once per file.
+    ///   the affected markdown files from the path alone, so they request a
+    ///   full rebuild — rate-limited, since builds are mtime-cheap but not free.
+    /// - Otherwise all changed files are indexed/removed on the serialized
+    ///   pipeline and links resolved for the whole batch: incrementally for
+    ///   small batches, or in one indexed full pass for large ones.
     func handleExternalChanges(paths: [String]) {
         guard let db = database, let rootURL else { return }
 
         let fm = FileManager.default
 
-        // A directory in the batch means a folder was created/renamed/moved/deleted
-        // (file-level events carry the file's own path, not its parent).
+        // A path that IS currently a directory means a folder was created/
+        // renamed/moved. A vanished path counts as structural only when the
+        // index knows files beneath it — the old guess ("vanished + no
+        // extension ⇒ removed dir") fired for every deleted extension-less
+        // dev file (Makefile, LICENSE, binaries) and forced full rebuilds.
         let hasStructuralChange = paths.contains { path in
             var isDir: ObjCBool = false
             if fm.fileExists(atPath: path, isDirectory: &isDir) {
                 return isDir.boolValue
             }
-            // A vanished path with no file extension is most likely a removed dir.
-            return (path as NSString).pathExtension.isEmpty
+            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+            return (try? db.hasFiles(underPathPrefix: resolved + "/")) ?? false
         }
 
         var markdownPaths = paths.filter {
@@ -187,8 +282,8 @@ final class LinkIndex {
         let cutoff = Date().addingTimeInterval(-3.0)
         recentSelfUpdates = recentSelfUpdates.filter { $0.value > cutoff }
 
-        if hasStructuralChange || markdownPaths.count > 20 {
-            buildIndex(rootURL: rootURL)
+        if hasStructuralChange {
+            requestFullRebuild()
             return
         }
         guard !markdownPaths.isEmpty else { return }
@@ -196,16 +291,26 @@ final class LinkIndex {
         // Batch: index/remove every changed file, then resolve links and refresh
         // aggregates ONCE. Posting .glossIndexUpdated lets ContentView refresh
         // backlinks, the vault overview, and the graph for the current file.
-        Task.detached { [weak self] in
-            for path in markdownPaths {
+        let batchPaths = markdownPaths
+        enqueue { [weak self] in
+            var touchedIds: [Int64] = []
+            for path in batchPaths {
                 let url = URL(fileURLWithPath: path)
                 if FileManager.default.fileExists(atPath: path) {
-                    try? Self.indexFile(url, rootURL: rootURL, database: db)
+                    if let id = ((try? Self.indexFile(url, rootURL: rootURL, database: db)) ?? nil) {
+                        touchedIds.append(id)
+                    }
                 } else {
                     try? db.deleteFile(path: url.resolvingSymlinksInPath().path)
                 }
             }
-            try? db.resolveAllLinks()
+            if touchedIds.count > 5 {
+                try? db.resolveAllLinks()
+            } else {
+                for id in touchedIds {
+                    try? db.resolveLinksTouching(fileId: id)
+                }
+            }
             let recent = (try? db.recentlyChangedFiles()) ?? []
             let tags = (try? db.allTagCounts()) ?? []
             let health = Self.computeHealth(database: db)
@@ -224,11 +329,12 @@ final class LinkIndex {
     func handleRename(oldURL: URL, newURL: URL) {
         guard let db = database, let rootURL else { return }
         let oldPath = oldURL.resolvingSymlinksInPath().path
-        Task.detached { [weak self] in
+        enqueue { [weak self] in
             do {
                 try db.deleteFile(path: oldPath)
-                try Self.indexFile(newURL, rootURL: rootURL, database: db)
-                try db.resolveAllLinks()
+                if let fileId = try Self.indexFile(newURL, rootURL: rootURL, database: db) {
+                    try db.resolveLinksTouching(fileId: fileId)
+                }
                 let health = Self.computeHealth(database: db)
                 await MainActor.run { [weak self] in
                     self?.linkHealth = health
@@ -341,9 +447,17 @@ final class LinkIndex {
         return files
     }
 
-    /// Index a single file: read content, extract links/tags, persist to database.
-    nonisolated private static func indexFile(_ fileURL: URL, rootURL: URL, database: LinkDatabase) throws {
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { return }
+    /// Index a single file: read content, extract links/tags, persist to
+    /// database. Returns the file's row ID, or nil when the file is unreadable.
+    /// Links are stored unresolved — follow up with `resolveLinksTouching` or
+    /// `resolveAllLinks`.
+    @discardableResult
+    nonisolated private static func indexFile(
+        _ fileURL: URL,
+        rootURL: URL,
+        database: LinkDatabase
+    ) throws -> Int64? {
+        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { return nil }
 
         let modDate = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date()
         let title = fileURL.deletingPathExtension().lastPathComponent
@@ -370,5 +484,7 @@ final class LinkIndex {
         // source (not rendered HTML) matches what users actually search for
         // and lets FTS5 tokenize against wiki-link syntax.
         try database.indexFileContent(fileId: fileId, title: title, body: content)
+
+        return fileId
     }
 }

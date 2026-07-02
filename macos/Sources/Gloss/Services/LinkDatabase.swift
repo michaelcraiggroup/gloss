@@ -84,6 +84,27 @@ struct LinkDatabase: Sendable {
             try db.create(index: "properties_key_value", on: "properties", columns: ["key", "value"])
         }
 
+        // Perf overhaul (#35) — indexed link resolution. `basename` duplicates
+        // the extension-less filename (today identical to `title`, but stays
+        // correct if titles ever become frontmatter-driven); the indexes turn
+        // resolution from a correlated full-table LIKE scan into indexed
+        // equality probes.
+        migrator.registerMigration("v4_link_resolution") { db in
+            try db.execute(sql: "ALTER TABLE files ADD COLUMN basename TEXT NOT NULL DEFAULT ''")
+            let rows = try Row.fetchAll(db, sql: "SELECT id, path FROM files")
+            for row in rows {
+                let path: String = row["path"]
+                let base = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+                try db.execute(
+                    sql: "UPDATE files SET basename = ? WHERE id = ?",
+                    arguments: [base, row["id"] as Int64]
+                )
+            }
+            try db.create(index: "links_targetName", on: "links", columns: ["targetName"])
+            try db.create(index: "files_title", on: "files", columns: ["title"])
+            try db.create(index: "files_basename", on: "files", columns: ["basename"])
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -95,18 +116,19 @@ struct LinkDatabase: Sendable {
         try dbQueue.write { db in
             let now = Date().timeIntervalSince1970
             let modified = modifiedAt.timeIntervalSince1970
+            let basename = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
 
             if let row = try Row.fetchOne(db, sql: "SELECT id FROM files WHERE path = ?", arguments: [path]) {
                 let fileId: Int64 = row["id"]
                 try db.execute(
-                    sql: "UPDATE files SET title = ?, modifiedAt = ?, indexedAt = ? WHERE id = ?",
-                    arguments: [title, modified, now, fileId]
+                    sql: "UPDATE files SET title = ?, basename = ?, modifiedAt = ?, indexedAt = ? WHERE id = ?",
+                    arguments: [title, basename, modified, now, fileId]
                 )
                 return fileId
             } else {
                 try db.execute(
-                    sql: "INSERT INTO files (path, title, modifiedAt, indexedAt) VALUES (?, ?, ?, ?)",
-                    arguments: [path, title, modified, now]
+                    sql: "INSERT INTO files (path, title, basename, modifiedAt, indexedAt) VALUES (?, ?, ?, ?, ?)",
+                    arguments: [path, title, basename, modified, now]
                 )
                 return db.lastInsertedRowID
             }
@@ -115,10 +137,17 @@ struct LinkDatabase: Sendable {
 
     /// Delete a file and its associated links/tags/FTS row (cascading).
     /// FTS5 virtual tables don't participate in foreign-key cascades, so the
-    /// `files_fts` row has to be removed explicitly by rowid.
+    /// `files_fts` row has to be removed explicitly by rowid. Inbound links
+    /// are marked unresolved here (the FK's setNull would clear the target
+    /// but leave `isResolved` stale — previously papered over by the global
+    /// re-resolve that ran after every change).
     func deleteFile(path: String) throws {
         try dbQueue.write { db in
             if let fileId: Int64 = try Row.fetchOne(db, sql: "SELECT id FROM files WHERE path = ?", arguments: [path])?["id"] {
+                try db.execute(
+                    sql: "UPDATE links SET targetFileId = NULL, isResolved = 0 WHERE targetFileId = ?",
+                    arguments: [fileId]
+                )
                 try db.execute(sql: "DELETE FROM files_fts WHERE rowid = ?", arguments: [fileId])
                 try db.execute(sql: "DELETE FROM files WHERE id = ?", arguments: [fileId])
             }
@@ -146,70 +175,179 @@ struct LinkDatabase: Sendable {
         }
     }
 
-    /// Remove files from the index that no longer exist on disk.
-    func removeStaleFiles(existingPaths: Set<String>) throws {
+    /// Remove files from the index that no longer exist on disk. Returns the
+    /// number of rows removed so callers can skip link re-resolution when
+    /// nothing changed.
+    @discardableResult
+    func removeStaleFiles(existingPaths: Set<String>) throws -> Int {
         try dbQueue.write { db in
             let allFiles = try Row.fetchAll(db, sql: "SELECT id, path FROM files")
+            var removed = 0
             for row in allFiles {
                 let path: String = row["path"]
                 if !existingPaths.contains(path) {
                     let fileId: Int64 = row["id"]
+                    try db.execute(
+                        sql: "UPDATE links SET targetFileId = NULL, isResolved = 0 WHERE targetFileId = ?",
+                        arguments: [fileId]
+                    )
                     try db.execute(sql: "DELETE FROM files_fts WHERE rowid = ?", arguments: [fileId])
                     try db.execute(sql: "DELETE FROM files WHERE id = ?", arguments: [fileId])
+                    removed += 1
                 }
             }
+            return removed
         }
     }
 
     // MARK: - Links CRUD
 
-    /// Replace all links for a file with new ones.
+    /// Replace all links for a file with new ones. Rows are inserted
+    /// unresolved — callers follow up with `resolveLinksTouching(fileId:)`
+    /// (incremental) or `resolveAllLinks()` (full build), so this stays a
+    /// pure write. The old version ran a leading-wildcard LIKE lookup per
+    /// link on every index pass.
     func replaceLinks(fileId: Int64, links: [(targetName: String, linkType: String, displayText: String?, lineNumber: Int)]) throws {
         try dbQueue.write { db in
             try db.execute(sql: "DELETE FROM links WHERE sourceFileId = ?", arguments: [fileId])
 
             for link in links {
-                // Try to resolve target to an existing file
-                let targetFileId: Int64? = try Row.fetchOne(
-                    db,
-                    sql: "SELECT id FROM files WHERE title = ? OR path LIKE ?",
-                    arguments: [link.targetName, "%/\(link.targetName).md"]
-                )?["id"]
-
                 try db.execute(
                     sql: """
                         INSERT INTO links (sourceFileId, targetName, targetFileId, linkType, displayText, lineNumber, isResolved)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, NULL, ?, ?, ?, 0)
                         """,
-                    arguments: [fileId, link.targetName, targetFileId, link.linkType, link.displayText, link.lineNumber, targetFileId != nil]
+                    arguments: [fileId, link.targetName, link.linkType, link.displayText, link.lineNumber]
                 )
             }
         }
     }
 
-    /// Re-resolve all links in the index (e.g., after a file rename or new file).
+    /// Re-resolve every link in the index. Set-based over the v4 indexes:
+    /// an equality pass on title/basename, then a suffix pass only for the
+    /// `folder/note` targets the first pass couldn't place. The previous
+    /// implementation ran a correlated leading-wildcard LIKE per link —
+    /// O(links × files) — after every save and watcher batch.
     func resolveAllLinks() throws {
         try dbQueue.write { db in
-            // Reset all resolutions
             try db.execute(sql: "UPDATE links SET targetFileId = NULL, isResolved = 0")
 
-            // Re-resolve by matching targetName to file titles or paths
             try db.execute(sql: """
-                UPDATE links SET
-                    targetFileId = (
-                        SELECT f.id FROM files f
-                        WHERE f.title = links.targetName
-                           OR f.path LIKE '%/' || links.targetName || '.md'
-                        LIMIT 1
-                    ),
-                    isResolved = CASE
-                        WHEN (SELECT f.id FROM files f
-                              WHERE f.title = links.targetName
-                                 OR f.path LIKE '%/' || links.targetName || '.md'
-                              LIMIT 1) IS NOT NULL THEN 1
-                        ELSE 0
-                    END
+                UPDATE links SET targetFileId = COALESCE(
+                    (SELECT f.id FROM files f WHERE f.title = links.targetName LIMIT 1),
+                    (SELECT f.id FROM files f WHERE f.basename = links.targetName LIMIT 1)
+                )
                 """)
+
+            try db.execute(sql: """
+                UPDATE links SET targetFileId = (
+                    SELECT f.id FROM files f
+                    WHERE f.path LIKE '%/' || links.targetName || '.md'
+                       OR f.path LIKE '%/' || links.targetName || '.markdown'
+                    LIMIT 1
+                )
+                WHERE targetFileId IS NULL AND instr(targetName, '/') > 0
+                """)
+
+            try db.execute(sql: "UPDATE links SET isResolved = (targetFileId IS NOT NULL)")
+        }
+    }
+
+    /// Incrementally resolve links after (re)indexing one file: the file's
+    /// own outgoing links (freshly replaced, all unresolved) plus any
+    /// previously-unresolved links elsewhere that name it. Already-resolved
+    /// links pointing at other files are untouched.
+    func resolveLinksTouching(fileId: Int64) throws {
+        try dbQueue.write { db in
+            guard let file = try Row.fetchOne(
+                db,
+                sql: "SELECT title, basename, path FROM files WHERE id = ?",
+                arguments: [fileId]
+            ) else { return }
+            let title: String = file["title"]
+            let basename: String = file["basename"]
+            let path: String = file["path"]
+
+            // Outgoing links — per-file counts are small; indexed probes each.
+            let outgoing = try Row.fetchAll(
+                db,
+                sql: "SELECT id, targetName FROM links WHERE sourceFileId = ?",
+                arguments: [fileId]
+            )
+            for link in outgoing {
+                let target: String = link["targetName"]
+                let resolved = try Self.lookupTarget(db, target)
+                try db.execute(
+                    sql: "UPDATE links SET targetFileId = ?, isResolved = ? WHERE id = ?",
+                    arguments: [resolved, resolved != nil, link["id"] as Int64]
+                )
+            }
+
+            // Inbound: unresolved links that name this file directly…
+            try db.execute(
+                sql: """
+                    UPDATE links SET targetFileId = ?, isResolved = 1
+                    WHERE targetFileId IS NULL AND (targetName = ? OR targetName = ?)
+                    """,
+                arguments: [fileId, title, basename]
+            )
+            // …or via a folder/note suffix.
+            try db.execute(
+                sql: """
+                    UPDATE links SET targetFileId = ?, isResolved = 1
+                    WHERE targetFileId IS NULL AND instr(targetName, '/') > 0
+                      AND (? LIKE '%/' || targetName || '.md' OR ? LIKE '%/' || targetName || '.markdown')
+                    """,
+                arguments: [fileId, path, path]
+            )
+        }
+    }
+
+    /// Indexed lookup of a wiki target: title/basename equality, then a
+    /// path-suffix probe for `folder/note` targets.
+    private static func lookupTarget(_ db: Database, _ target: String) throws -> Int64? {
+        if let row = try Row.fetchOne(
+            db,
+            sql: "SELECT id FROM files WHERE title = ? OR basename = ? LIMIT 1",
+            arguments: [target, target]
+        ) {
+            return row["id"]
+        }
+        guard target.contains("/") else { return nil }
+        return try Row.fetchOne(
+            db,
+            sql: """
+                SELECT id FROM files
+                WHERE path LIKE '%/' || ? || '.md' OR path LIKE '%/' || ? || '.markdown'
+                LIMIT 1
+                """,
+            arguments: [target, target]
+        )?["id"]
+    }
+
+    /// Stored modification times for every indexed file, keyed by path.
+    /// Lets a rebuild skip re-reading files whose mtime hasn't moved.
+    func allFileModTimes() throws -> [String: TimeInterval] {
+        try dbQueue.read { db in
+            let rows = try Row.fetchAll(db, sql: "SELECT path, modifiedAt FROM files")
+            var map: [String: TimeInterval] = [:]
+            map.reserveCapacity(rows.count)
+            for row in rows {
+                map[row["path"]] = row["modifiedAt"]
+            }
+            return map
+        }
+    }
+
+    /// Whether any indexed file lives under the given path prefix (used to
+    /// tell a vanished directory apart from a vanished extension-less file).
+    func hasFiles(underPathPrefix prefix: String) throws -> Bool {
+        try dbQueue.read { db in
+            try Row.fetchOne(
+                db,
+                sql: "SELECT 1 FROM files WHERE path LIKE ? || '%' LIMIT 1",
+                arguments: [prefix]
+            ) != nil
         }
     }
 
