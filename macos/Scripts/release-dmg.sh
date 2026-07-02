@@ -61,10 +61,11 @@ rm -rf "$BUILD"; mkdir -p "$BUILD"
 
 step "Regenerating Xcode project"
 xcodegen generate
-# xcodegen rewrites Scripts/Info.plist from project.yml, which still carries a
-# stale CFBundleShortVersionString fallback (tracked as gloss#25) — re-apply the
-# real version so the archived app is stamped correctly.
+# xcodegen rewrites both Info.plists from project.yml, which still carries stale
+# CFBundleShortVersionString fallbacks (tracked as gloss#25) — re-apply the real
+# version to the app AND the Quick Look extension so both are stamped correctly.
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Scripts/Info.plist
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" GlossQLExtension/Info.plist
 
 step "Archiving ($CONFIG) — signed directly with Developer ID (manual)"
 # Manual signing with the Developer ID cert. A Developer ID Mac app needs no

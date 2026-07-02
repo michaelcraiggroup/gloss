@@ -639,6 +639,13 @@ struct SidebarView: View {
     // MARK: - Selection & Recents
 
     private func selectFile(_ url: URL?) {
+        // No-op on redundant re-selection. The List's selection binding can fire
+        // `set` with the already-selected value during reconciliation (the current
+        // file is tagged in the tree *and* in Recent/Favorites — duplicate tags).
+        // recordRecent() then bumps `lastOpened`, which reorders the lastOpened-
+        // sorted @Query, which re-renders the List, which fires `set` again → an
+        // infinite 100%-CPU loop. Only act on genuine selection changes.
+        guard url != fileTree.selectedFileURL else { return }
         fileTree.selectedFileURL = url
         guard let url else { return }
         settings.currentFileURL = url
