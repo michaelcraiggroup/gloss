@@ -61,9 +61,10 @@ rm -rf "$BUILD"; mkdir -p "$BUILD"
 
 step "Regenerating Xcode project"
 xcodegen generate
-# xcodegen rewrites both Info.plists from project.yml, which still carries stale
-# CFBundleShortVersionString fallbacks (tracked as gloss#25) — re-apply the real
-# version to the app AND the Quick Look extension so both are stamped correctly.
+# xcodegen regenerates both Info.plists from project.yml. Since gloss#35 the
+# CFBundleShortVersionString values there are kept current with
+# MARKETING_VERSION (formerly stale — gloss#25); this re-stamp stays as a
+# belt-and-suspenders so a forgotten project.yml bump can't ship mislabeled.
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Scripts/Info.plist
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" GlossQLExtension/Info.plist
 
