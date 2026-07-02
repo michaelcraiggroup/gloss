@@ -74,6 +74,15 @@ struct GlossApp: App {
                         linkIndex.updateIndex(for: url)
                     }
                 }
+                .onChange(of: store.isUnlocked) { _, unlocked in
+                    // restoreFolder() at launch races checkEntitlement(): on a
+                    // fresh binary the receipt verification can resolve after
+                    // onAppear, silently skipping the vault restore (#38).
+                    // Retry once the unlock lands.
+                    if unlocked && !fileTree.hasFolder {
+                        restoreFolder()
+                    }
+                }
                 .onOpenURL { url in
                     openPath(url)
                 }
