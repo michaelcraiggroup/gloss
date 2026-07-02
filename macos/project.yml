@@ -61,7 +61,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.18.0"
+        MARKETING_VERSION: "1.18.1"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
@@ -103,7 +103,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
-        MARKETING_VERSION: "1.18.0"
+        MARKETING_VERSION: "1.18.1"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SKIP_INSTALL: true

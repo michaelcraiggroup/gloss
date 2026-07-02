@@ -88,13 +88,13 @@ struct GlossApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New File") {
-                    createNewFile?()
+                    createNewFile?.run()
                 }
                 .keyboardShortcut("n", modifiers: .command)
                 .disabled(createNewFile == nil || (!fileTree.hasFolder && settings.currentFileURL == nil))
 
                 Button("Today's Note") {
-                    todaysNote?()
+                    todaysNote?.run()
                 }
                 .keyboardShortcut("t", modifiers: .command)
                 .disabled(todaysNote == nil || !fileTree.hasFolder)
@@ -123,7 +123,7 @@ struct GlossApp: App {
                 Divider()
 
                 Button(isEditingDocument == true ? "Switch to Reading Mode" : "Switch to Edit Mode") {
-                    toggleEditMode?()
+                    toggleEditMode?.run()
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(settings.currentFileURL == nil)
@@ -138,7 +138,7 @@ struct GlossApp: App {
                 Divider()
 
                 Button("Toggle Favorite") {
-                    toggleFavorite?()
+                    toggleFavorite?.run()
                 }
                 .keyboardShortcut("d", modifiers: .command)
                 .disabled(toggleFavorite == nil)
@@ -155,7 +155,7 @@ struct GlossApp: App {
         .commands {
             CommandGroup(replacing: .saveItem) {
                 Button("Save") {
-                    saveDocument?()
+                    saveDocument?.run()
                 }
                 .keyboardShortcut("s", modifiers: .command)
                 .disabled(isEditingDocument != true)
@@ -266,13 +266,13 @@ struct GlossApp: App {
             }
             CommandGroup(before: .toolbar) {
                 Button("Back") {
-                    goBack?()
+                    goBack?.run()
                 }
                 .keyboardShortcut("[", modifiers: .command)
                 .disabled(goBack == nil)
 
                 Button("Forward") {
-                    goForward?()
+                    goForward?.run()
                 }
                 .keyboardShortcut("]", modifiers: .command)
                 .disabled(goForward == nil)
@@ -286,7 +286,7 @@ struct GlossApp: App {
                 .keyboardShortcut("\\", modifiers: .command)
 
                 Button("Toggle Inspector") {
-                    toggleInspector?() // gate is in ContentView's focusedSceneValue
+                    toggleInspector?.run() // gate is in ContentView's focusedSceneValue
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(toggleInspector == nil)

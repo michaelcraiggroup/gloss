@@ -43,20 +43,20 @@ struct ContentView: View {
             todaysNote: { openTodaysNote() },
             isEditing: isEditing
         ))
-        .focusedSceneValue(\.toggleFavorite, {
+        .focusedSceneValue(\.toggleFavorite, FocusedAction(id: "toggleFavorite") {
             guard store.gate(.favorites) else { return }
             toggleFavoriteForCurrentFile()
         })
-        .focusedSceneValue(\.toggleInspector, {
+        .focusedSceneValue(\.toggleInspector, FocusedAction(id: "toggleInspector") {
             guard store.gate(.inspector) else { return }
             withAnimation { inspectorIsShown.toggle() }
         })
-        .focusedSceneValue(\.goBack, {
+        .focusedSceneValue(\.goBack, FocusedAction(id: "goBack") {
             if let url = navHistory.goBack(from: settings.currentFileURL) {
                 settings.currentFileURL = url
             }
         })
-        .focusedSceneValue(\.goForward, {
+        .focusedSceneValue(\.goForward, FocusedAction(id: "goForward") {
             if let url = navHistory.goForward(from: settings.currentFileURL) {
                 settings.currentFileURL = url
             }
@@ -539,46 +539,62 @@ struct FocusedEditValues: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .focusedSceneValue(\.toggleEditMode, toggleEditMode)
-            .focusedSceneValue(\.saveDocument, saveDocument)
-            .focusedSceneValue(\.createNewFile, createNewFile)
-            .focusedSceneValue(\.todaysNote, todaysNote)
+            .focusedSceneValue(\.toggleEditMode, FocusedAction(id: "toggleEditMode", run: toggleEditMode))
+            .focusedSceneValue(\.saveDocument, FocusedAction(id: "saveDocument", run: saveDocument))
+            .focusedSceneValue(\.createNewFile, FocusedAction(id: "createNewFile", run: createNewFile))
+            .focusedSceneValue(\.todaysNote, FocusedAction(id: "todaysNote", run: todaysNote))
             .focusedSceneValue(\.isEditingDocument, isEditing)
     }
 }
 
 // MARK: - FocusedValues
 
+/// Equatable wrapper for a menu / keyboard-shortcut action published as a
+/// FocusedValue. A bare `() -> Void` Value is non-Equatable, so SwiftUI cannot
+/// dedupe it: every `ContentView.body` evaluation mints fresh closures, and the
+/// Scene — which reads them via `.disabled(action == nil)` — treats each new
+/// closure as a change, re-creates `ContentView`, which re-mints the closures…
+/// a 100% CPU render loop that engaged nondeterministically depending on launch
+/// focus timing (issue #32). Deduping by a stable `id` breaks the feedback:
+/// re-publishing an action with the same id is a no-op. The carried closure only
+/// touches reference-typed (`StoreManager`, `AppSettings`, `NavigationHistory`)
+/// or `@State`-backed storage, so a retained (deduped) closure is never stale.
+struct FocusedAction: Equatable {
+    let id: String
+    let run: () -> Void
+    static func == (lhs: FocusedAction, rhs: FocusedAction) -> Bool { lhs.id == rhs.id }
+}
+
 struct FavoriteToggleKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct InspectorToggleKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct GoBackKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct GoForwardKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct EditModeToggleKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct SaveDocumentKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct CreateNewFileKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct TodaysNoteKey: FocusedValueKey {
-    typealias Value = () -> Void
+    typealias Value = FocusedAction
 }
 
 struct IsEditingDocumentKey: FocusedValueKey {
@@ -586,42 +602,42 @@ struct IsEditingDocumentKey: FocusedValueKey {
 }
 
 extension FocusedValues {
-    var toggleFavorite: (() -> Void)? {
+    var toggleFavorite: FocusedAction? {
         get { self[FavoriteToggleKey.self] }
         set { self[FavoriteToggleKey.self] = newValue }
     }
 
-    var toggleInspector: (() -> Void)? {
+    var toggleInspector: FocusedAction? {
         get { self[InspectorToggleKey.self] }
         set { self[InspectorToggleKey.self] = newValue }
     }
 
-    var goBack: (() -> Void)? {
+    var goBack: FocusedAction? {
         get { self[GoBackKey.self] }
         set { self[GoBackKey.self] = newValue }
     }
 
-    var goForward: (() -> Void)? {
+    var goForward: FocusedAction? {
         get { self[GoForwardKey.self] }
         set { self[GoForwardKey.self] = newValue }
     }
 
-    var toggleEditMode: (() -> Void)? {
+    var toggleEditMode: FocusedAction? {
         get { self[EditModeToggleKey.self] }
         set { self[EditModeToggleKey.self] = newValue }
     }
 
-    var saveDocument: (() -> Void)? {
+    var saveDocument: FocusedAction? {
         get { self[SaveDocumentKey.self] }
         set { self[SaveDocumentKey.self] = newValue }
     }
 
-    var createNewFile: (() -> Void)? {
+    var createNewFile: FocusedAction? {
         get { self[CreateNewFileKey.self] }
         set { self[CreateNewFileKey.self] = newValue }
     }
 
-    var todaysNote: (() -> Void)? {
+    var todaysNote: FocusedAction? {
         get { self[TodaysNoteKey.self] }
         set { self[TodaysNoteKey.self] = newValue }
     }
