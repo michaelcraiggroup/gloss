@@ -14,6 +14,7 @@ struct ContentView: View {
     @Environment(GraphService.self) private var graphService
     @Environment(GlossGuideService.self) private var guideService
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 @State private var inspectorIsShown = false
     @State private var headings: [HeadingInfo] = []
@@ -158,6 +159,10 @@ struct ContentView: View {
             isEditing: $isEditing,
             isEditorDirty: $isEditorDirty
         )
+        .glossContentFrame(
+            scheme: colorScheme,
+            sheeted: colorScheme == .light && !settings.isZenMode && settings.currentFileURL != nil
+        )
         .toolbar(settings.isZenMode ? .hidden : .automatic)
         .toolbar { toolbarContent }
         .inspector(isPresented: $inspectorIsShown) {
@@ -199,6 +204,8 @@ struct ContentView: View {
             )
             .inspectorColumnWidth(min: 250, ideal: 280, max: 400)
         }
+        .toolbarBackground(Color.glossChromeBg(colorScheme), for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .navigationTitle(settings.currentFileURL?.lastPathComponent ?? "Gloss")
         .navigationSubtitle(navigationSubtitle)
     }

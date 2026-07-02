@@ -15,6 +15,7 @@ struct SidebarView: View {
     private var favoriteDocuments: [RecentDocument]
     @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(LinkIndex.self) private var linkIndex
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
     @State private var showingRenameAlert = false
@@ -243,6 +244,9 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(Color.glossChromeSidebar(colorScheme))
+        .safeAreaInset(edge: .top, spacing: 0) { GlossSidebarHeader() }
         .searchable(text: $searchText, prompt: "Search files")
         .searchScopes($searchScope) {
             ForEach(SearchScope.allCases, id: \.self) { scope in

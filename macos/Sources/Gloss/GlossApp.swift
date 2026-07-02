@@ -84,6 +84,7 @@ struct GlossApp: App {
         .handlesExternalEvents(matching: ["*"])
         .modelContainer(for: RecentDocument.self)
         .defaultSize(width: 1100, height: 700)
+        .windowStyle(.hiddenTitleBar)   // frameless chrome — toolbar blends into the window
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New File") {
