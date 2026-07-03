@@ -55,7 +55,7 @@ A native markdown browser that treats `.md` files as documents to *read*, not ed
 
 ### Core Concept
 
-Gloss for macOS is a **read-only markdown browser** — think Preview.app, but for markdown. Open files, browse folders, read documentation. When you need to edit, Gloss hands off to your preferred editor.
+Gloss for macOS is a **reader-first markdown browser** — think Preview.app, but for markdown. Open files, browse folders, read documentation. Reading is the default; editing is one keystroke away (⇧⌘E) — or hand off to your preferred external editor.
 
 ### Implemented Features
 
@@ -241,7 +241,7 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 
 #### Phase 6: Launch & Marketing
 - [ ] Landing page on michaelcraig.group/products/gloss
-- [ ] Blog post: "Why I built a markdown reader that doesn't edit"
+- [ ] Blog post: "Why I built a markdown reader that opens to read"
 - [ ] Product Hunt launch
 - [ ] Show HN post
 - [ ] Social media campaign (Twitter/X, Mastodon, LinkedIn)

@@ -42,7 +42,7 @@ NO SUBSCRIPTION. NO ADS. NO TRACKING. EVER.
 
 Gloss never collects data, never phones home, and never will. Your markdown stays on your machine.
 
-Built by Michael Craig Group — privacy-first software.
+Built by Off-Leash — the privacy-first software studio from Michael Craig Group, LLC. Your work belongs to you.
 
 ## Keywords (100 chars max)
 markdown,reader,viewer,docs,documentation,wiki,notes,knowledge base,Quick Look,privacy
@@ -50,8 +50,8 @@ markdown,reader,viewer,docs,documentation,wiki,notes,knowledge base,Quick Look,p
 ## Category
 Developer Tools (primary), Productivity (secondary)
 
-## What's New (v1.0)
-Initial release! A distraction-free markdown reader with full rendering support, Quick Look extension, and optional $4.99 unlock for folder browsing, search, wiki-links, and more.
+## What's New (v1.19)
+Gloss arrives on the Mac App Store as a mature reader, refined across dozens of releases: a live-preview editor (⇧⌘E), a fast local link index with wiki-links and a force-directed link graph, full-text search, and a Quick Look extension. Recent work includes a major performance overhaul for large vaults and the new Reading Desk / Night Owl chrome. Optional $4.99 one-time unlock adds folder browsing, search, wiki-links, and the graph.
 
 ## Privacy URL
 https://michaelcraig.group/privacy
