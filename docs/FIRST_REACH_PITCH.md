@@ -84,9 +84,9 @@ Quick Look is free — every time someone presses spacebar on a .md file in Find
 
 ## The Line
 
-> **Gloss through your markdown without touching it.**
+> **Opens to read. Edits when you ask.**
 
-It still works. But now there's a second read:
+That's the product line. The campaign adds a second read:
 
 > **Gloss** — the first thing you reach for.
 

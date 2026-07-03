@@ -1,6 +1,6 @@
 # Gloss - VS Code Extension
 
-> **Gloss through your markdown without touching it.**
+> **Like Preview.app, but for markdown.** Opens to read; edits when you ask.
 
 A distraction-free markdown reader for VS Code. Open to read, explicitly switch to edit.
 

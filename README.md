@@ -16,7 +16,7 @@ A distraction-free markdown reader — VS Code extension and native macOS app. R
 
 ## VS Code Extension (Free)
 
-A true read-only markdown experience inside VS Code.
+A reader-first markdown experience inside VS Code — edits when you ask.
 
 - Auto-opens markdown files in rendered preview
 - Closes the source editor tab — no split view clutter
@@ -66,7 +66,7 @@ Powered by a persistent local SQLite link index. No subscription. No ads. Ever.
 
 ## Privacy
 
-**Your reading habits are yours.** Both the extension and app run entirely locally. No analytics, no telemetry, no data collection. CDN resources (highlight.js, mermaid.js, KaTeX) are loaded for rendering only — nothing is sent anywhere.
+**Your work belongs to you.** Both the extension and app run entirely locally. No analytics, no telemetry, no data collection. CDN resources (highlight.js, mermaid.js, KaTeX) are loaded for rendering only — nothing is sent anywhere.
 
 ## Development
 
@@ -90,4 +90,4 @@ MIT — Free to use, modify, and distribute.
 
 ---
 
-_A [Michael Craig Group](https://michaelcraig.group) project — sharp tools that don't spy on you._
+_Gloss, by [Off-Leash](https://michaelcraig.group) — the privacy-first software studio from Michael Craig Group. Your work belongs to you._
