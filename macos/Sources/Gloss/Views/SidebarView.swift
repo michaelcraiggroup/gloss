@@ -2,28 +2,14 @@ import AppKit
 import SwiftUI
 import SwiftData
 
-/// Recents query bounded to what the sidebar actually shows — the old
-/// unbounded sort-everything fetch re-ran inside List body evaluation
-/// (the render-loop stack in the 2026-07-01 CPU diagnostics).
-private func recentDocumentsDescriptor() -> FetchDescriptor<RecentDocument> {
-    var descriptor = FetchDescriptor<RecentDocument>(
-        sortBy: [SortDescriptor(\.lastOpened, order: .reverse)]
-    )
-    descriptor.fetchLimit = 10
-    return descriptor
-}
-
 /// File browser sidebar with recursive file tree, search, favorites, and recent documents.
+/// Favorites and recents render via vault-scoped section subviews
+/// (FavoritesSection / RecentsSection) keyed on `settings.vaultKey`.
 struct SidebarView: View {
     @Environment(FileTreeModel.self) private var fileTree
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(StoreManager.self) private var store
-    @Query(recentDocumentsDescriptor())
-    private var recentDocuments: [RecentDocument]
-    @Query(filter: #Predicate<RecentDocument> { $0.isFavorite },
-           sort: \RecentDocument.title)
-    private var favoriteDocuments: [RecentDocument]
     @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(FilenameSearchService.self) private var filenameSearch
     @Environment(LinkIndex.self) private var linkIndex
@@ -184,28 +170,12 @@ struct SidebarView: View {
                 // Normal browsing mode (no search active, or tags scope without query)
                 browseSection
 
-                if !favoriteDocuments.isEmpty {
-                    Section("Favorites") {
-                        ForEach(favoriteDocuments) { doc in
-                            Label {
-                                Text(doc.title)
-                                    .lineLimit(1)
-                            } icon: {
-                                Text(doc.type.icon)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectFile(doc.url) }
-                            .contextMenu { favoriteContextMenu(for: doc.url) }
-                            .swipeActions(edge: .trailing) {
-                                Button {
-                                    toggleFavorite(url: doc.url)
-                                } label: {
-                                    Label("Unfavorite", systemImage: "star.slash")
-                                }
-                                .tint(.glossAccent)
-                            }
-                        }
-                    }
+                FavoritesSection(
+                    vaultKey: settings.vaultKey,
+                    onSelect: { selectFile($0) },
+                    onToggleFavorite: { toggleFavorite(url: $0) }
+                ) { url in
+                    favoriteContextMenu(for: url)
                 }
 
                 if !linkIndex.recentlyChanged.isEmpty {
@@ -256,35 +226,12 @@ struct SidebarView: View {
                     .spotlightTarget(.sidebarTagsSection)
                 }
 
-                if !recentDocuments.isEmpty {
-                    // One Set per body pass instead of an O(favorites) scan
-                    // per row per render.
-                    let favoritePaths = Set(favoriteDocuments.map(\.path))
-                    Section("Recent Documents") {
-                        ForEach(recentDocuments) { doc in
-                            let favorited = favoritePaths.contains(doc.path)
-                            HStack {
-                                Label {
-                                    Text(doc.title)
-                                        .lineLimit(1)
-                                } icon: {
-                                    Text(doc.type.icon)
-                                }
-                                Spacer()
-                                Button {
-                                    toggleFavorite(url: doc.url)
-                                } label: {
-                                    Image(systemName: favorited ? "star.fill" : "star")
-                                        .foregroundStyle(favorited ? .yellow : .secondary)
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectFile(doc.url) }
-                            .contextMenu { favoriteContextMenu(for: doc.url) }
-                        }
-                    }
+                RecentsSection(
+                    vaultKey: settings.vaultKey,
+                    onSelect: { selectFile($0) },
+                    onToggleFavorite: { toggleFavorite(url: $0) }
+                ) { url in
+                    favoriteContextMenu(for: url)
                 }
             }
         }
@@ -687,30 +634,14 @@ struct SidebarView: View {
     }
 
     func isFavorited(url: URL) -> Bool {
-        favoriteDocuments.contains { $0.path == url.path }
+        RecentsStore.legacyIsFavorite(url: url, vaultKey: settings.vaultKey, in: modelContext)
     }
 
     func toggleFavorite(url: URL) {
-        let path = url.path
-        let descriptor = FetchDescriptor<RecentDocument>(
-            predicate: #Predicate { $0.path == path }
-        )
-
-        if let existing = try? modelContext.fetch(descriptor).first {
-            existing.isFavorite.toggle()
-        } else {
-            // Create a new RecentDocument marked as favorite
-            let filename = url.lastPathComponent
-            let parentFolder = url.deletingLastPathComponent().lastPathComponent
-            let docType = DocumentType.detect(filename: filename, folderName: parentFolder)
-            let title = filename.replacingOccurrences(of: ".md", with: "")
-                .replacingOccurrences(of: ".markdown", with: "")
-            let doc = RecentDocument(path: path, title: title, documentType: docType.rawValue, isFavorite: true)
-            modelContext.insert(doc)
-        }
+        RecentsStore.legacyToggleFavorite(url: url, vaultKey: settings.vaultKey, in: modelContext)
     }
 
-    // MARK: - Selection & Recents
+    // MARK: - Selection
 
     private func selectFile(_ url: URL?) {
         // No-op on redundant re-selection (the List can fire `set` with the
@@ -721,38 +652,20 @@ struct SidebarView: View {
         guard let url else { return }
         settings.currentFileURL = url
         settings.lastOpenedFile = url.standardizedFileURL.path
-        // Defer the SwiftData write: recordRecent() bumps `lastOpened`, reordering
-        // the lastOpened-sorted Recent @Query. Doing that synchronously inside the
-        // List's selection update reorders rows mid-reconciliation and re-fires the
-        // selection → an infinite 100%-CPU render loop. Next-tick lets the current
-        // update settle first.
-        DispatchQueue.main.async { recordRecent(url: url) }
-    }
-
-    private func recordRecent(url: URL) {
-        let path = url.standardizedFileURL.path
-        let filename = url.lastPathComponent
-        let parentFolder = url.deletingLastPathComponent().lastPathComponent
-        let docType = DocumentType.detect(filename: filename, folderName: parentFolder)
-
-        let descriptor = FetchDescriptor<RecentDocument>(
-            predicate: #Predicate { $0.path == path }
-        )
-        if let existing = try? modelContext.fetch(descriptor).first {
-            existing.lastOpened = .now
-            existing.documentType = docType.rawValue
-        } else {
-            let title = filename.replacingOccurrences(of: ".md", with: "")
-                .replacingOccurrences(of: ".markdown", with: "")
-            let doc = RecentDocument(path: path, title: title, documentType: docType.rawValue)
-            modelContext.insert(doc)
-        }
+        // Recents recording happens centrally in ContentView's RecentsRecorder,
+        // driven by the currentFileURL change — sidebar clicks, wiki-links,
+        // backlinks, graph taps and CLI opens all funnel through it.
     }
 
     private func performRename() {
         guard let url = contextMenuTargetURL else { return }
         if let newURL = fileTree.renameItem(at: url, to: renameFileName) {
             linkIndex.handleRename(oldURL: url, newURL: newURL)
+            // Recents/favorites follow the file (handles folder renames too).
+            RecentsStore.handleRename(
+                oldURL: url, newURL: newURL,
+                vaultKey: settings.vaultKey, in: modelContext
+            )
             // Update selection if the renamed file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = newURL
@@ -766,6 +679,7 @@ struct SidebarView: View {
         guard let url = contextMenuTargetURL else { return }
         if fileTree.deleteItem(at: url) {
             linkIndex.removeFromIndex(url: url)
+            RecentsStore.handleDelete(url: url, vaultKey: settings.vaultKey, in: modelContext)
             // Clear selection if the deleted file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = nil
