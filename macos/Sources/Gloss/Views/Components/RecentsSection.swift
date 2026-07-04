@@ -9,7 +9,11 @@ import SwiftData
 /// (see FavoritesSection — duplicate tags looped the selection List).
 struct RecentsSection<MenuContent: View>: View {
     @Query private var recents: [RecentDocument]
-    @Query private var favorites: [RecentDocument]
+    /// No-vault fallback for star state; with a vault open the stars read
+    /// FavoritesService (observable — a fetchCount closure would freeze them).
+    @Query(filter: #Predicate<RecentDocument> { $0.isFavorite && $0.vaultPath == "" })
+    private var legacyFavorites: [RecentDocument]
+    @Environment(FavoritesService.self) private var favoritesService
     @Environment(\.modelContext) private var modelContext
     private let vaultKey: String
     private let onSelect: (URL) -> Void
@@ -28,9 +32,6 @@ struct RecentsSection<MenuContent: View>: View {
         )
         descriptor.fetchLimit = 10
         _recents = Query(descriptor)
-        _favorites = Query(
-            filter: #Predicate<RecentDocument> { $0.isFavorite && $0.vaultPath == vaultKey }
-        )
         self.vaultKey = vaultKey
         self.onSelect = onSelect
         self.onToggleFavorite = onToggleFavorite
@@ -41,7 +42,9 @@ struct RecentsSection<MenuContent: View>: View {
         if !recents.isEmpty {
             // One Set per body pass instead of an O(favorites) scan
             // per row per render.
-            let favoritePaths = Set(favorites.map(\.path))
+            let favoritePaths: Set<String> = favoritesService.rootURL != nil
+                ? Set(favoritesService.favorites.map { RecentsStore.canonicalPath($0.url) })
+                : Set(legacyFavorites.map(\.path))
             Section {
                 ForEach(recents) { doc in
                     let favorited = favoritePaths.contains(doc.path)

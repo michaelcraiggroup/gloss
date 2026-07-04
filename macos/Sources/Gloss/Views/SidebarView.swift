@@ -10,6 +10,7 @@ struct SidebarView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(StoreManager.self) private var store
+    @Environment(FavoritesService.self) private var favoritesService
     @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(FilenameSearchService.self) private var filenameSearch
     @Environment(LinkIndex.self) private var linkIndex
@@ -171,7 +172,6 @@ struct SidebarView: View {
                 browseSection
 
                 FavoritesSection(
-                    vaultKey: settings.vaultKey,
                     onSelect: { selectFile($0) },
                     onToggleFavorite: { toggleFavorite(url: $0) }
                 ) { url in
@@ -634,11 +634,19 @@ struct SidebarView: View {
     }
 
     func isFavorited(url: URL) -> Bool {
-        RecentsStore.legacyIsFavorite(url: url, vaultKey: settings.vaultKey, in: modelContext)
+        if favoritesService.handles(url) {
+            return favoritesService.isFavorite(url)
+        }
+        // Out-of-vault (or no-vault) files use the SwiftData "" bucket.
+        return RecentsStore.legacyIsFavorite(url: url, vaultKey: "", in: modelContext)
     }
 
     func toggleFavorite(url: URL) {
-        RecentsStore.legacyToggleFavorite(url: url, vaultKey: settings.vaultKey, in: modelContext)
+        if favoritesService.handles(url) {
+            favoritesService.toggle(url)
+        } else {
+            RecentsStore.legacyToggleFavorite(url: url, vaultKey: "", in: modelContext)
+        }
     }
 
     // MARK: - Selection
@@ -666,6 +674,7 @@ struct SidebarView: View {
                 oldURL: url, newURL: newURL,
                 vaultKey: settings.vaultKey, in: modelContext
             )
+            favoritesService.handleRename(oldURL: url, newURL: newURL)
             // Update selection if the renamed file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = newURL
@@ -680,6 +689,7 @@ struct SidebarView: View {
         if fileTree.deleteItem(at: url) {
             linkIndex.removeFromIndex(url: url)
             RecentsStore.handleDelete(url: url, vaultKey: settings.vaultKey, in: modelContext)
+            favoritesService.handleDelete(url: url)
             // Clear selection if the deleted file was selected
             if settings.currentFileURL == url {
                 settings.currentFileURL = nil

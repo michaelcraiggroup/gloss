@@ -104,7 +104,11 @@ struct ContentView: View {
                 linkIndex.updateIndex(for: currentURL)
             }
         }
-        .modifier(FolderWatchHandler(fileTree: fileTree, linkIndex: linkIndex))
+        .modifier(FolderWatchHandler(
+            fileTree: fileTree,
+            linkIndex: linkIndex,
+            favoritesService: favoritesService
+        ))
         .modifier(RecentsRecorder(
             currentFileURL: settings.currentFileURL,
             vaultKey: settings.vaultKey
@@ -321,12 +325,19 @@ struct ContentView: View {
 
     private var isCurrentFileFavorited: Bool {
         guard let url = settings.currentFileURL else { return false }
-        return RecentsStore.legacyIsFavorite(url: url, vaultKey: settings.vaultKey, in: modelContext)
+        if favoritesService.handles(url) {
+            return favoritesService.isFavorite(url)
+        }
+        return RecentsStore.legacyIsFavorite(url: url, vaultKey: "", in: modelContext)
     }
 
     private func toggleFavoriteForCurrentFile() {
         guard let url = settings.currentFileURL else { return }
-        RecentsStore.legacyToggleFavorite(url: url, vaultKey: settings.vaultKey, in: modelContext)
+        if favoritesService.handles(url) {
+            favoritesService.toggle(url)
+        } else {
+            RecentsStore.legacyToggleFavorite(url: url, vaultKey: "", in: modelContext)
+        }
     }
 
     // MARK: - Edit Mode
@@ -516,6 +527,7 @@ struct VaultOverviewRefresh: ViewModifier {
 struct FolderWatchHandler: ViewModifier {
     let fileTree: FileTreeModel
     let linkIndex: LinkIndex
+    let favoritesService: FavoritesService
 
     func body(content: Content) -> some View {
         content
@@ -526,6 +538,9 @@ struct FolderWatchHandler: ViewModifier {
                 } else {
                     fileTree.refreshAfterFileChange()
                 }
+                // Missing-favorite dimming heals when sync delivers a file
+                // (and engages when one disappears on disk).
+                favoritesService.refreshExistence()
             }
     }
 }
@@ -579,6 +594,12 @@ struct VaultLifecycleHandler: ViewModifier {
                 guard let root = newValue else { return }
                 let key = RecentsStore.vaultKey(forRoot: root)
                 RecentsStore.claimLegacyRows(root: root, vaultKey: key, in: modelContext)
+                // Pre-1.20 SwiftData favorites migrate into the vault file.
+                // Must run BEFORE prune: cleared flags drop the rows'
+                // favorite protection.
+                favoritesService.importFavorites(
+                    urls: RecentsStore.claimFavoriteFlags(vaultKey: key, in: modelContext)
+                )
                 RecentsStore.prune(vaultKey: key, in: modelContext)
             }
     }
@@ -614,8 +635,9 @@ struct FocusedEditValues: ViewModifier {
 /// a 100% CPU render loop that engaged nondeterministically depending on launch
 /// focus timing (issue #32). Deduping by a stable `id` breaks the feedback:
 /// re-publishing an action with the same id is a no-op. The carried closure only
-/// touches reference-typed (`StoreManager`, `AppSettings`, `NavigationHistory`)
-/// or `@State`-backed storage, so a retained (deduped) closure is never stale.
+/// touches reference-typed (`StoreManager`, `AppSettings`, `NavigationHistory`,
+/// `FavoritesService`) or `@State`-backed storage, so a retained (deduped)
+/// closure is never stale.
 struct FocusedAction: Equatable {
     let id: String
     let run: () -> Void
