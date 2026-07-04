@@ -29,7 +29,7 @@ gloss/
 │   │   │   ├── DocumentType.swift  # Document classification (14 types)
 │   │   │   ├── FileTreeNode.swift  # Lazy file tree node (@Observable)
 │   │   │   ├── FileTreeModel.swift # Sidebar state + search + SearchScope + tag filtering
-│   │   │   ├── RecentDocument.swift # SwiftData recent docs + favorites
+│   │   │   ├── RecentDocument.swift # SwiftData recent docs + favorites (vault-scoped buckets)
 │   │   │   ├── ContentSearchResult.swift # Content search result model
 │   │   │   ├── LinkType.swift      # Typed link relationships (8 types)
 │   │   │   ├── IndexedLink.swift   # Resolved link from index
@@ -48,6 +48,8 @@ gloss/
 │   │   │       ├── WebView.swift   # WKWebView wrapper + link interception + PDF export + guide handler
 │   │   │       ├── EditorWebView.swift # CM6 editor WKWebView + message handler bridge
 │   │   │       ├── NativeSpotlightOverlay.swift # SwiftUI spotlight overlay for walkthroughs
+│   │   │       ├── FavoritesSection.swift # Vault-scoped favorites sidebar section
+│   │   │       ├── RecentsSection.swift # Vault-scoped recents sidebar section + Clear
 │   │   │       └── FileTreeRow.swift # Tree row with icon
 │   │   ├── Services/
 │   │   │   ├── EditorLauncher.swift    # External editor launch
@@ -56,6 +58,8 @@ gloss/
 │   │   │   ├── StoreManager.swift     # StoreKit 2 IAP management
 │   │   │   ├── LinkDatabase.swift     # GRDB SQLite link index persistence
 │   │   │   ├── LinkIndex.swift        # @Observable indexing orchestrator
+│   │   │   ├── FavoritesService.swift # Vault favorites → .gloss/favorites.json (relative paths)
+│   │   │   ├── RecentsStore.swift     # SwiftData recents ops (buckets, claim/prune/rename)
 │   │   │   ├── GlossGuideService.swift # Walkthrough coordinator (native + web steps)
 │   │   │   └── GuideInjector.swift    # Rabble Guide SDK injection into HTML
 │   │   └── Resources/
@@ -68,7 +72,7 @@ gloss/
 │   ├── GlossQLExtension/   # Quick Look extension
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 201 tests
+│   └── Tests/GlossTests/   # 369 tests
 └── gloss-project-plan.md   # Full product plan
 ```
 

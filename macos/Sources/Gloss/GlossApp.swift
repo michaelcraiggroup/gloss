@@ -33,6 +33,7 @@ struct GlossApp: App {
     @State private var filenameSearch = FilenameSearchService()
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
+    @State private var favoritesService = FavoritesService()
     @State private var vaultOverview = VaultOverviewService()
     @State private var graphService = GraphService()
     @State private var guideService = GlossGuideService()
@@ -59,6 +60,7 @@ struct GlossApp: App {
                 .environment(filenameSearch)
                 .environment(store)
                 .environment(linkIndex)
+                .environment(favoritesService)
                 .environment(vaultOverview)
                 .environment(graphService)
                 .environment(guideService)
@@ -122,6 +124,19 @@ struct GlossApp: App {
                     openFolderPanel()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
+
+                Menu("Open Recent Vault") {
+                    ForEach(recentVaultChoices, id: \.self) { path in
+                        Button(URL(fileURLWithPath: path).lastPathComponent) {
+                            openVault(at: path)
+                        }
+                    }
+                    Divider()
+                    Button("Clear Menu") {
+                        settings.clearRecentVaults()
+                    }
+                }
+                .disabled(recentVaultChoices.isEmpty)
 
                 Divider()
 
@@ -397,6 +412,26 @@ struct GlossApp: App {
             NSApplication.shared.applicationIconImage = icon
         }
         #endif
+    }
+
+    /// Recent-vault menu entries: everything but the vault that's already open.
+    private var recentVaultChoices: [String] {
+        settings.recentVaultPaths.filter { $0 != settings.vaultKey }
+    }
+
+    /// Reopen a known vault by path — the openFolderPanel shape minus the
+    /// panel. Vanished folders are dropped from the menu instead of no-oping.
+    private func openVault(at path: String) {
+        guard store.gate(.folderSidebar) else { return }
+        let url = URL(fileURLWithPath: path)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
+            settings.removeRecentVault(path)
+            return
+        }
+        fileTree.openFolder(url)
+        settings.rootFolderPath = url.path
+        linkIndex.buildIndex(rootURL: url)
     }
 
     private func restoreFolder() {

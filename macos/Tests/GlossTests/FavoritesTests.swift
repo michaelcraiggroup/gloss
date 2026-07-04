@@ -95,4 +95,31 @@ struct FavoritesTests {
         let doc = RecentDocument(path: "/Users/test/notes.md", title: "Notes")
         #expect(doc.url.path == "/Users/test/notes.md")
     }
+
+    @Test("vaultPath defaults to empty (lightweight-migration contract)")
+    func vaultPathDefaultsToEmpty() {
+        // Old-style init — the shape every pre-1.20 row takes after migration.
+        let doc = RecentDocument(path: "/tmp/test.md", title: "Test")
+        #expect(doc.vaultPath == "")
+    }
+
+    @Test("Bucket-scoped favorites query excludes other vaults")
+    @MainActor
+    func favoritesQueryScopedToBucket() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+
+        context.insert(RecentDocument(path: "/a/x.md", title: "A", isFavorite: true, vaultPath: "/a"))
+        context.insert(RecentDocument(path: "/b/y.md", title: "B", isFavorite: true, vaultPath: "/b"))
+        context.insert(RecentDocument(path: "/loose.md", title: "Loose", isFavorite: true))
+        try context.save()
+
+        let key = "/a"
+        let descriptor = FetchDescriptor<RecentDocument>(
+            predicate: #Predicate { $0.isFavorite && $0.vaultPath == key }
+        )
+        let favorites = try context.fetch(descriptor)
+        #expect(favorites.count == 1)
+        #expect(favorites.first?.title == "A")
+    }
 }

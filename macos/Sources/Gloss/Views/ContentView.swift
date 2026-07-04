@@ -13,6 +13,7 @@ struct ContentView: View {
     @Environment(VaultOverviewService.self) private var vaultOverview
     @Environment(GraphService.self) private var graphService
     @Environment(GlossGuideService.self) private var guideService
+    @Environment(FavoritesService.self) private var favoritesService
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
@@ -103,7 +104,19 @@ struct ContentView: View {
                 linkIndex.updateIndex(for: currentURL)
             }
         }
-        .modifier(FolderWatchHandler(fileTree: fileTree, linkIndex: linkIndex))
+        .modifier(FolderWatchHandler(
+            fileTree: fileTree,
+            linkIndex: linkIndex,
+            favoritesService: favoritesService
+        ))
+        .modifier(RecentsRecorder(
+            currentFileURL: settings.currentFileURL,
+            vaultKey: settings.vaultKey
+        ))
+        .modifier(VaultLifecycleHandler(
+            rootURL: fileTree.rootNode?.url,
+            favoritesService: favoritesService
+        ))
         .modifier(VaultOverviewRefresh(
             linkIndex: linkIndex,
             vaultOverview: vaultOverview,
@@ -312,30 +325,18 @@ struct ContentView: View {
 
     private var isCurrentFileFavorited: Bool {
         guard let url = settings.currentFileURL else { return false }
-        let path = url.path
-        let descriptor = FetchDescriptor<RecentDocument>(
-            predicate: #Predicate { $0.path == path && $0.isFavorite }
-        )
-        return (try? modelContext.fetchCount(descriptor)) ?? 0 > 0
+        if favoritesService.handles(url) {
+            return favoritesService.isFavorite(url)
+        }
+        return RecentsStore.legacyIsFavorite(url: url, vaultKey: "", in: modelContext)
     }
 
     private func toggleFavoriteForCurrentFile() {
         guard let url = settings.currentFileURL else { return }
-        let path = url.path
-        let descriptor = FetchDescriptor<RecentDocument>(
-            predicate: #Predicate { $0.path == path }
-        )
-
-        if let existing = try? modelContext.fetch(descriptor).first {
-            existing.isFavorite.toggle()
+        if favoritesService.handles(url) {
+            favoritesService.toggle(url)
         } else {
-            let filename = url.lastPathComponent
-            let parentFolder = url.deletingLastPathComponent().lastPathComponent
-            let docType = DocumentType.detect(filename: filename, folderName: parentFolder)
-            let title = filename.replacingOccurrences(of: ".md", with: "")
-                .replacingOccurrences(of: ".markdown", with: "")
-            let doc = RecentDocument(path: path, title: title, documentType: docType.rawValue, isFavorite: true)
-            modelContext.insert(doc)
+            RecentsStore.legacyToggleFavorite(url: url, vaultKey: "", in: modelContext)
         }
     }
 
@@ -526,6 +527,7 @@ struct VaultOverviewRefresh: ViewModifier {
 struct FolderWatchHandler: ViewModifier {
     let fileTree: FileTreeModel
     let linkIndex: LinkIndex
+    let favoritesService: FavoritesService
 
     func body(content: Content) -> some View {
         content
@@ -536,6 +538,72 @@ struct FolderWatchHandler: ViewModifier {
                 } else {
                     fileTree.refreshAfterFileChange()
                 }
+                // Missing-favorite dimming heals when sync delivers a file
+                // (and engages when one disappears on disk).
+                favoritesService.refreshExistence()
+            }
+    }
+}
+
+// MARK: - RecentsRecorder ViewModifier
+
+/// The single site that records recents (type-checker relief pattern, like
+/// FolderWatchHandler). Every open funnels through `settings.currentFileURL`
+/// — sidebar clicks, wiki-links, backlinks, breadcrumbs, graph taps, ⌘[/⌘],
+/// CLI/panel opens — so recording here covers them all. Guide sample docs
+/// live in the temp directory and are skipped.
+struct RecentsRecorder: ViewModifier {
+    let currentFileURL: URL?
+    let vaultKey: String
+    @Environment(\.modelContext) private var modelContext
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: currentFileURL) { _, newValue in
+                guard let url = newValue, !RecentsStore.isTemporary(url) else { return }
+                let key = vaultKey
+                let context = modelContext
+                // Defer the SwiftData write one tick: recording bumps
+                // `lastOpened`, reordering the lastOpened-sorted Recents
+                // @Query. Writing while the selection-driven update is still
+                // settling re-fired selection in the past (100%-CPU render
+                // loop) — next-tick keeps that class of bug buried.
+                DispatchQueue.main.async {
+                    RecentsStore.record(url: url, vaultKey: key, in: context)
+                }
+            }
+    }
+}
+
+// MARK: - VaultLifecycleHandler ViewModifier
+
+/// One reaction point for "a vault was opened or closed" (rootNode is only
+/// assigned in FileTreeModel.openFolder/closeFolder). Points FavoritesService
+/// at the new root, claims pre-1.20 unscoped rows into the vault's bucket,
+/// and prunes dead recents. All operations are idempotent — a second window
+/// (⌘N) re-running them is harmless.
+struct VaultLifecycleHandler: ViewModifier {
+    let rootURL: URL?
+    let favoritesService: FavoritesService
+    @EnvironmentObject private var settings: AppSettings
+    @Environment(\.modelContext) private var modelContext
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: rootURL, initial: true) { _, newValue in
+                favoritesService.configure(rootURL: newValue)
+                guard let root = newValue else { return }
+                // Covers every open path (panel, sidebar, CLI, restore).
+                settings.recordRecentVault(root.path)
+                let key = RecentsStore.vaultKey(forRoot: root)
+                RecentsStore.claimLegacyRows(root: root, vaultKey: key, in: modelContext)
+                // Pre-1.20 SwiftData favorites migrate into the vault file.
+                // Must run BEFORE prune: cleared flags drop the rows'
+                // favorite protection.
+                favoritesService.importFavorites(
+                    urls: RecentsStore.claimFavoriteFlags(vaultKey: key, in: modelContext)
+                )
+                RecentsStore.prune(vaultKey: key, in: modelContext)
             }
     }
 }
@@ -570,8 +638,9 @@ struct FocusedEditValues: ViewModifier {
 /// a 100% CPU render loop that engaged nondeterministically depending on launch
 /// focus timing (issue #32). Deduping by a stable `id` breaks the feedback:
 /// re-publishing an action with the same id is a no-op. The carried closure only
-/// touches reference-typed (`StoreManager`, `AppSettings`, `NavigationHistory`)
-/// or `@State`-backed storage, so a retained (deduped) closure is never stale.
+/// touches reference-typed (`StoreManager`, `AppSettings`, `NavigationHistory`,
+/// `FavoritesService`) or `@State`-backed storage, so a retained (deduped)
+/// closure is never stale.
 struct FocusedAction: Equatable {
     let id: String
     let run: () -> Void

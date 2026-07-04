@@ -44,6 +44,51 @@ final class AppSettings: ObservableObject {
         "---\ntitle: \(title)\ntags: [daily]\n---\n\n"
     }
 
+    /// Canonical key for the currently open vault: the standardized root path,
+    /// or `""` when no vault is open. This is the ONLY form that may be written
+    /// into `RecentDocument.vaultPath` — raw `rootFolderPath` can differ from it
+    /// on symlinked or non-normalized paths.
+    var vaultKey: String {
+        rootFolderPath.isEmpty ? "" : URL(fileURLWithPath: rootFolderPath).standardizedFileURL.path
+    }
+
+    // MARK: - Recent vaults (File → Open Recent Vault)
+
+    @AppStorage("recentVaultPaths") private var recentVaultPathsJSON: String = "[]"
+
+    /// Most-recent-first standardized vault paths, capped at 5.
+    var recentVaultPaths: [String] {
+        (try? JSONDecoder().decode([String].self, from: Data(recentVaultPathsJSON.utf8))) ?? []
+    }
+
+    func recordRecentVault(_ path: String) {
+        setRecentVaults(Self.updatedRecentVaults(recentVaultPaths, adding: path))
+    }
+
+    func removeRecentVault(_ path: String) {
+        setRecentVaults(recentVaultPaths.filter { $0 != path })
+    }
+
+    func clearRecentVaults() {
+        setRecentVaults([])
+    }
+
+    /// Pure MRU update — standardizes, dedupes, inserts at the front, caps.
+    /// Static so it can be unit-tested without touching UserDefaults.
+    nonisolated static func updatedRecentVaults(_ existing: [String], adding path: String, cap: Int = 5) -> [String] {
+        guard !path.isEmpty else { return existing }
+        let canonical = URL(fileURLWithPath: path).standardizedFileURL.path
+        var paths = existing.filter { $0 != canonical }
+        paths.insert(canonical, at: 0)
+        return Array(paths.prefix(cap))
+    }
+
+    private func setRecentVaults(_ paths: [String]) {
+        if let data = try? JSONEncoder().encode(paths) {
+            recentVaultPathsJSON = String(decoding: data, as: UTF8.self)
+        }
+    }
+
     var editor: Editor {
         get { Editor(rawValue: preferredEditor) ?? .cursor }
         set { preferredEditor = newValue.rawValue }

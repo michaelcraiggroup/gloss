@@ -5,6 +5,30 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.20.0] - 2026-07-04
+
+Vault-scoped memory: favorites and recents now belong to the vault you're
+in, instead of one app-global list that bled across vaults.
+
+### Added
+
+- **Favorites live in the vault** — stored as relative paths in `.gloss/favorites.json`, so they travel with the folder (sync, backup, machine moves) and each vault shows only its own. Loose files opened without a vault keep their own favorites list
+- **Vault-scoped recents** — Recent Documents shows only files opened in the current vault; switching vaults no longer shows the previous vault's list
+- **Recents cover every navigation path** — wiki-links, backlinks, breadcrumbs, graph clicks, back/forward, and CLI opens now land in Recent Documents (previously only sidebar clicks did)
+- **Clear button** on the Recent Documents section
+- **Open Recent Vault** submenu in the File menu (last 5 vaults)
+- **Missing favorites dim with a badge** instead of failing silently, and heal when the file returns (e.g. sync catches up)
+
+### Fixed
+
+- Favorites/recents written with mismatched path forms (standardized vs raw) could duplicate entries for the same file on symlinked paths
+- Renaming or deleting a file (or folder) now updates matching favorites and recents instead of orphaning them into "Could not read file"
+- Dead recents entries are pruned when a vault opens
+
+### Changed
+
+- Existing favorites and recents migrate into the vault's scope the first time that vault is opened in 1.20
+
 ## [macOS 1.19.1] - 2026-07-02
 
 ### Fixed
