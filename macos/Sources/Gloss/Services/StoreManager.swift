@@ -1,6 +1,9 @@
 import StoreKit
 
-/// Manages in-app purchase for Gloss Full ($4.99 one-time unlock).
+/// Manages in-app purchase for Gloss Pro ($9.99 one-time unlock).
+/// The product ID keeps the legacy ".full" suffix — existing purchases own it;
+/// the user-facing tier name ("Gloss Pro") is set in the storekit config and
+/// App Store Connect.
 @Observable
 @MainActor
 final class StoreManager {
@@ -37,7 +40,7 @@ final class StoreManager {
         }
     }
 
-    /// Purchase Gloss Full.
+    /// Purchase Gloss Pro.
     func purchase() async -> Bool {
         guard let product, !isPurchasing else { return false }
         isPurchasing = true
@@ -106,7 +109,7 @@ final class StoreManager {
     }
 }
 
-/// Features that require Gloss Full purchase.
+/// Features that require the Gloss Pro purchase.
 enum PaidFeature: String, CaseIterable, Identifiable {
     case folderSidebar = "Folder Sidebar"
     case inspector = "Inspector (TOC & Frontmatter)"

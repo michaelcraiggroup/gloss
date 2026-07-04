@@ -118,7 +118,7 @@ This isn't a privacy policy, it's the architecture. There's no server to send da
 
 The extension is a trust-builder and lead generator for the macOS app. A free, well-crafted extension demonstrates the "sharp tools that don't spy on you" principle and funnels developers to the native app.
 
-**macOS App:** Free download with $4.99 in-app purchase unlock (StoreKit 2)
+**macOS App:** Free download with $9.99 one-time "Pro" in-app purchase unlock (StoreKit 2)
 
 ### Free Tier (Taste the Quality)
 
@@ -135,7 +135,7 @@ The extension is a trust-builder and lead generator for the macOS app. A free, w
 | Find-in-page (Cmd+F) | ✅ |
 | Print & PDF export | ✅ |
 
-### Paid: Gloss Full ($4.99 one-time)
+### Paid: Gloss Pro ($9.99 one-time)
 
 | Feature | Description |
 |---------|-------------|
@@ -150,7 +150,7 @@ The extension is a trust-builder and lead generator for the macOS app. A free, w
 
 ### Pricing Rationale
 
-- **$4.99 is the impulse-buy threshold.** Under $5 removes deliberation for the App Store audience. Developer tools are price-sensitive but willing to pay for things that work.
+- **$9.99 one-time, presented as "Pro" (decided 2026-07-03).** The unlock is a knowledgebase, not a nicety — folder library, link graph, full-text search, vault-scoped favorites. Under the $10 psychological line, it prices as a serious tool while staying an easy yes next to $8/month subscription readers. Public pricing copy lives on the Off-Leash site (goose PR #52) and this repo must match it.
 - **The paywall sits at the commitment moment.** Free users open individual files — paid users use Gloss as their markdown browser. The upgrade triggers when someone wants folder browsing, not single-file preview.
 - **Quick Look stays free as the viral hook.** Every spacebar press on a `.md` file in Finder is a free ad for Gloss. Gating it would kill the best organic growth mechanism.
 - **No subscription, ever.** There's no ongoing service cost. A subscription would feel extractive for a 100% local app. One-time purchase is a brand promise.
@@ -232,7 +232,7 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] App Store metadata draft (AppStoreMetadata.md — name, description, keywords)
 - [x] Version set to 1.0.0 (MARKETING_VERSION + CURRENT_PROJECT_VERSION)
 - [x] Xcode build verified with signing (Apple Development certificate)
-- [ ] App Store Connect product setup (group.michaelcraig.gloss.full — $4.99 non-consumable)
+- [ ] App Store Connect product setup (group.michaelcraig.gloss.full — $9.99 non-consumable, display name "Gloss Pro")
 - [ ] Developer ID signing + notarization (for direct distribution)
 - [ ] App Store screenshots (5 required)
 - [ ] "Coming soon" link in VS Code extension
@@ -298,7 +298,7 @@ Gloss is a **credibility builder** and **funnel opener**, not a primary revenue 
 - [x] D3.js force-directed graph in WKWebView (`GraphView` + `GraphService`)
 - [x] Filter by link type, tag, depth, document type
 - [x] Node navigation (click to open file)
-- [x] Gated as a Gloss Full paid feature (`PaidFeature.graphView`)
+- [x] Gated as a Gloss Pro paid feature (`PaidFeature.graphView`)
 
 #### Phase 10: Conventions & Templates (Planned)
 - [ ] `.gloss/conventions.yaml` parser
