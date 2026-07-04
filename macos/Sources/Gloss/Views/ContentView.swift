@@ -585,6 +585,7 @@ struct RecentsRecorder: ViewModifier {
 struct VaultLifecycleHandler: ViewModifier {
     let rootURL: URL?
     let favoritesService: FavoritesService
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
 
     func body(content: Content) -> some View {
@@ -592,6 +593,8 @@ struct VaultLifecycleHandler: ViewModifier {
             .onChange(of: rootURL, initial: true) { _, newValue in
                 favoritesService.configure(rootURL: newValue)
                 guard let root = newValue else { return }
+                // Covers every open path (panel, sidebar, CLI, restore).
+                settings.recordRecentVault(root.path)
                 let key = RecentsStore.vaultKey(forRoot: root)
                 RecentsStore.claimLegacyRows(root: root, vaultKey: key, in: modelContext)
                 // Pre-1.20 SwiftData favorites migrate into the vault file.
