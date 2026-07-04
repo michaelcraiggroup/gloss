@@ -5,6 +5,12 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.20.2] - 2026-07-04
+
+### Fixed
+
+- **Post-upgrade locked window eliminated** — the app now trusts the last verified purchase at launch instead of waiting for StoreKit, which on freshly signed Developer-ID builds could take minutes to hours to re-deliver the entitlement (locking Pro features and silently skipping the vault restore on the first launch after every update). Refunds still revoke, including ones that happen while the app isn't running. The cache seeds on this install's first successful verification — or one click of Restore Purchases ([#38](https://github.com/michaelcraiggroup/gloss/issues/38))
+
 ## [macOS 1.20.1] - 2026-07-04
 
 ### Changed
