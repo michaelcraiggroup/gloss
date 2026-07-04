@@ -12,11 +12,11 @@ struct PaywallView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.tint)
 
-            Text("Unlock Gloss Full")
+            Text("Unlock Gloss Pro")
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("\(feature.rawValue) is a Gloss Full feature.")
+            Text("\(feature.rawValue) is a Gloss Pro feature.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

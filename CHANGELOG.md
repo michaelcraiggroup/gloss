@@ -5,6 +5,12 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.20.1] - 2026-07-04
+
+### Changed
+
+- Paid tier is now presented as **Gloss Pro** at **$9.99 one-time** everywhere — paywall, StoreKit test config, App Store metadata, docs — matching the published Off-Leash pricing (decision 2026-07-03). The IAP product ID is unchanged; existing purchases are unaffected ([#44](https://github.com/michaelcraiggroup/gloss/issues/44))
+
 ## [macOS 1.20.0] - 2026-07-04
 
 Vault-scoped memory: favorites and recents now belong to the vault you're

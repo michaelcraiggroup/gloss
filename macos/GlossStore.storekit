@@ -5,18 +5,18 @@
   ],
   "products" : [
     {
-      "displayPrice" : "4.99",
+      "displayPrice" : "9.99",
       "familyShareable" : true,
       "internalID" : "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
       "localizations" : [
         {
           "description" : "Unlock folder sidebar, inspector, search, favorites, wiki-links, print, and more.",
-          "displayName" : "Gloss Full",
+          "displayName" : "Gloss Pro",
           "locale" : "en_US"
         }
       ],
       "productID" : "group.michaelcraig.gloss.full",
-      "referenceName" : "Gloss Full",
+      "referenceName" : "Gloss Pro",
       "type" : "NonConsumable"
     }
   ],

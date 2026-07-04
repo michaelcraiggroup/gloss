@@ -27,7 +27,7 @@ FREE FEATURES:
 - Find in page (Cmd+F)
 - Print and PDF export
 
-GLOSS FULL ($4.99 one-time):
+GLOSS PRO ($9.99 one-time):
 - Folder sidebar with file tree browser
 - Table of contents inspector with click-to-jump
 - Frontmatter metadata display
@@ -50,8 +50,8 @@ markdown,reader,viewer,docs,documentation,wiki,notes,knowledge base,Quick Look,p
 ## Category
 Developer Tools (primary), Productivity (secondary)
 
-## What's New (v1.19)
-Gloss arrives on the Mac App Store as a mature reader, refined across dozens of releases: a live-preview editor (⇧⌘E), a fast local link index with wiki-links and a force-directed link graph, full-text search, and a Quick Look extension. Recent work includes a major performance overhaul for large vaults and the new Reading Desk / Night Owl chrome. Optional $4.99 one-time unlock adds folder browsing, search, wiki-links, and the graph.
+## What's New (v1.20)
+Gloss arrives on the Mac App Store as a mature reader, refined across dozens of releases: a live-preview editor (⇧⌘E), a fast local link index with wiki-links and a force-directed link graph, full-text search, and a Quick Look extension. New in 1.20: favorites and recents belong to each vault — favorites travel with your folder across machines. Optional $9.99 one-time Pro unlock adds folder browsing, search, wiki-links, and the graph.
 
 ## Privacy URL
 https://michaelcraig.group/privacy
@@ -74,4 +74,5 @@ https://michaelcraig.group/products/gloss
 Like Preview.app, but for markdown. Opens to read, edits when you ask. Browse your docs, notes, and knowledge bases with beautiful rendering and zero tracking.
 
 ## App Store Product ID
-group.michaelcraig.gloss.full — Non-Consumable, $4.99, Family Sharing enabled
+group.michaelcraig.gloss.full — Non-Consumable, $9.99, Family Sharing enabled
+(Legacy ".full" ID kept — existing purchases own it. Display name in App Store Connect: "Gloss Pro".)

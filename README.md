@@ -32,7 +32,7 @@ A reader-first markdown experience inside VS Code — edits when you ask.
 
 📦 [Install from Marketplace](https://marketplace.visualstudio.com/items?itemName=michaelcraiggroup.gloss)
 
-## macOS App (Free + $4.99 unlock)
+## macOS App (Free + $9.99 Pro unlock)
 
 A native markdown browser — like Preview.app, but for markdown.
 
@@ -50,7 +50,7 @@ A native markdown browser — like Preview.app, but for markdown.
 - Find-in-page (`⌘F`) with match navigation
 - Print & PDF export (`⌘P`)
 
-### Paid — Gloss Full ($4.99 one-time)
+### Paid — Gloss Pro ($9.99 one-time)
 
 Use Gloss as a vault, not just a viewer:
 

@@ -289,8 +289,8 @@
 |---|------|----------|----|
 | 16.1 | Trigger any paid feature while locked | PaywallView sheet appears | |
 | 16.2 | Paywall shows feature list | 7+ features with checkmarks | |
-| 16.3 | Paywall shows price | "$4.99" (from StoreKit config) | |
-| 16.4 | Tap "Unlock Gloss Full" | Purchase flow (StoreKit sandbox) | |
+| 16.3 | Paywall shows price | "$9.99" (from StoreKit config) | |
+| 16.4 | Tap "Unlock Gloss Pro" | Purchase flow (StoreKit sandbox) | |
 | 16.5 | After purchase, all paid features unlock | No more paywall triggers | |
 | 16.6 | "Restore Purchase" button | Restores previous purchase | |
 | 16.7 | Dismiss paywall without purchasing | Sheet closes, feature stays locked | |
