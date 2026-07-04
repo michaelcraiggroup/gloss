@@ -44,6 +44,14 @@ final class AppSettings: ObservableObject {
         "---\ntitle: \(title)\ntags: [daily]\n---\n\n"
     }
 
+    /// Canonical key for the currently open vault: the standardized root path,
+    /// or `""` when no vault is open. This is the ONLY form that may be written
+    /// into `RecentDocument.vaultPath` — raw `rootFolderPath` can differ from it
+    /// on symlinked or non-normalized paths.
+    var vaultKey: String {
+        rootFolderPath.isEmpty ? "" : URL(fileURLWithPath: rootFolderPath).standardizedFileURL.path
+    }
+
     var editor: Editor {
         get { Editor(rawValue: preferredEditor) ?? .cursor }
         set { preferredEditor = newValue.rawValue }
