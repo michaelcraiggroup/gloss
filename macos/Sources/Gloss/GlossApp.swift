@@ -322,6 +322,31 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("g", modifiers: [.command, .option])
                 .disabled(!fileTree.hasFolder)
+
+                Divider()
+
+                // Read-mode page zoom. ⌘= is the no-Shift zoom-in convention
+                // (Safari/Chrome/Xcode bind the "=" key too).
+                Button("Zoom In") {
+                    settings.zoomIn()
+                    postZoomChanged()
+                }
+                .keyboardShortcut("=", modifiers: .command)
+                .disabled(settings.currentFileURL == nil)
+
+                Button("Zoom Out") {
+                    settings.zoomOut()
+                    postZoomChanged()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(settings.currentFileURL == nil)
+
+                Button("Actual Size") {
+                    settings.resetZoom()
+                    postZoomChanged()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(settings.currentFileURL == nil)
             }
             CommandGroup(replacing: .help) {
                 Button("Getting Started Tour") {
@@ -353,6 +378,13 @@ struct GlossApp: App {
                 NSApplication.shared.terminate(nil)
             }
         }
+    }
+
+    /// Broadcast the current zoom level to the read-mode WebView so it applies
+    /// live (no re-render). The persisted `settings.zoomLevel` is the source of
+    /// truth; this just carries it to the imperative webview layer.
+    private func postZoomChanged() {
+        NotificationCenter.default.post(name: .glossZoomChanged, object: settings.zoomLevel)
     }
 
     private func openGuide(_ guide: WalkthroughGuide) {

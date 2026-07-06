@@ -15,6 +15,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("dailyNotesDateFormat") var dailyNotesDateFormat: String = "yyyy-MM-dd"
     @AppStorage("quickCaptureEnabled") var quickCaptureEnabled: Bool = true
     @AppStorage("quickCaptureCorner") var quickCaptureCorner: String = ScreenCorner.bottomLeft.rawValue
+    @AppStorage("zoomLevel") var zoomLevel: Double = 1.0
 
     @Published var currentFileURL: URL?
     @Published var isZenMode: Bool = false
@@ -98,6 +99,22 @@ final class AppSettings: ObservableObject {
         get { Appearance(rawValue: appearance) ?? .system }
         set { appearance = newValue.rawValue }
     }
+
+    // MARK: - Document zoom (read-mode page zoom, ⌘+/⌘−/⌘0)
+
+    nonisolated static let zoomRange: ClosedRange<Double> = 0.5...3.0
+    nonisolated static let zoomStep: Double = 0.1
+
+    /// Pure, testable zoom transform: applies `delta`, rounds to 2 decimal
+    /// places to avoid Double accumulation drift, then clamps to `zoomRange`.
+    nonisolated static func steppedZoom(_ current: Double, by delta: Double) -> Double {
+        let next = ((current + delta) * 100).rounded() / 100
+        return min(max(next, zoomRange.lowerBound), zoomRange.upperBound)
+    }
+
+    func zoomIn()    { zoomLevel = Self.steppedZoom(zoomLevel, by:  Self.zoomStep) }
+    func zoomOut()   { zoomLevel = Self.steppedZoom(zoomLevel, by: -Self.zoomStep) }
+    func resetZoom() { zoomLevel = 1.0 }
 }
 
 enum Appearance: String, CaseIterable, Identifiable {
