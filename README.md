@@ -40,25 +40,32 @@ A native markdown browser — like Preview.app, but for markdown.
 
 - Single-file reading with full rendering
 - **Live-preview editor** (`⇧⌘E`) — CodeMirror 6, Obsidian-style inline rendering, for when you _do_ want to edit
-- Open in Editor (Cursor, VS Code, Windsurf, VSCodium)
+- Open in Editor (Cursor, VS Code, Windsurf, VSCodium, Zed, Sublime Text, System Default, or any custom app)
 - Quick Look extension — spacebar preview for `.md` in Finder
 - Dark/light theme with Night Owl colors
 - Live reload on file changes
 - Keyboard navigation (vim-style: `j`/`k`, `gg`/`G`, Space)
+- Navigation history (`⌘[` / `⌘]`) — back and forward through your reading trail
+- Zen mode (`⌘\`) — hide the chrome, keep the words
 - Syntax highlighting, Mermaid diagrams, KaTeX math
 - Copy buttons on code blocks, heading anchors
 - Find-in-page (`⌘F`) with match navigation
 - Print & PDF export (`⌘P`)
+- **Fillable templates (md+)** — forms render live in reading mode; "Save Filled Copy" writes a filled copy and never touches the original
 
 ### Paid — Gloss Pro ($9.99 one-time)
 
 Use Gloss as a vault, not just a viewer:
 
 - **Folder sidebar** — file tree browser; create, rename, and delete files in place
-- **Inspector** — table of contents, YAML frontmatter, tags, and a backlinks panel
+- **Vault overview** — dashboard of file/link/tag stats, hub documents, recent changes, and orphans
+- **Inspector** — table of contents, tags, backlinks, unlinked mentions, and frontmatter properties you can edit in place
 - **Wiki-links** — follow `[[link]]` navigation with typed relationships (`[[target::type]]`)
+- **Transclusion** — embed live sections of other notes with `![[note#heading]]`
 - **Link graph** — D3 force-directed view of how your notes connect, centered on the current file
 - **Full-text search** — content search across every file in a folder
+- **md+ queries** — live saved searches embedded in your notes, refreshed from the link index
+- **Daily notes & Quick Capture** — `⌘T` opens today's note; the menu-bar bolt or a hot corner captures a thought from any app
 - **Favorites & recents** — bookmark files, quick access to recent docs
 - **Font size control** — adjustable reading size
 
@@ -80,7 +87,7 @@ npm run watch       # Development mode
 # macOS App
 cd macos
 swift build         # Build via SPM
-swift test          # Run tests (171 tests)
+swift test          # Run tests (373 tests in 43 suites)
 xcodegen generate   # Generate Xcode project for release builds
 ```
 
