@@ -23,6 +23,8 @@ extension Notification.Name {
     static let glossWebViewDidStartLoad = Notification.Name("glossWebViewDidStartLoad")
     static let glossWebViewDidFinishLoad = Notification.Name("glossWebViewDidFinishLoad")
     static let glossOpenPath = Notification.Name("glossOpenPath")
+    /// Posted (object: Double zoom level) when the user changes read-mode page zoom.
+    static let glossZoomChanged = Notification.Name("glossZoomChanged")
     /// Posted (object: [String] of changed paths) when the folder watcher
     /// detects on-disk changes anywhere under the open vault root.
     static let glossVaultFilesChanged = Notification.Name("glossVaultFilesChanged")
@@ -154,10 +156,20 @@ class DropAcceptingWebView: WKWebView {
         panel.title = "Export as PDF"
         guard panel.runModal() == .OK, let saveURL = panel.url else { return }
 
+        // Export at actual size regardless of on-screen zoom, so the PDF is
+        // canonical (the same document exports identically no matter the reader's
+        // zoom). `createPDF` captures the view's rendered state — the same reason
+        // highlights are stripped below — so page zoom must be reset too. The JS
+        // round-trip that follows gives WebKit time to relayout at 1.0 before
+        // capture; the level is restored once the PDF is generated.
+        let restoreZoom = pageZoom
+        if restoreZoom != 1.0 { pageZoom = 1.0 }
+
         // Clear transient find/search highlights so the PDF is clean, then capture.
         evaluateJavaScript("if (typeof clearHighlights === 'function') clearHighlights();") { [weak self] _, _ in
             self?.createPDF { result in
                 DispatchQueue.main.async {
+                    if restoreZoom != 1.0 { self?.pageZoom = restoreZoom }
                     guard case .success(let data) = result else { return }
                     do {
                         try data.write(to: saveURL)
@@ -195,6 +207,9 @@ struct WebView: NSViewRepresentable {
     var baseURL: URL?
     var highlightQuery: String?
     var rawMarkdown: String?
+    /// Read-mode page zoom (1.0 == actual size). Applied via `WKWebView.pageZoom`,
+    /// which scales the whole page — text, images, and Mermaid SVG alike.
+    var zoom: Double = 1.0
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -212,10 +227,19 @@ struct WebView: NSViewRepresentable {
         webView.uiDelegate = context.coordinator
         context.coordinator.webView = webView
         DropAcceptingWebView.current = webView
+        context.coordinator.currentZoom = zoom
+        webView.pageZoom = zoom
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        // Seed/refresh zoom on doc-switch and re-mount. Live ⌘+/⌘−/⌘0 changes
+        // arrive via .glossZoomChanged (the WebView struct isn't recreated for
+        // those), but keeping the coordinator's copy fresh here means the
+        // post-reload re-apply in didFinish always restores the right level.
+        context.coordinator.currentZoom = zoom
+        if webView.pageZoom != zoom { webView.pageZoom = zoom }
+
         let contentChanged = htmlContent != context.coordinator.lastHTML
         context.coordinator.pendingHighlight = highlightQuery
         (webView as? DropAcceptingWebView)?.rawMarkdown = rawMarkdown
@@ -244,6 +268,9 @@ struct WebView: NSViewRepresentable {
         var lastHTML: String?
         var pendingHighlight: String?
         var activeHighlight: String?
+        /// Desired read-mode page zoom. Re-applied after every load because
+        /// `loadHTMLString` resets `WKWebView.pageZoom` back to 1.0.
+        var currentZoom: Double = 1.0
         nonisolated(unsafe) private var observers: [Any] = []
 
         override init() {
@@ -318,6 +345,18 @@ struct WebView: NSViewRepresentable {
                     }
                 }
             )
+            // Read-mode page zoom (⌘+/⌘−/⌘0) — apply live without re-rendering.
+            observers.append(
+                NotificationCenter.default.addObserver(
+                    forName: .glossZoomChanged, object: nil, queue: .main
+                ) { [weak self] note in
+                    let zoom = (note.object as? Double) ?? 1.0
+                    MainActor.assumeIsolated {
+                        self?.currentZoom = zoom
+                        self?.webView?.pageZoom = zoom
+                    }
+                }
+            )
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -328,6 +367,10 @@ struct WebView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             MainActor.assumeIsolated {
+                // loadHTMLString resets pageZoom to 1.0 — restore the desired
+                // level before highlighting so highlight geometry matches the
+                // zoomed layout.
+                webView.pageZoom = currentZoom
                 applyHighlight(pendingHighlight)
                 NotificationCenter.default.post(name: .glossWebViewDidFinishLoad, object: nil)
             }

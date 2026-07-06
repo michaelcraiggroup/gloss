@@ -41,7 +41,8 @@ struct DocumentView: View {
                             htmlContent: html,
                             baseURL: url.deletingLastPathComponent(),
                             highlightQuery: highlightQuery,
-                            rawMarkdown: content
+                            rawMarkdown: content,
+                            zoom: settings.zoomLevel
                         )
                     } else if !isLoading && loadingForURL == fileURL {
                         errorState(message: "Could not read file:\n\(url.lastPathComponent)")
