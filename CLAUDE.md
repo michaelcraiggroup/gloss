@@ -72,7 +72,7 @@ gloss/
 │   ├── GlossQLExtension/   # Quick Look extension
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 369 tests
+│   └── Tests/GlossTests/   # 373 tests
 └── gloss-project-plan.md   # Full product plan
 ```
 
@@ -83,7 +83,7 @@ gloss/
 ```bash
 cd macos
 swift build              # Build (SPM)
-swift test               # Run tests (136 tests)
+swift test               # Run tests (373 tests in 43 suites)
 swift run                # Launch the app (SPM)
 
 # Xcode project (for code signing, Quick Look extension, App Store)
