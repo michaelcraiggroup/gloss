@@ -4,6 +4,12 @@ import PDFKit
 import WebKit
 
 class GlossAppDelegate: NSObject, NSApplicationDelegate {
+    /// A file/folder open macOS delivered before the SwiftUI window mounted
+    /// (cold launch via Finder). The notification below can fire before
+    /// ContentView's observer subscribes, so we also stash it here and drain it
+    /// from `.onAppear`. Both accesses are on the main thread.
+    nonisolated(unsafe) static var pendingOpenURL: URL?
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
@@ -15,9 +21,13 @@ class GlossAppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    // Called when macOS routes a file/folder open to an already-running instance.
+    // The single route for a file/folder open (running app OR cold launch).
+    // The WindowGroup no longer declares `handlesExternalEvents`, so SwiftUI no
+    // longer spawns a second window per external open — the open is routed here
+    // and reuses the existing window (#52).
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
+        Self.pendingOpenURL = url
         NotificationCenter.default.post(name: .glossOpenPath, object: url)
         application.windows.first { !($0 is NSPanel) }?.makeKeyAndOrderFront(nil)
         application.activate(ignoringOtherApps: true)
@@ -71,6 +81,13 @@ struct GlossApp: App {
                     setAppIcon()
                     handleCLIArguments()
                     restoreFolder()
+                    // Cold-launch file open (Finder double-click on a not-running
+                    // app): the .glossOpenPath notification may have fired before
+                    // this view subscribed, so drain the stashed URL here.
+                    if let pending = GlossAppDelegate.pendingOpenURL {
+                        GlossAppDelegate.pendingOpenURL = nil
+                        openPath(pending)
+                    }
                     quickCapture.start(settings: settings) { url in
                         fileTree.refreshAfterFileChange()
                         linkIndex.updateIndex(for: url)
@@ -85,16 +102,15 @@ struct GlossApp: App {
                         restoreFolder()
                     }
                 }
-                .onOpenURL { url in
-                    openPath(url)
-                }
                 .onReceive(NotificationCenter.default.publisher(for: .glossOpenPath)) { note in
+                    // Single open route for the running app. Clear the
+                    // cold-launch stash so a later onAppear can't re-open.
+                    GlossAppDelegate.pendingOpenURL = nil
                     if let url = note.object as? URL {
                         openPath(url)
                     }
                 }
         }
-        .handlesExternalEvents(matching: ["*"])
         .modelContainer(for: RecentDocument.self)
         .defaultSize(width: 1100, height: 700)
         .windowStyle(.hiddenTitleBar)   // frameless chrome — toolbar blends into the window
@@ -141,6 +157,7 @@ struct GlossApp: App {
                 Divider()
 
                 Button("Close Folder") {
+                    SecurityScopedBookmarks.shared.useVault(nil)
                     fileTree.closeFolder()
                     settings.rootFolderPath = ""
                 }
@@ -414,6 +431,7 @@ struct GlossApp: App {
         panel.allowsMultipleSelection = false
         panel.title = "Open Markdown File"
         if panel.runModal() == .OK, let url = panel.url {
+            SecurityScopedBookmarks.shared.save(url)
             settings.currentFileURL = url
             settings.lastOpenedFile = url.standardizedFileURL.path
         }
@@ -426,6 +444,8 @@ struct GlossApp: App {
         panel.allowsMultipleSelection = false
         panel.title = "Open Folder"
         if panel.runModal() == .OK, let url = panel.url {
+            SecurityScopedBookmarks.shared.save(url)
+            SecurityScopedBookmarks.shared.useVault(url)
             fileTree.openFolder(url)
             settings.rootFolderPath = url.path
             linkIndex.buildIndex(rootURL: url)
@@ -461,6 +481,7 @@ struct GlossApp: App {
             settings.removeRecentVault(path)
             return
         }
+        SecurityScopedBookmarks.shared.useVault(url)
         fileTree.openFolder(url)
         settings.rootFolderPath = url.path
         linkIndex.buildIndex(rootURL: url)
@@ -473,6 +494,9 @@ struct GlossApp: App {
         let url = URL(fileURLWithPath: path)
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
+            // Resume scoped access to the vault before scanning it — under
+            // sandbox the stored path alone can't be read after relaunch (#55).
+            SecurityScopedBookmarks.shared.useVault(url)
             fileTree.openFolder(url)
             // Defer indexing one tick so first-frame rendering isn't racing
             // the vault scan (the scan itself is mtime-incremental now).
@@ -483,9 +507,14 @@ struct GlossApp: App {
     }
 
     private func openPath(_ url: URL) {
+        // A path delivered via Finder/drag/`open` is user-granted this session —
+        // capture a security-scoped bookmark so it stays readable after relaunch
+        // (recents/favorites) under the sandbox (#55).
+        SecurityScopedBookmarks.shared.save(url)
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
             guard store.gate(.folderSidebar) else { return }
+            SecurityScopedBookmarks.shared.useVault(url)
             fileTree.openFolder(url)
             settings.rootFolderPath = url.path
             linkIndex.buildIndex(rootURL: url)

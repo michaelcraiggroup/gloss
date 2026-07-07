@@ -5,6 +5,17 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.21.1] - 2026-07-06
+
+### Fixed
+
+- **Recent Documents / favorites / vault restore now work in the signed build** — the sandboxed release could not re-read files from a stored path (clicking a recent gave "could not read file"), because it kept no security-scoped bookmarks. The app now captures a bookmark whenever you grant access (Open panel, Finder open, drag-in) and resolves it on re-open, so access survives relaunch. Note: a file added to recents *before* this update must be opened once (Finder or Open) to capture its bookmark; afterward it opens straight from Recents ([#55](https://github.com/michaelcraiggroup/gloss/issues/55))
+- **Opening a file no longer spawns a duplicate window** — an external open (Finder double-click, `open`, drag) now reuses the existing window instead of opening a second one; the `WindowGroup` no longer claims all external events, and opens route through a single handler ([#52](https://github.com/michaelcraiggroup/gloss/issues/52))
+
+### Changed
+
+- **Zoom ceiling raised to 500%** (was 300%) and the step widened to 25% per ⌘=/⌘−, so large Mermaid diagrams can be enlarged further and faster
+
 ## [macOS 1.21.0] - 2026-07-06
 
 ### Added

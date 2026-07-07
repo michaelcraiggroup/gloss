@@ -102,8 +102,8 @@ final class AppSettings: ObservableObject {
 
     // MARK: - Document zoom (read-mode page zoom, ⌘+/⌘−/⌘0)
 
-    nonisolated static let zoomRange: ClosedRange<Double> = 0.5...3.0
-    nonisolated static let zoomStep: Double = 0.1
+    nonisolated static let zoomRange: ClosedRange<Double> = 0.5...5.0
+    nonisolated static let zoomStep: Double = 0.25
 
     /// Pure, testable zoom transform: applies `delta`, rounds to 2 decimal
     /// places to avoid Double accumulation drift, then clamps to `zoomRange`.

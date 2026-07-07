@@ -240,6 +240,10 @@ struct DocumentView: View {
         }
         loadingForURL = url
         let previousContent = fileContent
+        // Under the sandbox, a file opened from a stored recent/favorite has no
+        // session grant — resolve its security-scoped bookmark before reading.
+        // In-vault files are already covered by the vault's folder bookmark (#55).
+        SecurityScopedBookmarks.shared.ensureFileAccess(url)
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
@@ -273,6 +277,7 @@ struct DocumentView: View {
 
     /// Re-read the file from disk and re-render read mode.
     private func reloadContent(url: URL) {
+        SecurityScopedBookmarks.shared.ensureFileAccess(url)
         fileContent = try? String(contentsOf: url, encoding: .utf8)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
