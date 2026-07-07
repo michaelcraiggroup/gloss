@@ -5,6 +5,13 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.21.3] - 2026-07-07
+
+### Fixed
+
+- **Paywall no longer pretends to load forever** — when the App Store product can't be fetched (offline, or the app isn't visible in this machine's App Store environment), the paywall now says so and offers **Try Again**, instead of a perpetual "Loading…" spinner; the product is also re-requested every time the paywall opens ([#59](https://github.com/michaelcraiggroup/gloss/issues/59))
+- **Restore Purchase now reports its outcome** — a spinner while it runs, and a clear "No purchase found for this Apple Account." message when it completes without finding an entitlement, instead of silently returning to the same modal ([#59](https://github.com/michaelcraiggroup/gloss/issues/59))
+
 ## [macOS 1.21.2] - 2026-07-07
 
 ### Fixed

@@ -48,17 +48,43 @@ struct PaywallView: View {
                 .controlSize(.large)
                 .buttonStyle(.borderedProminent)
                 .disabled(store.isPurchasing)
+            } else if store.productLoadFailed {
+                // Distinguish "failed" from "still fetching" — a perpetual
+                // fake spinner here left users stuck with no way forward (#59).
+                VStack(spacing: 6) {
+                    Text("Couldn't load the App Store product.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Try Again") {
+                        Task { await store.loadProduct() }
+                    }
+                    .controlSize(.small)
+                }
             } else {
                 ProgressView("Loading…")
                     .controlSize(.small)
             }
 
-            Button("Restore Purchase") {
+            Button {
                 Task { await store.restore() }
+            } label: {
+                if store.isRestoring {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Text("Restore Purchase")
+                }
             }
             .buttonStyle(.plain)
             .font(.caption)
             .foregroundStyle(.secondary)
+            .disabled(store.isRestoring)
+
+            if store.restoreFoundNothing {
+                Text("No purchase found for this Apple Account.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
 
             Text("One-time purchase. No subscription, ever.")
                 .font(.caption2)
@@ -66,6 +92,11 @@ struct PaywallView: View {
         }
         .padding(32)
         .frame(width: 340)
+        .task {
+            // Re-request the product every time the paywall opens — the
+            // launch-time fetch may have failed (offline, store hiccup).
+            await store.loadProduct()
+        }
         .onChange(of: store.isUnlocked) {
             if store.isUnlocked { dismiss() }
         }
