@@ -24,6 +24,10 @@ struct DocumentView: View {
     /// Wiki-link targets that failed to resolve in the last render — checked
     /// again when the index updates so links to just-indexed notes light up.
     @State private var unresolvedWikiTargets: [String] = []
+    /// The last read failed with a permission error (sandbox denial on a
+    /// stored recent/favorite with no bookmark, or POSIX perms) — shows the
+    /// one-click Grant Access state instead of the dead-end error (#57).
+    @State private var readDenied = false
 
     var body: some View {
         ZStack {
@@ -45,7 +49,11 @@ struct DocumentView: View {
                             zoom: settings.zoomLevel
                         )
                     } else if !isLoading && loadingForURL == fileURL {
-                        errorState(message: "Could not read file:\n\(url.lastPathComponent)")
+                        if readDenied {
+                            permissionState(url: url)
+                        } else {
+                            errorState(message: "Could not read file:\n\(url.lastPathComponent)")
+                        }
                     }
                 } else {
                     emptyState
@@ -232,6 +240,53 @@ struct DocumentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Shown when the sandbox (or POSIX perms) denied the read — e.g. a recent
+    /// recorded before bookmarks existed (#55). One click re-grants access and
+    /// stores a bookmark so the file opens straight from Recents from then on.
+    private func permissionState(url: URL) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.doc")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            Text("Gloss needs permission to read this file")
+                .font(.title3)
+            Text(url.lastPathComponent)
+                .font(.callout.monospaced())
+                .foregroundStyle(.secondary)
+            Text("Files opened before Gloss kept access grants need to be granted once — after that they open straight from Recents.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+            Button("Grant Access…") {
+                presentGrantPanel(for: url)
+            }
+            .keyboardShortcut(.defaultAction)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Open panel pre-selected on the denied file: picking it is the user
+    /// grant the sandbox needs. Capture a bookmark on the spot and reload.
+    private func presentGrantPanel(for url: URL) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.directoryURL = url   // navigates to the folder and pre-selects the file
+        panel.message = "Select “\(url.lastPathComponent)” to give Gloss permission to read it."
+        panel.prompt = "Grant Access"
+        guard panel.runModal() == .OK, let picked = panel.url else { return }
+        SecurityScopedBookmarks.shared.save(picked)
+        if picked.standardizedFileURL.path == url.standardizedFileURL.path {
+            loadAndWatch()
+        } else {
+            // The user granted a different file — open that one instead.
+            settings.currentFileURL = picked
+            settings.lastOpenedFile = picked.standardizedFileURL.path
+        }
+    }
+
     private func loadAndWatch() {
         guard let url = fileURL else {
             fileContent = nil
@@ -244,7 +299,13 @@ struct DocumentView: View {
         // session grant — resolve its security-scoped bookmark before reading.
         // In-vault files are already covered by the vault's folder bookmark (#55).
         SecurityScopedBookmarks.shared.ensureFileAccess(url)
-        fileContent = try? String(contentsOf: url, encoding: .utf8)
+        readDenied = false
+        do {
+            fileContent = try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            fileContent = nil
+            readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
+        }
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             // Re-triggers with unchanged content (e.g. the folder watcher
@@ -278,7 +339,13 @@ struct DocumentView: View {
     /// Re-read the file from disk and re-render read mode.
     private func reloadContent(url: URL) {
         SecurityScopedBookmarks.shared.ensureFileAccess(url)
-        fileContent = try? String(contentsOf: url, encoding: .utf8)
+        readDenied = false
+        do {
+            fileContent = try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            fileContent = nil
+            readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
+        }
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             // While editing, the read-mode WebView isn't mounted — so renderAsync's

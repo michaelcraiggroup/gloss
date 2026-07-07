@@ -5,6 +5,13 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.21.2] - 2026-07-07
+
+### Fixed
+
+- **One-click re-grant instead of the dead-end red error** — clicking a Recent or favorite that Gloss no longer has permission to read (e.g. anything recorded before 1.21.1 kept access grants) now shows a **"Grant Access…"** prompt that opens an Open panel pre-selected on that exact file. Picking it stores the access grant on the spot, so the file opens straight from Recents from then on. Genuinely missing files keep the plain error ([#57](https://github.com/michaelcraiggroup/gloss/issues/57))
+- `release-dmg.sh` now falls back to `hdiutil makehybrid` when `create-dmg` can't drive Finder (headless/resumed sessions), so release packaging can't strand a signed build without a DMG
+
 ## [macOS 1.21.1] - 2026-07-06
 
 ### Fixed

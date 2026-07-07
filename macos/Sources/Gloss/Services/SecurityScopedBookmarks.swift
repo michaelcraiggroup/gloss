@@ -32,6 +32,19 @@ final class SecurityScopedBookmarks {
 
     private func pathKey(_ url: URL) -> String { url.standardizedFileURL.path }
 
+    /// Whether a file-read error means access was DENIED (sandbox or POSIX
+    /// permissions) as opposed to the file being missing. Denied reads get the
+    /// one-click re-grant UX (#57); missing files keep the plain error.
+    nonisolated static func isPermissionDenied(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == NSCocoaErrorDomain && ns.code == NSFileReadNoPermissionError { return true }
+        if ns.domain == NSPOSIXErrorDomain && (ns.code == Int(EACCES) || ns.code == Int(EPERM)) { return true }
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            return isPermissionDenied(underlying)
+        }
+        return false
+    }
+
     // MARK: - Capture
 
     /// Record a bookmark for a URL the user just granted access to (Open panel,
