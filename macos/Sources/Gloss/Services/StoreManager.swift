@@ -51,6 +51,16 @@ final class StoreManager {
     private(set) var product: Product?
     private(set) var isUnlocked = false
     private(set) var isPurchasing = false
+    /// The last product fetch completed without a product — store unreachable,
+    /// or the product doesn't exist in this machine's App Store environment
+    /// (e.g. a Developer-ID build signed into production before the app is
+    /// live). Drives the paywall's "Try Again" state instead of a fake
+    /// perpetual spinner (#59).
+    private(set) var productLoadFailed = false
+    private(set) var isRestoring = false
+    /// Restore ran to completion without finding an entitlement — surfaced in
+    /// the paywall so a fruitless restore isn't silent (#59).
+    private(set) var restoreFoundNothing = false
     private var transactionListener: Task<Void, Never>?
 
     init() {
@@ -71,15 +81,18 @@ final class StoreManager {
         // transactionListener is cancelled when Task is deallocated
     }
 
-    /// Load the product from the App Store.
+    /// Load the product from the App Store. Retryable — the paywall calls it
+    /// again on open and from its "Try Again" button.
     func loadProduct() async {
         guard product == nil else { return }
+        productLoadFailed = false
         do {
             let products = try await Product.products(for: [Self.productID])
             product = products.first
         } catch {
-            // Silently fail — product unavailable
+            // Fall through — product stays nil; the failed state drives the UI.
         }
+        productLoadFailed = (product == nil)
     }
 
     /// Purchase Gloss Pro.
@@ -108,10 +121,17 @@ final class StoreManager {
         return false
     }
 
-    /// Restore purchases.
+    /// Restore purchases. Reports an in-flight state and whether anything was
+    /// actually found, so the paywall can say so instead of silently returning
+    /// to the same modal (#59).
     func restore() async {
+        guard !isRestoring else { return }
+        isRestoring = true
+        restoreFoundNothing = false
+        defer { isRestoring = false }
         try? await AppStore.sync()
         await checkEntitlement()
+        restoreFoundNothing = !isUnlocked
     }
 
     /// Check if user has a valid entitlement.
