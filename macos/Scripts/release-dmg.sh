@@ -98,7 +98,7 @@ step "Building the DMG"
 rm -f "$DMG"
 mkdir -p "$DMG_STAGE"
 cp -R "$APP" "$DMG_STAGE/"
-create-dmg \
+if ! create-dmg \
   --volname "Gloss $VERSION" \
   --window-pos 200 120 \
   --window-size 540 380 \
@@ -106,8 +106,22 @@ create-dmg \
   --icon "Gloss.app" 150 190 \
   --app-drop-link 390 190 \
   --hdiutil-quiet \
-  "$DMG" "$DMG_STAGE" \
-  || die "create-dmg failed (it drives Finder via AppleScript — run this in a normal GUI login session, not over plain SSH)."
+  "$DMG" "$DMG_STAGE"; then
+  # create-dmg drives Finder via AppleScript and hdiutil-create mounts a
+  # scratch volume — both fail in headless/resumed login sessions ("Operation
+  # not permitted"). makehybrid writes the image straight from the folder with
+  # no Finder and no scratch mount. Cosmetic difference only: no custom icon
+  # layout in the DMG window.
+  step "create-dmg failed (no GUI Finder session) — falling back to hdiutil makehybrid"
+  hdiutil detach "/Volumes/Gloss $VERSION" -force >/dev/null 2>&1 || true
+  ln -shf /Applications "$DMG_STAGE/Applications"
+  RAW="$BUILD/raw-hybrid.dmg"
+  rm -f "$RAW"
+  hdiutil makehybrid -hfs -hfs-volume-name "Gloss $VERSION" -o "$RAW" "$DMG_STAGE"
+  hdiutil convert "$RAW" -format UDZO -o "$DMG"
+  rm -f "$RAW"
+fi
+[ -f "$DMG" ] || die "DMG was not produced."
 
 step "Signing the DMG"
 codesign --force --sign "$DEV_ID_IDENTITY" --timestamp "$DMG"
