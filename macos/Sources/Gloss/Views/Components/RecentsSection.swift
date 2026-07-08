@@ -7,6 +7,12 @@ import SwiftData
 /// unbounded sort-everything fetch re-ran inside List body evaluation (the
 /// render-loop stack in the 2026-07-01 CPU diagnostics). Rows carry NO `.tag`
 /// (see FavoritesSection — duplicate tags looped the selection List).
+///
+/// The Section renders even when empty (placeholder row): Clear lives in the
+/// header, so the cursor is on that row when the recents empty — removing the
+/// whole section deallocated the hovered header's outline-view item and
+/// crashed AppKit's tracking-area update (#61). Leaf rows may come and go;
+/// the header must not.
 struct RecentsSection<MenuContent: View>: View {
     @Query private var recents: [RecentDocument]
     /// No-vault fallback for star state; with a vault open the stars read
@@ -39,13 +45,16 @@ struct RecentsSection<MenuContent: View>: View {
     }
 
     var body: some View {
-        if !recents.isEmpty {
-            // One Set per body pass instead of an O(favorites) scan
-            // per row per render.
-            let favoritePaths: Set<String> = favoritesService.rootURL != nil
-                ? Set(favoritesService.favorites.map { RecentsStore.canonicalPath($0.url) })
-                : Set(legacyFavorites.map(\.path))
-            Section {
+        // One Set per body pass instead of an O(favorites) scan
+        // per row per render.
+        let favoritePaths: Set<String> = favoritesService.rootURL != nil
+            ? Set(favoritesService.favorites.map { RecentsStore.canonicalPath($0.url) })
+            : Set(legacyFavorites.map(\.path))
+        Section {
+            if recents.isEmpty {
+                Text("No recent documents")
+                    .foregroundStyle(.secondary)
+            } else {
                 ForEach(recents) { doc in
                     let favorited = favoritePaths.contains(doc.path)
                     HStack {
@@ -69,10 +78,12 @@ struct RecentsSection<MenuContent: View>: View {
                     .onTapGesture { onSelect(doc.url) }
                     .contextMenu { contextMenu(doc.url) }
                 }
-            } header: {
-                HStack {
-                    Text("Recent Documents")
-                    Spacer()
+            }
+        } header: {
+            HStack {
+                Text("Recent Documents")
+                Spacer()
+                if !recents.isEmpty {
                     Button("Clear") {
                         RecentsStore.clearRecents(vaultKey: vaultKey, in: modelContext)
                     }

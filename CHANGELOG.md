@@ -5,6 +5,12 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.21.4] - 2026-07-08
+
+### Fixed
+
+- **Clicking Clear on Recent Documents no longer crashes the app** — emptying the recents removed the entire sidebar section, including the header row the cursor was on (Clear lives in that header), and AppKit's next tracking-area update probed the deallocated header row and segfaulted. The Favorites and Recent Documents sections now always render, showing a quiet "No favorites yet" / "No recent documents" row when empty, and Clear appears only when there is something to clear. Un-starring the last favorite had the same latent crash and is covered by the same fix ([#61](https://github.com/michaelcraiggroup/gloss/issues/61))
+
 ## [macOS 1.21.3] - 2026-07-07
 
 ### Fixed
