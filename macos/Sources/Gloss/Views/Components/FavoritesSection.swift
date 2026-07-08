@@ -9,6 +9,12 @@ import SwiftData
 /// Preview.app-style). Rows deliberately carry NO `.tag` — a file can appear
 /// here AND in the tree, and duplicate tags in the selection-bound List
 /// caused the v1.17.2 100%-CPU render loop.
+///
+/// The Section renders even when empty (placeholder row): removing a sidebar
+/// section deallocates its header row's outline-view item, and if the cursor
+/// is on that header AppKit's next tracking-area update probes the stale item
+/// and segfaults (#61 — hit via Recents' Clear; same shape here when the last
+/// favorite is un-starred). Leaf rows may come and go; the header must not.
 struct FavoritesSection<MenuContent: View>: View {
     @Environment(FavoritesService.self) private var favoritesService
     /// No-vault fallback: favorites recorded without an open vault.
@@ -32,9 +38,11 @@ struct FavoritesSection<MenuContent: View>: View {
     }
 
     var body: some View {
-        if favoritesService.rootURL != nil {
-            if !favoritesService.favorites.isEmpty {
-                Section("Favorites") {
+        Section("Favorites") {
+            if favoritesService.rootURL != nil {
+                if favoritesService.favorites.isEmpty {
+                    emptyRow
+                } else {
                     ForEach(favoritesService.favorites) { item in
                         row(
                             title: item.title,
@@ -44,14 +52,19 @@ struct FavoritesSection<MenuContent: View>: View {
                         )
                     }
                 }
-            }
-        } else if !legacyFavorites.isEmpty {
-            Section("Favorites") {
+            } else if legacyFavorites.isEmpty {
+                emptyRow
+            } else {
                 ForEach(legacyFavorites) { doc in
                     row(title: doc.title, icon: doc.type.icon, url: doc.url, missing: false)
                 }
             }
         }
+    }
+
+    private var emptyRow: some View {
+        Text("No favorites yet")
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
