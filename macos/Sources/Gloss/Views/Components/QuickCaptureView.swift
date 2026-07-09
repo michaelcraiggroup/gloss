@@ -33,7 +33,7 @@ struct QuickCaptureView: View {
                 .focused($focused)
 
             HStack {
-                Text(hasVault ? "⌘↩ to save · esc to cancel" : "Open a folder in Gloss to capture here")
+                Text(hasVault ? "⌘↩ to save · esc to cancel" : "Open a vault in Gloss to capture here")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()

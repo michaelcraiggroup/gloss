@@ -183,8 +183,14 @@ public struct MarkdownRenderer: Sendable {
 
     /// Whether this source contains interactive content (GFM task lists or
     /// md+ template blocks) that should enable the "Save Filled Copy" flow.
+    /// Must answer exactly like render()'s bridge injection: the marker
+    /// heuristic alone misses YAML variants (e.g. `type: "template"`) that
+    /// the parser accepts — which would leave the menu disabled on a
+    /// document whose fields are fillable on screen.
     public static func hasFillableContent(_ source: String) -> Bool {
-        MdPlusParser.hasFillableContent(stripFrontmatter(source))
+        let stripped = stripFrontmatter(source)
+        return MdPlusParser.hasFillableContent(stripped)
+            || !MdPlusParser.parse(stripped).blocks.isEmpty
     }
 
     /// Extract headings from markdown source for TOC generation.

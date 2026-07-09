@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
@@ -73,6 +74,11 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
             if let url = notification.object as? URL {
+                // A dropped file carries a live sandbox grant — capture the
+                // bookmark here (the one receiver for every drop surface) so
+                // its recents entry stays readable after relaunch, matching
+                // the other entry points (#64).
+                SecurityScopedBookmarks.shared.save(url)
                 settings.currentFileURL = url
                 settings.lastOpenedFile = url.standardizedFileURL.path
             }
@@ -363,7 +369,21 @@ struct ContentView: View {
     // MARK: - New File
 
     /// Open today's daily note, creating it (from a minimal template) if absent.
+    /// With no vault open (e.g. a fresh launch), a daily note has nowhere to
+    /// live — reopen the most recent vault, or ask for one, instead of
+    /// dead-ending the ⌘T shortcut (#63).
     private func openTodaysNote() {
+        if !fileTree.hasFolder {
+            // hasFolder, not dailyNoteURL(): the persisted rootFolderPath can
+            // outlive a vault that failed to restore (moved/deleted on disk),
+            // and a misconfigured daily-note date format must not force a
+            // reopen of an already-open vault.
+            guard store.gate(.folderSidebar), let vaultURL = vaultURLForDailyNote() else { return }
+            // The single open route (GlossApp.openPath): captures the
+            // security-scoped bookmark, opens the vault, kicks the index.
+            // Posting is synchronous, so the vault is open on return.
+            NotificationCenter.default.post(name: .glossOpenPath, object: vaultURL)
+        }
         guard let fileURL = settings.dailyNoteURL() else { return }
         let existed = FileManager.default.fileExists(atPath: fileURL.path)
         if !existed {
@@ -383,6 +403,27 @@ struct ContentView: View {
             isEditorDirty = false
             Task { @MainActor in isEditing = true }   // brand-new note opens ready to write
         }
+    }
+
+    /// Vault to host today's note when none is open: the most recent vault
+    /// that still exists on disk, else an Open panel. nil = user cancelled.
+    private func vaultURLForDailyNote() -> URL? {
+        for path in settings.recentVaultPaths {
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
+                return URL(fileURLWithPath: path)
+            }
+            // Same policy as Open Recent Vault: vanished vaults drop out.
+            settings.removeRecentVault(path)
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = "Open Vault"
+        panel.message = "Today's note needs a vault. Choose a folder to use as your vault."
+        guard panel.runModal() == .OK else { return nil }
+        return panel.url
     }
 
     /// Write a changed/added frontmatter property back to the current file and re-index.

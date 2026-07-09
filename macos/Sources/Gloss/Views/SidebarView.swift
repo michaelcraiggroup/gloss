@@ -285,11 +285,11 @@ struct SidebarView: View {
 
                 Button {
                     guard store.gate(.folderSidebar) else { return }
-                    openFolderFromSidebar()
+                    openVaultFromSidebar()
                 } label: {
-                    Label("Open Folder", systemImage: "folder.badge.plus")
+                    Label("Open Vault", systemImage: "folder.badge.plus")
                 }
-                .help("Open Folder (⇧⌘O)")
+                .help("Open Vault (⇧⌘O)")
 
                 Button {
                     NotificationCenter.default.post(name: .glossShowGraph, object: nil)
@@ -711,16 +711,18 @@ struct SidebarView: View {
         Self.relativeDateFormatter.localizedString(for: date, relativeTo: .now)
     }
 
-    private func openFolderFromSidebar() {
+    /// Routes through .glossOpenPath (GlossApp.openPath) rather than opening
+    /// directly: that single route also captures the security-scoped bookmark,
+    /// which this path used to skip — leaving sidebar-opened vaults
+    /// unrestorable after relaunch under the sandbox (#64).
+    private func openVaultFromSidebar() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.title = "Open Folder"
+        panel.title = "Open Vault"
         if panel.runModal() == .OK, let url = panel.url {
-            fileTree.openFolder(url)
-            settings.rootFolderPath = url.path
-            linkIndex.buildIndex(rootURL: url)
+            NotificationCenter.default.post(name: .glossOpenPath, object: url)
         }
     }
 }
