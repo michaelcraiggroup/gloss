@@ -105,6 +105,12 @@ struct DocumentView: View {
         .onAppear {
             loadAndWatch()
         }
+        .onDisappear {
+            // DocumentView unmounts while a file stays selected (the Vault
+            // Graph swap) — the fill bridge goes with the WebView, so Save
+            // Filled Copy… must not stay enabled (#66).
+            templateFill.currentDocumentIsFillable = false
+        }
         .onReceive(NotificationCenter.default.publisher(for: .glossNavigateWikiLink)) { notification in
             guard store.gate(.wikiLinks) else { return }
             if let url = notification.object as? URL {
@@ -287,6 +293,16 @@ struct DocumentView: View {
         }
     }
 
+    /// Keep the Save Filled Copy… enablement in step with what's on screen —
+    /// the same decision render() makes when injecting the fill bridge (#66).
+    /// Unchanged content can't change the answer, so the scan is skipped on
+    /// the no-op re-trigger paths (watcher arming, identical live reloads).
+    private func updateFillableFlag(previous: String?) {
+        guard fileContent != previous else { return }
+        templateFill.currentDocumentIsFillable =
+            fileContent.map { MarkdownRenderer.hasFillableContent($0) } ?? false
+    }
+
     private func loadAndWatch() {
         guard let url = fileURL else {
             fileContent = nil
@@ -307,9 +323,7 @@ struct DocumentView: View {
             fileContent = nil
             readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
         }
-        // Keep the Save Filled Copy… menu enablement in step with what was
-        // just loaded (#66).
-        templateFill.currentDocumentIsFillable = fileContent.map { MarkdownRenderer.hasFillableContent($0) } ?? false
+        updateFillableFlag(previous: previousContent)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             // Re-triggers with unchanged content (e.g. the folder watcher
@@ -344,13 +358,14 @@ struct DocumentView: View {
     private func reloadContent(url: URL) {
         SecurityScopedBookmarks.shared.ensureFileAccess(url)
         readDenied = false
+        let previousContent = fileContent
         do {
             fileContent = try String(contentsOf: url, encoding: .utf8)
         } catch {
             fileContent = nil
             readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
         }
-        templateFill.currentDocumentIsFillable = fileContent.map { MarkdownRenderer.hasFillableContent($0) } ?? false
+        updateFillableFlag(previous: previousContent)
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             // While editing, the read-mode WebView isn't mounted — so renderAsync's

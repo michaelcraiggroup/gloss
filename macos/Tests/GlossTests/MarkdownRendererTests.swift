@@ -307,6 +307,23 @@ struct MarkdownRendererTests {
         #expect(!MarkdownRenderer.hasFillableContent("# Just a heading"))
     }
 
+    @Test("hasFillableContent matches the render bridge for quoted template type")
+    func detectsQuotedTemplateType() {
+        // `type: "template"` defeats the literal `type: template` marker scan
+        // but parses to a template block, so render() injects the fill
+        // bridge — the menu enablement must agree.
+        let source = """
+        <!--md+
+        id: form1
+        type: "template"
+        fields:
+          - name: title
+            label: Title
+        -->
+        """
+        #expect(MarkdownRenderer.hasFillableContent(source))
+    }
+
     @Test("Renders md+ template block as a fieldset")
     func templateBlockRenders() {
         let source = """

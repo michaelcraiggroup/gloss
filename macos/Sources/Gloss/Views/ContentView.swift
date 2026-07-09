@@ -74,6 +74,11 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
             if let url = notification.object as? URL {
+                // A dropped file carries a live sandbox grant — capture the
+                // bookmark here (the one receiver for every drop surface) so
+                // its recents entry stays readable after relaunch, matching
+                // the other entry points (#64).
+                SecurityScopedBookmarks.shared.save(url)
                 settings.currentFileURL = url
                 settings.lastOpenedFile = url.standardizedFileURL.path
             }
@@ -368,7 +373,11 @@ struct ContentView: View {
     /// live — reopen the most recent vault, or ask for one, instead of
     /// dead-ending the ⌘T shortcut (#63).
     private func openTodaysNote() {
-        if settings.dailyNoteURL() == nil {
+        if !fileTree.hasFolder {
+            // hasFolder, not dailyNoteURL(): the persisted rootFolderPath can
+            // outlive a vault that failed to restore (moved/deleted on disk),
+            // and a misconfigured daily-note date format must not force a
+            // reopen of an already-open vault.
             guard store.gate(.folderSidebar), let vaultURL = vaultURLForDailyNote() else { return }
             // The single open route (GlossApp.openPath): captures the
             // security-scoped bookmark, opens the vault, kicks the index.
@@ -404,6 +413,8 @@ struct ContentView: View {
             if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
                 return URL(fileURLWithPath: path)
             }
+            // Same policy as Open Recent Vault: vanished vaults drop out.
+            settings.removeRecentVault(path)
         }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false

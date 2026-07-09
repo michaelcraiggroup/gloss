@@ -482,7 +482,10 @@ struct GlossApp: App {
         panel.showsTagField = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            // No intermediates: New Vault must not silently adopt an existing
+            // folder (and everything in it) as a "new" vault — surface the
+            // name collision instead.
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
         } catch {
             let alert = NSAlert()
             alert.messageText = "Could Not Create Vault"
@@ -491,11 +494,9 @@ struct GlossApp: App {
             alert.runModal()
             return
         }
-        SecurityScopedBookmarks.shared.save(url)
-        SecurityScopedBookmarks.shared.useVault(url)
-        fileTree.openFolder(url)
-        settings.rootFolderPath = url.path
-        linkIndex.buildIndex(rootURL: url)
+        // The single open route (openPath): bookmark capture, vault swap,
+        // index build — identical to every other entry point.
+        NotificationCenter.default.post(name: .glossOpenPath, object: url)
     }
 
     private func setAppIcon() {
@@ -612,16 +613,18 @@ struct GlossApp: App {
             return
         }
 
+        // Quoted: the app can live at a spaced path ("/Applications/Gloss
+        // Beta.app"), and an unquoted ln argument splits there.
+        let command = "sudo ln -sf \"\(scriptSource)\" \(dest)"
+
         // Show the installation dialog with command to copy
         let alert = NSAlert()
         alert.messageText = "Install Command Line Tool"
-        alert.informativeText = "To install the CLI tool, open Terminal and run:\n\nsudo ln -sf \(scriptSource) \(dest)\n\nThen paste your Mac password when prompted."
+        alert.informativeText = "To install the CLI tool, open Terminal and run:\n\n\(command)\n\nThen paste your Mac password when prompted."
         alert.addButton(withTitle: "Copy Command")
         alert.addButton(withTitle: "Cancel")
 
         if alert.runModal() == .alertFirstButtonReturn {
-            // Copy command to pasteboard
-            let command = "sudo ln -sf \(scriptSource) \(dest)"
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(command, forType: .string)
 
