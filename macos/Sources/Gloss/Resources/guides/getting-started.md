@@ -85,9 +85,9 @@ Open the Inspector with **⌥⌘I** to see:
 - **Tags** — clickable pills for the current document's tags
 - **Backlinks** — every document that links to this one, grouped by link type
 
-## Folder Sidebar
+## Vault Sidebar
 
-Open a folder with **⇧⌘O** to browse all your markdown files:
+Open a vault with **⇧⌘O** (or create one with **⇧⌘V**) to browse all your markdown files:
 
 - **Tree view** — expand and collapse directories
 - **Full-text search** — find content across every file in your vault
@@ -99,7 +99,7 @@ Open a folder with **⇧⌘O** to browse all your markdown files:
 
 Link between documents using wiki-link syntax:
 
-- `[[another-file]]` — navigates to the file within your folder
+- `[[another-file]]` — navigates to the file within your vault
 - `[[target|display text]]` — custom display text
 - `[[target::related]]` — typed link for categorized relationships
 - `![[another-file]]` — **embed** the whole note inline; `![[another-file#Section]]` embeds just that section
@@ -135,7 +135,7 @@ Vim-style keys work in reading mode:
 
 - **⌘P** — Print the current document
 - **⌘E** — Export as PDF
-- **⌘\\** — Zen mode (hide sidebar and window chrome)
+- **⌃⌘Z** — Zen mode (hide sidebar and window chrome)
 - **⌘D** — Toggle favorite on the current document
 - **⌘,** — Open Settings (appearance, editor, font size)
 
@@ -145,7 +145,7 @@ Gloss includes a Quick Look extension. Press **Space** on any `.md` file in Find
 
 ## What's Next?
 
-- Open a **folder** (`⇧⌘O`) to explore your markdown collection
+- Open a **vault** (`⇧⌘O`) to explore your markdown collection
 - Try **Edit mode** (`⇧⌘E`) for a distraction-free writing experience
 - Open the **Inspector** (`⌥⌘I`) to see this document's structure and tags
 - **Star** this document (`⌘D`) to try favorites

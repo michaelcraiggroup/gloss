@@ -290,6 +290,7 @@ struct DocumentView: View {
     private func loadAndWatch() {
         guard let url = fileURL else {
             fileContent = nil
+            templateFill.currentDocumentIsFillable = false
             fileWatcher.stop()
             return
         }
@@ -306,6 +307,9 @@ struct DocumentView: View {
             fileContent = nil
             readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
         }
+        // Keep the Save Filled Copy… menu enablement in step with what was
+        // just loaded (#66).
+        templateFill.currentDocumentIsFillable = fileContent.map { MarkdownRenderer.hasFillableContent($0) } ?? false
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             // Re-triggers with unchanged content (e.g. the folder watcher
@@ -346,6 +350,7 @@ struct DocumentView: View {
             fileContent = nil
             readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
         }
+        templateFill.currentDocumentIsFillable = fileContent.map { MarkdownRenderer.hasFillableContent($0) } ?? false
         if let content = fileContent {
             NotificationCenter.default.post(name: .glossDocumentLoaded, object: content)
             // While editing, the read-mode WebView isn't mounted — so renderAsync's

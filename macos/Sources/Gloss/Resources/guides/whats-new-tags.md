@@ -17,7 +17,7 @@ tags: [swift, macos, tutorial]
 ---
 ```
 
-Gloss indexes all tags when you open a folder. Tags appear in two places:
+Gloss indexes all tags when you open a vault. Tags appear in two places:
 
 1. **Sidebar** — browse all tags with file counts, click to filter
 2. **Inspector** — see the current document's tags as clickable pills

@@ -5,6 +5,24 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.22.0] - 2026-07-09
+
+### Added
+
+- **New Vault… (⇧⌘V)** — create a vault folder from inside Gloss and open it immediately, instead of making one in Finder first ([#65](https://github.com/michaelcraiggroup/gloss/issues/65))
+- **Today's Note (⌘T) works from launch** — with no vault open it now reopens your most recent vault (or asks you to pick one), then opens today's note, instead of sitting disabled until a vault is opened ([#63](https://github.com/michaelcraiggroup/gloss/issues/63))
+
+### Changed
+
+- **"Open Folder" is now "Open Vault"** across the File menu, sidebar toolbar, open panels, Quick Capture, and the built-in guides — matching what it actually opens ("Close Folder" → "Close Vault" too) ([#64](https://github.com/michaelcraiggroup/gloss/issues/64))
+- **Zen mode moved to ⌃⌘Z** (was ⌘\) — 1Password's global autofill hotkey defaults to ⌘\ and swallowed the shortcut before Gloss ever saw it ([#69](https://github.com/michaelcraiggroup/gloss/issues/69))
+
+### Fixed
+
+- **Install Command Line Tool works in release builds** — the `gloss` script was never bundled into Xcode-built apps (xcodegen silently ignored the invalid `resources:` key in project.yml), so installing always failed with "CLI Script Not Found" ([#67](https://github.com/michaelcraiggroup/gloss/issues/67))
+- **Save Filled Copy… is only enabled when it can do something** — documents with fillable content (task lists or md+ template blocks) in read mode; previously it was clickable-but-inert for every document ([#66](https://github.com/michaelcraiggroup/gloss/issues/66))
+- **Vaults opened from the sidebar toolbar now survive relaunch** — that path skipped capturing a security-scoped bookmark, so the sandboxed app couldn't restore the vault on next launch; it now routes through the same open pipeline as every other entry point ([#64](https://github.com/michaelcraiggroup/gloss/issues/64))
+
 ## [macOS 1.21.4] - 2026-07-08
 
 ### Fixed

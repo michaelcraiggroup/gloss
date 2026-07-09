@@ -126,7 +126,10 @@ struct GlossApp: App {
                     todaysNote?.run()
                 }
                 .keyboardShortcut("t", modifiers: .command)
-                .disabled(todaysNote == nil || !fileTree.hasFolder)
+                // No hasFolder gate: with no vault open, the action reopens
+                // the most recent vault (or asks for one) instead of being a
+                // dead shortcut at launch (#63).
+                .disabled(todaysNote == nil)
 
                 Divider()
 
@@ -135,11 +138,17 @@ struct GlossApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
 
-                Button("Open Folder…") {
+                Button("Open Vault…") {
                     guard store.gate(.folderSidebar) else { return }
                     openFolderPanel()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
+
+                Button("New Vault…") {
+                    guard store.gate(.folderSidebar) else { return }
+                    newVaultPanel()
+                }
+                .keyboardShortcut("v", modifiers: [.command, .shift])
 
                 Menu("Open Recent Vault") {
                     ForEach(recentVaultChoices, id: \.self) { path in
@@ -156,7 +165,7 @@ struct GlossApp: App {
 
                 Divider()
 
-                Button("Close Folder") {
+                Button("Close Vault") {
                     SecurityScopedBookmarks.shared.useVault(nil)
                     fileTree.closeFolder()
                     settings.rootFolderPath = ""
@@ -191,7 +200,13 @@ struct GlossApp: App {
                 Button("Save Filled Copy…") {
                     NotificationCenter.default.post(name: .glossSaveFilled, object: nil)
                 }
-                .disabled(settings.currentFileURL == nil)
+                // Only meaningful for documents with fillable content (task
+                // lists / md+ template blocks) in read mode — otherwise the
+                // fill bridge isn't even injected and the command is a silent
+                // no-op (#66).
+                .disabled(settings.currentFileURL == nil
+                          || !templateFill.currentDocumentIsFillable
+                          || isEditingDocument == true)
             }
         }
 
@@ -326,7 +341,9 @@ struct GlossApp: App {
                 Button(settings.isZenMode ? "Exit Zen Mode" : "Enter Zen Mode") {
                     withAnimation { settings.isZenMode.toggle() }
                 }
-                .keyboardShortcut("\\", modifiers: .command)
+                // ⌃⌘Z, not ⌘\ — 1Password's global autofill hotkey defaults
+                // to ⌘\ and swallows the keystroke before Gloss sees it (#69).
+                .keyboardShortcut("z", modifiers: [.command, .control])
 
                 Button("Toggle Inspector") {
                     toggleInspector?.run() // gate is in ContentView's focusedSceneValue
@@ -442,7 +459,7 @@ struct GlossApp: App {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.title = "Open Folder"
+        panel.title = "Open Vault"
         if panel.runModal() == .OK, let url = panel.url {
             SecurityScopedBookmarks.shared.save(url)
             SecurityScopedBookmarks.shared.useVault(url)
@@ -450,6 +467,35 @@ struct GlossApp: App {
             settings.rootFolderPath = url.path
             linkIndex.buildIndex(rootURL: url)
         }
+    }
+
+    /// Create a brand-new vault folder and open it (⇧⌘V). The save panel's
+    /// grant covers the created directory, so its security-scoped bookmark
+    /// can be captured immediately (#65).
+    private func newVaultPanel() {
+        let panel = NSSavePanel()
+        panel.title = "New Vault"
+        panel.prompt = "Create"
+        panel.nameFieldLabel = "Vault Name:"
+        panel.nameFieldStringValue = "New Vault"
+        panel.canCreateDirectories = true
+        panel.showsTagField = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could Not Create Vault"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+        SecurityScopedBookmarks.shared.save(url)
+        SecurityScopedBookmarks.shared.useVault(url)
+        fileTree.openFolder(url)
+        settings.rootFolderPath = url.path
+        linkIndex.buildIndex(rootURL: url)
     }
 
     private func setAppIcon() {
@@ -547,35 +593,21 @@ struct GlossApp: App {
         let dest = "/usr/local/bin/gloss"
         let fm = FileManager.default
 
-        // Try multiple possible locations for the script
-        var scriptSource: String?
+        // Locate the bundled CLI script. Xcode builds copy it into
+        // Contents/Resources (project.yml `buildPhase: resources`); SPM
+        // builds process it into the module bundle instead, where only
+        // Bundle.module can see it (#67).
+        let scriptURL: URL?
+        #if XCODE_BUILD
+        scriptURL = Bundle.main.url(forResource: "gloss", withExtension: nil)
+        #else
+        scriptURL = Bundle.module.url(forResource: "gloss", withExtension: nil)
+        #endif
 
-        // Try SPM bundle structure first (direct in bundle root)
-        let bundlePath = Bundle.main.bundlePath
-        let bundleScriptPath = "\(bundlePath)/gloss"
-        if fm.fileExists(atPath: bundleScriptPath) {
-            scriptSource = bundleScriptPath
-        }
-
-        // Fallback: standard app bundle structure (Contents/Resources)
-        if scriptSource == nil {
-            let standardPath = "\(bundlePath)/Contents/Resources/gloss"
-            if fm.fileExists(atPath: standardPath) {
-                scriptSource = standardPath
-            }
-        }
-
-        // Last resort: try to find it via Bundle.main.url
-        if scriptSource == nil {
-            if let bundleURL = Bundle.main.url(forResource: "gloss", withExtension: "") {
-                scriptSource = bundleURL.path
-            }
-        }
-
-        guard let scriptSource = scriptSource, fm.fileExists(atPath: scriptSource) else {
+        guard let scriptSource = scriptURL?.path, fm.fileExists(atPath: scriptSource) else {
             let alert = NSAlert()
             alert.messageText = "CLI Script Not Found"
-            alert.informativeText = "The gloss CLI script was not found in the app bundle. Please rebuild the app."
+            alert.informativeText = "This copy of Gloss is missing the gloss command-line script. Try downloading Gloss again."
             alert.runModal()
             return
         }

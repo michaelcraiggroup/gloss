@@ -100,7 +100,7 @@ extension WalkthroughGuide {
                 id: "folder-sidebar",
                 type: "content",
                 target: nil,
-                content: "## Folder Sidebar\n\nOpen a folder (\u{21E7}\u{2318}O) to browse all your markdown files in a tree view.\n\n- **Full-text search** across every file in your vault\n- **Recents** \u{2014} quickly revisit recent documents\n- **Favorites** \u{2014} your starred files, always at the top",
+                content: "## Vault Sidebar\n\nOpen a vault (\u{21E7}\u{2318}O) to browse all your markdown files in a tree view.\n\n- **Full-text search** across every file in your vault\n- **Recents** \u{2014} quickly revisit recent documents\n- **Favorites** \u{2014} your starred files, always at the top",
                 placement: "center"
             )),
 
@@ -109,7 +109,7 @@ extension WalkthroughGuide {
                 id: "wiki-links",
                 type: "content",
                 target: nil,
-                content: "## Wiki-Links & Backlinks\n\nLink between documents with `[[wiki-links]]`. Gloss resolves them automatically within your folder.\n\nTyped links like `[[note::related]]` categorize relationships. The **Inspector** shows backlinks grouped by type.",
+                content: "## Wiki-Links & Backlinks\n\nLink between documents with `[[wiki-links]]`. Gloss resolves them automatically within your vault.\n\nTyped links like `[[note::related]]` categorize relationships. The **Inspector** shows backlinks grouped by type.",
                 placement: "center"
             )),
 
@@ -136,7 +136,7 @@ extension WalkthroughGuide {
                 id: "export",
                 type: "content",
                 target: nil,
-                content: "## Export & More\n\n- **\u{2318}P** \u{2014} Print\n- **\u{2318}E** \u{2014} Export as PDF\n- **\u{2318}\\\\** \u{2014} Zen mode (hide sidebar & chrome)\n- **Quick Look** \u{2014} press Space on any .md file in Finder for an instant preview",
+                content: "## Export & More\n\n- **\u{2318}P** \u{2014} Print\n- **\u{2318}E** \u{2014} Export as PDF\n- **\u{2303}\u{2318}Z** \u{2014} Zen mode (hide sidebar & chrome)\n- **Quick Look** \u{2014} press Space on any .md file in Finder for an instant preview",
                 placement: "center"
             )),
 

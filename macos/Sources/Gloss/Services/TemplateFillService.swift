@@ -37,6 +37,12 @@ struct TemplateFillPayload: Codable, Sendable {
 @MainActor
 final class TemplateFillService {
 
+    /// Whether the currently displayed document contains fillable content
+    /// (GFM task lists or md+ template blocks). DocumentView maintains this
+    /// on every load/reload; the File menu reads it to enable
+    /// "Save Filled Copy…" (#66).
+    var currentDocumentIsFillable = false
+
     init() {}
 
     /// Rewrite the source file with the given fill state, then prompt the

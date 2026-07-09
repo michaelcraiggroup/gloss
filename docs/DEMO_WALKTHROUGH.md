@@ -609,7 +609,7 @@ Open `Reference/Syntax Showcase.md` and verify top to bottom. Reading renders in
 - [ ] **Find in page.** ⌘F → bar appears; search `reading` → yellow highlights + "n / m" counter; ⌘G / ⇧⌘G (or Enter / Shift+Enter) cycle matches with the current one in amber; Esc dismisses and clears.
 - [ ] **Themes.** Settings (⌘,) → Theme: **System / Light / Dark**. Flip macOS appearance with Theme=System → app follows. Force Light and Dark → both render correctly, Mermaid diagram recolors. 📸 **App Store screenshot #5** — this document in light mode.
 - [ ] **Font size 🔒.** Settings → Font size stepper (12–24px, step 2, default 16). On a locked install, stepping away from 16 reverts and raises the paywall; unlocked, the reading view re-renders at the new size. Reset to 16.
-- [ ] **Zen mode.** ⌘\ hides sidebar and toolbar chrome; window subtitle disappears; ⌘\ restores.
+- [ ] **Zen mode.** ⌃⌘Z (1.22.0+; ⌘\ on earlier builds — the old chord collides with 1Password's global autofill hotkey) hides sidebar and toolbar chrome; window subtitle disappears; same chord restores.
 - [ ] **Live reload.** With `Syntax Showcase.md` open, in Terminal:
 
 ```bash

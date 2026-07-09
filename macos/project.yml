@@ -26,14 +26,16 @@ targets:
     platform: macOS
     sources:
       - path: Sources/Gloss
-    resources:
+      # xcodegen has no target-level `resources:` key — the extensionless CLI
+      # script needs an explicit buildPhase to land in Contents/Resources (#67).
       - path: Sources/Gloss/Resources/gloss
+        buildPhase: resources
     info:
       path: Scripts/Info.plist
       properties:
         CFBundleIconFile: AppIcon
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.21.4"
+        CFBundleShortVersionString: "1.22.0"
         NSHighResolutionCapable: true
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
@@ -62,7 +64,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.21.4"
+        MARKETING_VERSION: "1.22.0"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
@@ -86,7 +88,7 @@ targets:
     info:
       path: GlossQLExtension/Info.plist
       properties:
-        CFBundleShortVersionString: "1.21.4"
+        CFBundleShortVersionString: "1.22.0"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewViewController"
@@ -104,7 +106,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
-        MARKETING_VERSION: "1.21.4"
+        MARKETING_VERSION: "1.22.0"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SKIP_INSTALL: true
