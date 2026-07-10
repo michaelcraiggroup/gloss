@@ -12,10 +12,11 @@ next_steps:
   - "M1: saved searches in sidebar"
   - "M2: transclusion, unlinked mentions, [[ autocomplete"
 open_questions:
-  - "Sync = the user's own iCloud (confirm) — keeps the no-subscription promise"
+  - "iOS v1 sync = iCloud Drive folder-as-vault (proposed, docs/IOS_VAULT_SYNC.md) — awaiting go/no-go"
+  - "Universal Purchase (one $9.99 unlocks macOS+iOS) — decide before first iOS TestFlight"
   - "Positioning revisit when M3 capture ships"
   - "Pricing under KB scope — leaning all one-time, iCloud sync free"
-last_updated: "2026-06-30"
+last_updated: "2026-07-09"
 ---
 
 # Gloss — Project Plan
@@ -64,9 +65,9 @@ Gloss already owns the *navigation* half of a knowledgebase: typed wiki-links (`
 - [ ] Editable frontmatter properties (write back + re-index)
 
 ### M4 — Durability & reach
-- [ ] iCloud sync (markdown only; exclude `.gloss/` derived cache)
+- [ ] iCloud sync (markdown only; exclude `.gloss/` derived cache) — **strategy: [docs/IOS_VAULT_SYNC.md](docs/IOS_VAULT_SYNC.md)** (iCloud Drive folder-as-vault; index rebuilt on device)
 - [ ] Version history (local snapshots / git-backed)
-- [ ] iOS companion (read + capture; reuses GlossKit renderer)
+- [ ] iOS companion (read + capture; reuses GlossKit renderer) — reader-first v1; **GlossKit already builds for iOS** (UI-framework-free). Scope map in [docs/IOS_VAULT_SYNC.md](docs/IOS_VAULT_SYNC.md) §6
 
 ### M5 — Parity polish
 - [ ] Split panes / tabs
