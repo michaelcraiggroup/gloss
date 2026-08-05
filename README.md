@@ -62,7 +62,6 @@ Use Gloss as a vault, not just a viewer:
 - **Inspector** — table of contents, tags, backlinks, unlinked mentions, and frontmatter properties you can edit in place
 - **Wiki-links** — follow `[[link]]` navigation with typed relationships (`[[target::type]]`)
 - **Transclusion** — embed live sections of other notes with `![[note#heading]]`
-- **Link graph** — D3 force-directed view of how your notes connect, centered on the current file
 - **Full-text search** — content search across every file in a folder
 - **md+ queries** — live saved searches embedded in your notes, refreshed from the link index
 - **Daily notes & Quick Capture** — `⌘T` opens today's note; the menu-bar bolt or a hot corner captures a thought from any app

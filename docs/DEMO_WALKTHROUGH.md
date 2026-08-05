@@ -24,14 +24,14 @@ updated: 2026-07-06
 
 > **Like Preview.app, but for markdown.** Opens to read; edits when you ask.
 
-Every other markdown tool drops you into an editor. Gloss opens into a clean, rendered, *reading* view — and it's one keystroke (⇧⌘E) to a live-preview editor when you actually want to change something. Around that reader-first core sits a full local knowledgebase: wiki-links, backlinks, tags, queries, a link graph, daily notes, and quick capture — all in plain markdown files on disk, indexed into a local SQLite database, with no account, no subscription, and no telemetry.
+Every other markdown tool drops you into an editor. Gloss opens into a clean, rendered, *reading* view — and it's one keystroke (⇧⌘E) to a live-preview editor when you actually want to change something. Around that reader-first core sits a full local knowledgebase: wiki-links, backlinks, tags, queries, daily notes, and quick capture — all in plain markdown files on disk, indexed into a local SQLite database, with no account, no subscription, and no telemetry.
 
 ### Five use cases this walkthrough demos
 
 | Use case | Where it shows up |
 | --- | --- |
 | **Reading a repo's docs** — READMEs, CLAUDE.mds, changelogs, rendered instead of raw | Parts 2, 3 (doc-type icons), 8 (CLI: `gloss .`) |
-| **A personal knowledgebase** — typed wiki-links, backlinks, tags, queries, graph | Parts 5–6 |
+| **A personal knowledgebase** — typed wiki-links, backlinks, tags, queries | Parts 5–6 |
 | **Meeting & field notes** — daily notes, hot-corner quick capture, fillable templates | Parts 6–7 |
 | **Reviewing AI/tool-generated markdown** — live reload shows edits as they land | Part 2 (live reload), Part 8 (CLI) |
 | **Finder-first triage** — spacebar Quick Look, then hand off to your real editor | Part 8 |
@@ -440,7 +440,7 @@ and long-form prose all set in the reading theme.
 | Reading      |  ✓   |  ✓  |
 | Editor mode  |  ✓   |  ✓  |
 | Folder vault |      |  ✓  |
-| Link graph   |      |  ✓  |
+| Search       |      |  ✓  |
 
 ## Blockquote
 
@@ -566,7 +566,7 @@ echo "Next: open it in Gloss with File → Open Folder… (⇧⌘O), or run: glo
 
 ## Part 1 — First launch & the Pro story
 
-The paid tier is **Gloss Pro** — $9.99, one-time, non-consumable, Family Sharing enabled. Product ID `group.michaelcraig.gloss.full` (legacy `.full` name kept deliberately; existing purchases own it; App Store Connect display name is "Gloss Pro"). Exactly seven features gate: folder sidebar, inspector, full-text search, favorites, wiki-link navigation, font size, graph view. Everything else — including the editor — is free.
+The paid tier is **Gloss Pro** — $9.99, one-time, non-consumable, Family Sharing enabled. Product ID `group.michaelcraig.gloss.full` (legacy `.full` name kept deliberately; existing purchases own it; App Store Connect display name is "Gloss Pro"). Six features gate: folder sidebar, inspector, full-text search, favorites, wiki-link navigation, font size. (`PaidFeature.graphView` still exists in the enum, but the graph is shelved as of 1.23.0 and nothing can reach it.) Everything else — including the editor — is free.
 
 - [ ] **Version check.** Launch Gloss → **Gloss → About Gloss** shows **1.20.2**.
 - [ ] **First-run state.** Empty reading pane: "Open a markdown file to start reading" / "File → Open or drag a .md file here". Sidebar header shows the **Gloss** wordmark with **BY OFF-LEASH** beneath it.
@@ -694,9 +694,9 @@ Open `Apollo Launch.md`, toggle the inspector:
 
 All eight link types for reference: `related` (default) · `supports` · `contradicts` · `extends` · `implements` · `depends` · `supersedes` · `references`. The demo vault uses every one.
 
-### Graph view (⌥⌘G)
+### ~~Graph view (⌥⌘G)~~ — shelved as of 1.23.0
 
-- [ ] **View → Show Vault Graph** (or the sidebar graph button) → D3 force-directed graph of the vault; nodes are notes, edges are links. `Apollo Launch` sits central and heavily connected; the broken-link ghosts don't crash it. Esc (or the ✕ toolbar button) closes.
+Not in the build: the View-menu item, the sidebar button, and the ⌥⌘G shortcut are gone behind `GlossFeatures.vaultGraph = false`. Nothing to verify here, and nothing about it should appear in App Store copy or screenshots. (The implementation stays in the codebase — see gloss#12.)
 
 ---
 
@@ -802,7 +802,7 @@ grep -rn "1\.20\.2" macos/project.yml macos/Scripts/Info.plist macos/GlossQLExte
 - [ ] Category: Developer Tools (primary), Productivity (secondary).
 - [ ] URLs live: privacy `michaelcraig.group/privacy`, support `…/support`, marketing `…/products/gloss`.
 - [ ] Screenshots: 5 at 1280×800 or 2560×1600 — captured at the 📸 markers (#1 hero/dark · #2 inspector TOC · #3 wiki-links · #4 Quick Look · #5 light theme).
-- [ ] **Review notes** (suggested text): *"Pro features are unlocked by the $9.99 non-consumable IAP — use a sandbox purchase to test folder browsing, search, and the graph. Syntax-highlighting/diagram/math libraries load from CDN (cdnjs.cloudflare.com) for rendering only; no user data ever leaves the machine. A hot-corner 'quick capture' panel is enabled by default (bottom-left corner) — Settings toggles it."*
+- [ ] **Review notes** (suggested text): *"Pro features are unlocked by the $9.99 non-consumable IAP — use a sandbox purchase to test folder browsing, search, and wiki-link navigation. Syntax-highlighting/diagram/math libraries load from CDN (cdnjs.cloudflare.com) for rendering only; no user data ever leaves the machine. A hot-corner 'quick capture' panel is enabled by default (bottom-left corner) — Settings toggles it."*
 
 ### Advertised claims × evidence
 
@@ -828,7 +828,7 @@ Every claim in `macos/AppStoreMetadata.md`, mapped to the step that proves it:
 | 16 | 🔒 Frontmatter metadata display | Part 5 (now *editable*, which the listing undersells) | ☐ |
 | 17 | 🔒 Backlinks | Part 5 | ☐ |
 | 18 | 🔒 Wiki-link navigation | Part 5 | ☐ |
-| 19 | 🔒 Link graph (force-directed) | Part 5 | ☐ |
+| 19 | ~~🔒 Link graph (force-directed)~~ | **Claim withdrawn** — feature shelved in 1.23.0, removed from README + listing copy | ✅ |
 | 20 | 🔒 Full-text content search | Part 4 | ☐ |
 | 21 | 🔒 Favorites and recent documents | Part 3 | ☐ |
 | 22 | 🔒 Font size control | Part 2 | ☐ |

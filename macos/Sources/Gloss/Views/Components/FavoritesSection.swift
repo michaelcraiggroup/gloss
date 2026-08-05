@@ -23,22 +23,28 @@ struct FavoritesSection<MenuContent: View>: View {
         sort: \RecentDocument.title
     )
     private var legacyFavorites: [RecentDocument]
+    /// Favorites is the first shelf under the vault's documents, so it carries
+    /// the rule that separates the two tiers (hidden when no vault is open and
+    /// there is nothing above it to divide from).
+    private let showsShelfDivider: Bool
     private let onSelect: (URL) -> Void
     private let onToggleFavorite: (URL) -> Void
     private let contextMenu: (URL) -> MenuContent
 
     init(
+        showsShelfDivider: Bool = false,
         onSelect: @escaping (URL) -> Void,
         onToggleFavorite: @escaping (URL) -> Void,
         @ViewBuilder contextMenu: @escaping (URL) -> MenuContent
     ) {
+        self.showsShelfDivider = showsShelfDivider
         self.onSelect = onSelect
         self.onToggleFavorite = onToggleFavorite
         self.contextMenu = contextMenu
     }
 
     var body: some View {
-        Section("Favorites") {
+        Section {
             if favoritesService.rootURL != nil {
                 if favoritesService.favorites.isEmpty {
                     emptyRow
@@ -58,6 +64,13 @@ struct FavoritesSection<MenuContent: View>: View {
                 ForEach(legacyFavorites) { doc in
                     row(title: doc.title, icon: doc.type.icon, url: doc.url, missing: false)
                 }
+            }
+        } header: {
+            VStack(alignment: .leading, spacing: 0) {
+                if showsShelfDivider {
+                    GlossShelfDivider()
+                }
+                Text("Favorites").glossShelfHeader()
             }
         }
     }

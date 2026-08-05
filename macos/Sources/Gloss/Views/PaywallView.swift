@@ -27,7 +27,9 @@ struct PaywallView: View {
                 featureRow("Full-text content search")
                 featureRow("Wiki-link navigation")
                 featureRow("Favorites & recents")
-                featureRow("Link graph view")
+                if GlossFeatures.vaultGraph {
+                    featureRow("Link graph view")
+                }
                 featureRow("Font size control")
             }
             .padding(.vertical, 8)

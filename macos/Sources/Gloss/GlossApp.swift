@@ -351,11 +351,13 @@ struct GlossApp: App {
                 .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(toggleInspector == nil)
 
-                Button("Show Vault Graph") {
-                    NotificationCenter.default.post(name: .glossShowGraph, object: nil)
+                if GlossFeatures.vaultGraph {
+                    Button("Show Vault Graph") {
+                        NotificationCenter.default.post(name: .glossShowGraph, object: nil)
+                    }
+                    .keyboardShortcut("g", modifiers: [.command, .option])
+                    .disabled(!fileTree.hasFolder)
                 }
-                .keyboardShortcut("g", modifiers: [.command, .option])
-                .disabled(!fileTree.hasFolder)
 
                 Divider()
 

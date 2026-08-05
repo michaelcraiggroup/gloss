@@ -5,6 +5,16 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [macOS 1.23.0] - 2026-08-05
+
+### Changed
+
+- **The sidebar now reads top-down: your vault first, everything else second** — the file tree sits under a branded vault header (vault or scoped-folder name, its path, an amber spine), and the quick-access shelves beneath it (Favorites, Recently Changed, Tags, Recent Documents) drop to quiet uppercase captions with a rule marking where the vault's documents end
+
+### Removed
+
+- **Vault Graph (⌥⌘G) is shelved** — the View-menu item, the sidebar toolbar button, the shortcut, and the paywall's "Link graph view" row are all gone, and the graph no longer rebuilds vault-wide node/edge data when a vault opens. The implementation stays in the codebase behind `GlossFeatures.vaultGraph`; flip that flag to bring every entry point back ([#12](https://github.com/michaelcraiggroup/gloss/issues/12)). Gloss Pro now gates six features, not seven — README and App Store listing copy updated to match
+
 ## [macOS 1.22.0] - 2026-07-09
 
 ### Added
