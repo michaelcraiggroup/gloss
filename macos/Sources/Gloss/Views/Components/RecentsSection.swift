@@ -81,7 +81,7 @@ struct RecentsSection<MenuContent: View>: View {
             }
         } header: {
             HStack {
-                Text("Recent Documents")
+                Text("Recent Documents").glossShelfHeader()
                 Spacer()
                 if !recents.isEmpty {
                     Button("Clear") {

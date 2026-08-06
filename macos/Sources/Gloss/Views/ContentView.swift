@@ -158,6 +158,9 @@ struct ContentView: View {
 
     // MARK: - Detail View
 
+    /// The graph route only opens when `GlossFeatures.vaultGraph` is on — the
+    /// `.glossShowGraph` receiver in `VaultOverviewRefresh` is the one place
+    /// that can set `isShowingGraph`, and it checks the flag first.
     @ViewBuilder
     private var detailView: some View {
         if isShowingGraph {
@@ -541,13 +544,19 @@ struct VaultOverviewRefresh: ViewModifier {
             .onChange(of: hasFolder) { _, nowHasFolder in
                 if nowHasFolder {
                     vaultOverview.refresh(database: linkIndex.databaseRef)
-                    graphService.refresh(database: linkIndex.databaseRef)
+                    // Shelved: no reason to run vault-wide node/edge queries on
+                    // every vault open for a view that can't be opened.
+                    if GlossFeatures.vaultGraph {
+                        graphService.refresh(database: linkIndex.databaseRef)
+                    }
                 } else {
                     vaultOverview.clear()
                     graphService.clear()
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .glossShowGraph)) { _ in
+                // The single gate on the graph route (see ContentView.detailView).
+                guard GlossFeatures.vaultGraph else { return }
                 guard store.gate(.graphView) else { return }
                 if let current = currentFileURL {
                     var f = graphService.filter

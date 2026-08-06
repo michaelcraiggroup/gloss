@@ -171,7 +171,10 @@ struct SidebarView: View {
                 // Normal browsing mode (no search active, or tags scope without query)
                 browseSection
 
+                // Favorites opens the "shelves" — the quick-access sections
+                // that sit below the vault's own documents.
                 FavoritesSection(
+                    showsShelfDivider: fileTree.activeNode != nil,
                     onSelect: { selectFile($0) },
                     onToggleFavorite: { toggleFavorite(url: $0) }
                 ) { url in
@@ -179,7 +182,7 @@ struct SidebarView: View {
                 }
 
                 if !linkIndex.recentlyChanged.isEmpty {
-                    Section("Recently Changed") {
+                    Section {
                         ForEach(linkIndex.recentlyChanged.prefix(10), id: \.path) { item in
                             let url = URL(fileURLWithPath: item.path)
                             let parentFolder = url.deletingLastPathComponent().lastPathComponent
@@ -202,11 +205,13 @@ struct SidebarView: View {
                             .onTapGesture { selectFile(url) }
                             .contextMenu { favoriteContextMenu(for: url) }
                         }
+                    } header: {
+                        Text("Recently Changed").glossShelfHeader()
                     }
                 }
 
                 if !linkIndex.allTags.isEmpty {
-                    Section("Tags") {
+                    Section {
                         ForEach(linkIndex.allTags.prefix(20), id: \.tag) { item in
                             Button {
                                 fileTree.filterByTag(item.tag, files: linkIndex.files(forTag: item.tag))
@@ -222,6 +227,8 @@ struct SidebarView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                    } header: {
+                        Text("Tags").glossShelfHeader()
                     }
                     .spotlightTarget(.sidebarTagsSection)
                 }
@@ -291,13 +298,15 @@ struct SidebarView: View {
                 }
                 .help("Open Vault (⇧⌘O)")
 
-                Button {
-                    NotificationCenter.default.post(name: .glossShowGraph, object: nil)
-                } label: {
-                    Label("Vault Graph", systemImage: "point.3.connected.trianglepath.dotted")
+                if GlossFeatures.vaultGraph {
+                    Button {
+                        NotificationCenter.default.post(name: .glossShowGraph, object: nil)
+                    } label: {
+                        Label("Vault Graph", systemImage: "point.3.connected.trianglepath.dotted")
+                    }
+                    .help("Show Vault Graph (⌥⌘G)")
+                    .disabled(!fileTree.hasFolder)
                 }
-                .help("Show Vault Graph (⌥⌘G)")
-                .disabled(!fileTree.hasFolder)
             }
         }
         .alert("Rename", isPresented: $showingRenameAlert) {
@@ -487,10 +496,12 @@ struct SidebarView: View {
                     fileTreeItem(node)
                 }
             } header: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(active.url.path)
-                        .lineLimit(1)
-                        .truncationMode(.head)
+                VStack(alignment: .leading, spacing: 6) {
+                    GlossVaultHeader(
+                        name: active.name,
+                        path: active.url.path,
+                        isScoped: fileTree.isScoped
+                    )
                     HStack(spacing: 8) {
                         ForEach(SortOrder.allCases, id: \.self) { order in
                             Button {
@@ -509,6 +520,8 @@ struct SidebarView: View {
                         }
                         Spacer()
                     }
+                    .textCase(nil)
+                    .padding(.leading, 10)   // aligns with the vault card's title
                 }
             }
         }

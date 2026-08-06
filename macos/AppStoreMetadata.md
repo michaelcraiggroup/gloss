@@ -33,7 +33,6 @@ GLOSS PRO ($9.99 one-time):
 - Frontmatter metadata display
 - Backlinks — every note that links to the one you're reading
 - Wiki-link navigation ([[links]] between your notes)
-- Link graph — a force-directed map of how your notes connect
 - Full-text content search across all files
 - Favorites and recent documents
 - Font size control
@@ -51,7 +50,7 @@ markdown,reader,viewer,docs,documentation,wiki,notes,knowledge base,Quick Look,p
 Developer Tools (primary), Productivity (secondary)
 
 ## What's New (v1.20)
-Gloss arrives on the Mac App Store as a mature reader, refined across dozens of releases: a live-preview editor (⇧⌘E), a fast local link index with wiki-links and a force-directed link graph, full-text search, and a Quick Look extension. New in 1.20: favorites and recents belong to each vault — favorites travel with your folder across machines. Optional $9.99 one-time Pro unlock adds folder browsing, search, wiki-links, and the graph.
+Gloss arrives on the Mac App Store as a mature reader, refined across dozens of releases: a live-preview editor (⇧⌘E), a fast local link index with wiki-links and backlinks, full-text search, and a Quick Look extension. New in 1.20: favorites and recents belong to each vault — favorites travel with your folder across machines. Optional $9.99 one-time Pro unlock adds folder browsing, search, and wiki-links.
 
 ## Privacy URL
 https://michaelcraig.group/privacy
