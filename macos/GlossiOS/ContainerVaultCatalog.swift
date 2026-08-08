@@ -46,12 +46,51 @@ final class ContainerVaultCatalog: VaultCatalogProviding {
                 $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent)
                     == .orderedAscending
             }
-            .map {
-                VaultDescriptor(
-                    id: $0.standardizedFileURL.path,
-                    name: $0.lastPathComponent,
-                    rootURL: $0
+            .map { url in
+                let shelf = shelfInfo(for: url)
+                return VaultDescriptor(
+                    id: url.standardizedFileURL.path,
+                    name: url.lastPathComponent,
+                    rootURL: url,
+                    noteCount: shelf.count,
+                    updatedAt: shelf.updatedAt,
+                    isInICloud: UbiquityVaultStore.isUbiquitousPath(url)
                 )
             }
+    }
+
+    /// Markdown count + newest modification, with the standard exclusion set
+    /// pruned (a dev-workspace vault must not walk node_modules). Capped so a
+    /// pathological vault can't stall the shelf — the row shows "999+".
+    nonisolated static func shelfInfo(for root: URL, cap: Int = 999) -> (count: Int?, updatedAt: Date?) {
+        let excluded = ExclusionRules.standard
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return (nil, nil) }
+
+        var count = 0
+        var newest: Date?
+        for case let url as URL in enumerator {
+            let values = try? url.resourceValues(
+                forKeys: [.isDirectoryKey, .contentModificationDateKey])
+            if values?.isDirectory == true {
+                if excluded.isExcludedRelativePath(Substring(url.lastPathComponent)) {
+                    enumerator.skipDescendants()
+                }
+                continue
+            }
+            let ext = url.pathExtension.lowercased()
+            guard ext == "md" || ext == "markdown" else { continue }
+            count += 1
+            if let modified = values?.contentModificationDate {
+                newest = newest.map { max($0, modified) } ?? modified
+            }
+            if count > cap {
+                return (cap, newest)
+            }
+        }
+        return (count, newest)
     }
 }

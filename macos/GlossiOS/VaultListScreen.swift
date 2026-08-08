@@ -55,6 +55,9 @@ struct VaultListScreen: View {
         .toolbarBackground(Color.glossChromeSidebar(colorScheme), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle("Gloss")
+        // Inline keeps the wordmark visible on the navy bar (the large-title
+        // treatment collapsed to nothing over the custom chrome).
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -109,9 +112,24 @@ struct VaultListScreen: View {
 
     @ViewBuilder
     private func vaultRow(_ vault: VaultDescriptor) -> some View {
-        HStack {
-            Label(vault.name, systemImage: "books.vertical")
+        HStack(spacing: 12) {
+            Image(systemName: "books.vertical")
+                .foregroundStyle(Color.glossAccent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(vault.name)
+                if let shelfLine = shelfLine(for: vault) {
+                    Text(shelfLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Spacer()
+            if vault.isInICloud {
+                Image(systemName: "icloud")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityLabel("Synced via iCloud")
+            }
             if isOpen(vault) {
                 Image(systemName: "checkmark")
                     .foregroundStyle(.tint)
@@ -119,6 +137,20 @@ struct VaultListScreen: View {
             }
         }
         .contentShape(Rectangle())
+    }
+
+    /// "12 notes · Updated 2 hours ago" — the shelf caption. Nil when the
+    /// scan produced nothing to say.
+    private func shelfLine(for vault: VaultDescriptor) -> String? {
+        var parts: [String] = []
+        if let count = vault.noteCount {
+            parts.append(
+                count >= 999 ? "999+ notes" : count == 1 ? "1 note" : "\(count) notes")
+        }
+        if let updated = vault.updatedAt {
+            parts.append("Updated \(updated.formatted(.relative(presentation: .named)))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     @ViewBuilder
