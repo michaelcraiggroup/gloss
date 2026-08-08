@@ -6,15 +6,17 @@ import SwiftUI
 /// `.glossShowPaywall`, mirroring macOS ContentView.
 struct RootView: View {
     let vaultCatalog: any VaultCatalogProviding
-    let pairingHandler: LoggingPairingHandler
+    let pairingHandler: PairingHandler
 
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(FavoritesService.self) private var favoritesService
+    @Environment(UbiquityVaultStore.self) private var ubiquityStore
     @State private var paywallFeature: PaidFeature?
     @State private var navHistory = NavigationHistory()
+    @State private var showingPairing = false
     /// On iPhone (compact) the split view shows one column at a time —
     /// programmatic navigation must also steer the visible column, or a
     /// sidebar tap changes state with no visible transition.
@@ -25,7 +27,7 @@ struct RootView: View {
             if fileTree.hasFolder {
                 SidebarScreen(onSelect: openFile)
             } else {
-                VaultListScreen(catalog: vaultCatalog, pairingHandler: pairingHandler)
+                VaultListScreen(catalog: vaultCatalog, onPair: { showingPairing = true })
             }
         } detail: {
             if let url = settings.currentFileURL {
@@ -57,6 +59,27 @@ struct RootView: View {
             if newValue == nil {
                 preferredColumn = .sidebar
             }
+        }
+        // One pairing surface for both doorways: the in-app scanner opens it
+        // by hand; a Camera-app deep link opens it by state change.
+        .sheet(isPresented: $showingPairing, onDismiss: {
+            if case .done = pairingHandler.state { pairingHandler.reset() }
+            if pairingHandler.state == .invalidCode { pairingHandler.reset() }
+        }) {
+            PairingScanScreen(handler: pairingHandler)
+        }
+        .onChange(of: pairingHandler.state) { _, newState in
+            if newState != .idle {
+                showingPairing = true
+            }
+        }
+        .onChange(of: ubiquityStore.state) {
+            // Pairing may be parked on needsICloud — retry when it resolves.
+            pairingHandler.advance()
+        }
+        .onChange(of: store.isUnlocked) { _, unlocked in
+            // Parked on needsPro — the purchase completes the pairing.
+            if unlocked { pairingHandler.advance() }
         }
     }
 

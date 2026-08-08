@@ -6,7 +6,7 @@ import SwiftUI
 /// PR 11 enables the pairing scanner.
 struct VaultListScreen: View {
     let catalog: any VaultCatalogProviding
-    let pairingHandler: LoggingPairingHandler
+    let onPair: () -> Void
 
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
@@ -35,10 +35,18 @@ struct VaultListScreen: View {
             }
 
             Section {
-                Label("Pair with Mac…", systemImage: "qrcode.viewfinder")
-                    .foregroundStyle(.tertiary)
+                Button {
+                    onPair()
+                } label: {
+                    HStack {
+                        Label("Pair with Mac…", systemImage: "qrcode.viewfinder")
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             } footer: {
-                Text("Scan-to-connect arrives with the pairing milestone. Vaults in your iCloud appear here automatically.")
+                Text("Scan the code from File → Set Up iPhone… on your Mac. Vaults in your iCloud also appear here automatically.")
             }
         }
         .navigationTitle("Gloss")
