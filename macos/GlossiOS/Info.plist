@@ -35,6 +35,18 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Gloss uses the camera to scan the pairing code shown by Gloss on your Mac.</string>
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.group.michaelcraig.gloss</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Gloss</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

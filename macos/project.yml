@@ -216,13 +216,25 @@ targets:
           - CFBundleURLName: group.michaelcraig.gloss.pair
             CFBundleURLSchemes:
               - gloss
+        # Must agree with the Mac app's declaration (values are a one-way
+        # latch — see the Gloss target + docs/ICLOUD_SETUP.md).
+        NSUbiquitousContainers:
+          iCloud.group.michaelcraig.gloss:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Gloss
+            NSUbiquitousContainerSupportedFolderLevels: Any
     entitlements:
       path: GlossiOS.entitlements
       properties:
-        # iCloud container values land with the vault-sync arc (PR 9 wiring;
-        # container id iCloud.group.michaelcraig.gloss). The empty key keeps
-        # the file/signing shape stable so that PR is a value-only diff.
-        com.apple.developer.icloud-container-identifiers: []
+        # Same container as the Mac app — vault sync. Unsigned simulator
+        # builds carry no entitlements, so container resolution returns nil
+        # there and the app degrades to sandbox-local vaults.
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.group.michaelcraig.gloss
+        com.apple.developer.icloud-services:
+          - CloudDocuments
+        com.apple.developer.ubiquity-container-identifiers:
+          - iCloud.group.michaelcraig.gloss
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
@@ -234,6 +246,12 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_CFBundleDisplayName: Gloss
+      configs:
+        # Setting the key in base REPLACES Xcode's per-config defaults, which
+        # silently dropped DEBUG from Debug builds (#if DEBUG never true).
+        # Restore it for Debug; Release keeps XCODE_BUILD only.
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG XCODE_BUILD
     dependencies:
       - package: GlossPackage
         product: GlossKit

@@ -12,10 +12,13 @@ struct VaultListScreen: View {
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
+    @Environment(UbiquityVaultStore.self) private var ubiquityStore
     @State private var showingSettings = false
 
     var body: some View {
         List {
+            iCloudStatusSection
+
             if catalog.vaults.isEmpty {
                 emptyState
             } else {
@@ -54,6 +57,37 @@ struct VaultListScreen: View {
         }
         .task { await catalog.refresh() }
         .refreshable { await catalog.refresh() }
+        .onChange(of: ubiquityStore.state) {
+            Task { await catalog.refresh() }
+        }
+    }
+
+    /// Only surfaces when iCloud is the reason vaults can't appear —
+    /// signed-out is actionable, resolution-pending is quiet spinner.
+    @ViewBuilder
+    private var iCloudStatusSection: some View {
+        switch ubiquityStore.state {
+        case .unknown:
+            Section {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Checking iCloud…")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        case .unavailable where !ubiquityStore.isSignedIntoICloud:
+            Section {
+                Label {
+                    Text("Sign in to iCloud in Settings to see your synced vaults here.")
+                        .font(.caption)
+                } icon: {
+                    Image(systemName: "icloud.slash")
+                }
+                .foregroundStyle(.secondary)
+            }
+        default:
+            EmptyView()
+        }
     }
 
     private var isOpen: (VaultDescriptor) -> Bool {
