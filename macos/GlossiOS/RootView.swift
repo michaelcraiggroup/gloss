@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 
 /// Root navigation shell: NavigationSplitView collapses to a stack on
 /// iPhone and stays a real split on iPad. Documents are REAL navigation
@@ -114,6 +115,32 @@ struct RootView: View {
         .task {
             restoreSession()
         }
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
+                openSpotlightResult(path: path)
+            }
+        }
+    }
+
+    /// A system-search result was tapped. Same vault → straight open;
+    /// another container vault → switch to it first; unknown/missing → ignore
+    /// (the stale item ages out of Spotlight on the next index pass).
+    private func openSpotlightResult(path: String) {
+        guard FileManager.default.fileExists(atPath: path) else { return }
+        let url = URL(fileURLWithPath: path)
+        if let root = fileTree.rootNode?.url, RecentsStore.isPath(path, underRoot: root) {
+            openFile(url)
+            return
+        }
+        guard let root = SpotlightIndexer.vaultRoot(forNotePath: path),
+              store.gate(.folderSidebar) else { return }
+        settings.currentFileURL = nil
+        linkIndex.close()
+        fileTree.closeFolder()
+        fileTree.openFolder(root)
+        settings.rootFolderPath = root.path
+        linkIndex.buildIndex(rootURL: root)
+        openFile(url)
     }
 
     /// The single user-initiated open path. Sidebar taps RESET the trail to

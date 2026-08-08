@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PDFKit
 import WebKit
+import CoreSpotlight
 
 class GlossAppDelegate: NSObject, NSApplicationDelegate {
     /// A file/folder open macOS delivered before the SwiftUI window mounted
@@ -128,6 +129,14 @@ struct GlossApp: App {
                     GlossAppDelegate.pendingOpenURL = nil
                     if let url = note.object as? URL {
                         openPath(url)
+                    }
+                }
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    // A Spotlight result was chosen — the existing open route
+                    // handles bookmarks and in-vault vs standalone opens.
+                    if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                       FileManager.default.fileExists(atPath: path) {
+                        openPath(URL(fileURLWithPath: path))
                     }
                 }
         }

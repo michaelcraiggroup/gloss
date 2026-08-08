@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entitlements post-archive. Portal state and one-time steps:
   `docs/ICLOUD_SETUP.md`.
 
+- **Notes answer from system search.** Every indexed note is now a Core
+  Spotlight item (title, snippet, full text) on both platforms — ⌘Space on
+  the Mac or the iOS search screen finds your notes and opens them straight
+  in the reader, even when Gloss isn't running. Kept in lockstep with the
+  link index (added on build/save, removed on delete, purged and re-added
+  when a vault moves to iCloud). Spotlight's index is on-device — nothing
+  leaves the machine.
+
 ### Changed
 
 - Version aligned to 1.24.0 across all three targets (macOS app, Quick Look
