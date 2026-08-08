@@ -13,6 +13,7 @@ struct VaultListScreen: View {
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(UbiquityVaultStore.self) private var ubiquityStore
+    @Environment(\.colorScheme) private var colorScheme
     @State private var showingSettings = false
 
     var body: some View {
@@ -49,6 +50,10 @@ struct VaultListScreen: View {
                 Text("Scan the code from File → Set Up iPhone… on your Mac. Vaults in your iCloud also appear here automatically.")
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.glossChromeSidebar(colorScheme))
+        .toolbarBackground(Color.glossChromeSidebar(colorScheme), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle("Gloss")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

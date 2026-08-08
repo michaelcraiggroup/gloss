@@ -37,6 +37,27 @@ enum DocumentType: String, CaseIterable, Sendable {
         }
     }
 
+    /// SF Symbol counterpart of `icon` — the iOS-native rendering (the emoji
+    /// set stays the macOS sidebar's signature).
+    var symbol: String {
+        switch self {
+        case .pitch: "lightbulb"
+        case .retrospective: "chart.bar"
+        case .strategy: "target"
+        case .principle: "scalemass"
+        case .audit: "magnifyingglass"
+        case .flashcard: "rectangle.on.rectangle"
+        case .template: "list.clipboard"
+        case .decision: "bolt"
+        case .research: "testtube.2"
+        case .readme: "book"
+        case .changelog: "doc.badge.clock"
+        case .plan: "map"
+        case .folder: "folder"
+        case .generic: "doc.text"
+        }
+    }
+
     var displayName: String {
         switch self {
         case .pitch: "Pitch"

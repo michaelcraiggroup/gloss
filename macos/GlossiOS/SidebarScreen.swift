@@ -14,6 +14,7 @@ struct SidebarScreen: View {
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(FilenameSearchService.self) private var filenameSearch
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
     @State private var showingSettings = false
@@ -27,6 +28,12 @@ struct SidebarScreen: View {
             }
         }
         .listStyle(.sidebar)
+        // Reading Desk / Night Owl carry onto the native shelf — same tokens
+        // as the Mac chrome, so navy meets navy with no black band.
+        .scrollContentBackground(.hidden)
+        .background(Color.glossChromeSidebar(colorScheme))
+        .toolbarBackground(Color.glossChromeSidebar(colorScheme), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle(fileTree.folderName)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search this vault")
@@ -92,6 +99,7 @@ struct SidebarScreen: View {
     private var browseSections: some View {
             FavoritesSection(
                 showsShelfDivider: fileTree.activeNode != nil,
+                hideWhenEmpty: true,
                 onSelect: { onSelect($0) },
                 onToggleFavorite: { toggleFavorite($0) }
             ) { url in
@@ -109,6 +117,7 @@ struct SidebarScreen: View {
 
             RecentsSection(
                 vaultKey: settings.vaultKey,
+                hideWhenEmpty: true,
                 onSelect: { onSelect($0) },
                 onToggleFavorite: { toggleFavorite($0) }
             ) { url in

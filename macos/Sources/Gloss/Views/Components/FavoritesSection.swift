@@ -31,19 +31,39 @@ struct FavoritesSection<MenuContent: View>: View {
     private let onToggleFavorite: (URL) -> Void
     private let contextMenu: (URL) -> MenuContent
 
+    /// iOS passes true: an empty shelf renders nothing at all — sections are
+    /// earned by content (Notes-style). macOS keeps its shipped empty rows.
+    private let hideWhenEmpty: Bool
+
     init(
         showsShelfDivider: Bool = false,
+        hideWhenEmpty: Bool = false,
         onSelect: @escaping (URL) -> Void,
         onToggleFavorite: @escaping (URL) -> Void,
         @ViewBuilder contextMenu: @escaping (URL) -> MenuContent
     ) {
         self.showsShelfDivider = showsShelfDivider
+        self.hideWhenEmpty = hideWhenEmpty
         self.onSelect = onSelect
         self.onToggleFavorite = onToggleFavorite
         self.contextMenu = contextMenu
     }
 
+    private var isEmpty: Bool {
+        favoritesService.rootURL != nil
+            ? favoritesService.favorites.isEmpty
+            : legacyFavorites.isEmpty
+    }
+
     var body: some View {
+        if hideWhenEmpty && isEmpty {
+            EmptyView()
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         Section {
             if favoritesService.rootURL != nil {
                 if favoritesService.favorites.isEmpty {
@@ -52,7 +72,7 @@ struct FavoritesSection<MenuContent: View>: View {
                     ForEach(favoritesService.favorites) { item in
                         row(
                             title: item.title,
-                            icon: item.documentType.icon,
+                            type: item.documentType,
                             url: item.url,
                             missing: !item.fileExists
                         )
@@ -62,7 +82,7 @@ struct FavoritesSection<MenuContent: View>: View {
                 emptyRow
             } else {
                 ForEach(legacyFavorites) { doc in
-                    row(title: doc.title, icon: doc.type.icon, url: doc.url, missing: false)
+                    row(title: doc.title, type: doc.type, url: doc.url, missing: false)
                 }
             }
         } header: {
@@ -81,13 +101,13 @@ struct FavoritesSection<MenuContent: View>: View {
     }
 
     @ViewBuilder
-    private func row(title: String, icon: String, url: URL, missing: Bool) -> some View {
+    private func row(title: String, type: DocumentType, url: URL, missing: Bool) -> some View {
         HStack {
             Label {
                 Text(title)
                     .lineLimit(1)
             } icon: {
-                Text(icon)
+                DocumentTypeIcon(type: type)
             }
             .opacity(missing ? 0.5 : 1)
             if missing {

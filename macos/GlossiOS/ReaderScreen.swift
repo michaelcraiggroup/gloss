@@ -21,6 +21,13 @@ struct ReaderScreen: View {
     @State private var headings: [HeadingInfo] = []
     @State private var frontmatter: FrontmatterData?
 
+    /// Matches the rendered document's CSS --bg exactly, so the bar, the
+    /// safe areas, and the page are one continuous surface (the Night Owl
+    /// principle from the Mac chrome — no black band over navy).
+    private var readingSurface: Color {
+        colorScheme == .dark ? Color(gloss: 0x011627) : Color(gloss: 0xFBFBFB)
+    }
+
     var body: some View {
         ZStack {
             if let html = model.renderedHTML, model.renderURL == fileURL {
@@ -46,6 +53,9 @@ struct ReaderScreen: View {
                 ProgressView()
             }
         }
+        .background(readingSurface.ignoresSafeArea())
+        .toolbarBackground(readingSurface, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .navigationTitle(displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
