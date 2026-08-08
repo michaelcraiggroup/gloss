@@ -34,7 +34,11 @@ struct VaultOverviewView: View {
             .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .center)
         }
+        #if os(macOS)
         .background(Color(nsColor: .textBackgroundColor))
+        #else
+        .background(Color(uiColor: .systemBackground))
+        #endif
         .onAppear {
             overview.refreshIfStale(database: linkIndex.databaseRef)
         }

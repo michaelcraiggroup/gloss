@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: group.michaelcraig
   deploymentTarget:
     macOS: "14.0"
+    iOS: "17.0"
   xcodeVersion: "16.0"
   generateEmptyDirectories: false
 
@@ -35,7 +36,7 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.23.0"
+        CFBundleShortVersionString: "1.24.0"
         NSHighResolutionCapable: true
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
@@ -64,7 +65,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.23.0"
+        MARKETING_VERSION: "1.24.0"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
@@ -88,7 +89,7 @@ targets:
     info:
       path: GlossQLExtension/Info.plist
       properties:
-        CFBundleShortVersionString: "1.23.0"
+        CFBundleShortVersionString: "1.24.0"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewViewController"
@@ -106,7 +107,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
-        MARKETING_VERSION: "1.23.0"
+        MARKETING_VERSION: "1.24.0"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SKIP_INSTALL: true
@@ -135,6 +136,75 @@ targets:
       - package: GlossPackage
         product: GlossKit
 
+  # iOS companion (universal purchase: SAME bundle id as the Mac app — the
+  # iOS platform is added to the existing App Store Connect record, never a
+  # new one). Compiles the shared Sources/Gloss layer with an EXCLUDE list:
+  # new files are iOS-compiled by default, so AppKit drift breaks this build
+  # gate instead of silently accumulating. XCODE_BUILD is CRITICAL here —
+  # without it StoreManager compiles its SPM dev bypass and Pro is free.
+  GlossiOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/Gloss
+        excludes:
+          - GlossApp.swift
+          - Services/EditorLauncher.swift
+          - Services/FolderWatcher.swift
+          - Services/QuickCaptureController.swift
+          - Services/SecurityScopedBookmarks.swift
+          - Services/TemplateFillService.swift
+          - Views/ContentView.swift
+          - Views/DocumentView.swift
+          - Views/GraphView.swift
+          - Views/SettingsView.swift
+          - Views/SidebarView.swift
+          - Views/Components/EditorWebView.swift
+          - Views/Components/WebView.swift
+          # Walkthrough spotlight chrome — guides are macOS-only in v1 (the
+          # Rabble SDK isn't bundled on iOS) and this view uses onExitCommand.
+          - Views/Components/NativeSpotlightOverlay.swift
+          # Hot-corner capture panel content (mounted only by the excluded
+          # QuickCaptureController); iOS capture is a Share Extension arc.
+          - Views/Components/QuickCaptureView.swift
+          - Resources/**
+      - path: GlossiOS
+    info:
+      path: GlossiOS/Info.plist
+      properties:
+        CFBundleDisplayName: Gloss
+        CFBundleShortVersionString: "1.24.0"
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "Gloss uses the camera to scan the pairing code shown by Gloss on your Mac."
+        CFBundleURLTypes:
+          - CFBundleURLName: group.michaelcraig.gloss.pair
+            CFBundleURLSchemes:
+              - gloss
+    entitlements:
+      path: GlossiOS.entitlements
+      properties:
+        # iCloud container values land with the vault-sync arc (PR 9 wiring;
+        # container id iCloud.group.michaelcraig.gloss). The empty key keeps
+        # the file/signing shape stable so that PR is a value-only diff.
+        com.apple.developer.icloud-container-identifiers: []
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
+        PRODUCT_NAME: Gloss
+        MARKETING_VERSION: "1.24.0"
+        CURRENT_PROJECT_VERSION: "12"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: Gloss
+    dependencies:
+      - package: GlossPackage
+        product: GlossKit
+      - package: GRDB
+        product: GRDB
+
 schemes:
   Gloss:
     build:
@@ -151,5 +221,15 @@ schemes:
         - GlossTests
     profile:
       config: Release
+    archive:
+      config: Release
+
+  GlossiOS:
+    build:
+      targets:
+        GlossiOS: all
+    run:
+      config: Debug
+      storeKitConfiguration: GlossStore.storekit
     archive:
       config: Release
