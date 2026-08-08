@@ -36,4 +36,6 @@ extension Notification.Name {
     static let glossEditorDirtyChanged = Notification.Name("glossEditorDirtyChanged")
     static let glossEditorSaved = Notification.Name("glossEditorSaved")
     static let glossToggleEditMode = Notification.Name("glossToggleEditMode")
+    /// Opens the Set Up iPhone / Move Vault to iCloud sheet (macOS).
+    static let glossSetUpiPhone = Notification.Name("glossSetUpiPhone")
 }

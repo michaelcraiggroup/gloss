@@ -76,11 +76,15 @@ struct GlossApp: App {
                 .environment(graphService)
                 .environment(guideService)
                 .environment(templateFill)
+                .environment(ubiquityStore)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
                     setAppIcon()
                     ubiquityStore.start()
+                    // Repair an interrupted Move-Vault-to-iCloud before the
+                    // vault restore reads rootFolderPath (cheap: two stats).
+                    VaultMigrator.healPendingMigration(settings: settings)
                     // Reap index directories for vaults that no longer exist
                     // (container vaults keep their index in App Support).
                     Task.detached(priority: .background) {
@@ -186,6 +190,20 @@ struct GlossApp: App {
                     SecurityScopedBookmarks.shared.useVault(nil)
                     fileTree.closeFolder()
                     settings.rootFolderPath = ""
+                }
+                .disabled(!fileTree.hasFolder)
+
+                Divider()
+
+                // Both land on the same sheet — it adapts to the vault's
+                // location (local → move flow; container → pairing QR).
+                Button("Move Vault to iCloud…") {
+                    NotificationCenter.default.post(name: .glossSetUpiPhone, object: nil)
+                }
+                .disabled(!fileTree.hasFolder)
+
+                Button("Set Up iPhone…") {
+                    NotificationCenter.default.post(name: .glossSetUpiPhone, object: nil)
                 }
                 .disabled(!fileTree.hasFolder)
 
