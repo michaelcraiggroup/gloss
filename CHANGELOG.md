@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carries an iCloud-entitlement placeholder for the vault-sync arc. The
   reader, container vaults, and QR pairing land in the next PRs.
 
+- **macOS iCloud foundation** — the app now carries the iCloud Documents
+  entitlements for its container (`iCloud.group.michaelcraig.gloss`,
+  published in iCloud Drive as "Gloss"). `UbiquityVaultStore` resolves the
+  container off-main and defers container-vault restore until it's ready;
+  security-scoped bookmarks correctly no-op for container paths (the sandbox
+  already extends there). Release signing is now per-target in project.yml —
+  the app embeds the "Gloss Developer ID iCloud" profile (iCloud is a
+  restricted entitlement), the Quick Look extension stays profile-free — and
+  `release-dmg.sh` preflights the profile and verifies the embedded
+  entitlements post-archive. Portal state and one-time steps:
+  `docs/ICLOUD_SETUP.md`.
+
 ### Changed
 
 - Version aligned to 1.24.0 across all three targets (macOS app, Quick Look

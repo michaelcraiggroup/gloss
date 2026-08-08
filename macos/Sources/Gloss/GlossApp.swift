@@ -48,6 +48,7 @@ struct GlossApp: App {
     @State private var graphService = GraphService()
     @State private var guideService = GlossGuideService()
     @State private var templateFill = TemplateFillService()
+    @State private var ubiquityStore = UbiquityVaultStore()
     @StateObject private var quickCapture = QuickCaptureController()
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
@@ -79,6 +80,7 @@ struct GlossApp: App {
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
                     setAppIcon()
+                    ubiquityStore.start()
                     handleCLIArguments()
                     restoreFolder()
                     // Cold-launch file open (Finder double-click on a not-running
@@ -99,6 +101,15 @@ struct GlossApp: App {
                     // onAppear, silently skipping the vault restore (#38).
                     // Retry once the unlock lands.
                     if unlocked && !fileTree.hasFolder {
+                        restoreFolder()
+                    }
+                }
+                .onChange(of: ubiquityStore.state) { _, newState in
+                    // A container vault can't be read until the first
+                    // url(forUbiquityContainerIdentifier:) call of this launch
+                    // resolves (restoreFolder defers in that case) — retry when
+                    // the container comes up, mirroring the unlock retry above.
+                    if case .available = newState, !fileTree.hasFolder {
                         restoreFolder()
                     }
                 }
@@ -541,6 +552,12 @@ struct GlossApp: App {
         let path = settings.rootFolderPath
         guard !path.isEmpty else { return }
         let url = URL(fileURLWithPath: path)
+        if UbiquityVaultStore.isUbiquitousPath(url) {
+            // The container isn't readable until this launch's ubiquity
+            // bootstrap resolves — defer; the ubiquityStore.state onChange
+            // re-runs this restore the moment the container is available.
+            guard case .available = ubiquityStore.state else { return }
+        }
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
             // Resume scoped access to the vault before scanning it — under
