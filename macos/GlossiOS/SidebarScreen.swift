@@ -16,6 +16,7 @@ struct SidebarScreen: View {
     @Environment(FilenameSearchService.self) private var filenameSearch
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
+    @State private var showingSettings = false
 
     var body: some View {
         List {
@@ -71,6 +72,17 @@ struct SidebarScreen: View {
                 }
                 .accessibilityLabel("Back to vaults")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("Settings")
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsScreen()
         }
     }
 

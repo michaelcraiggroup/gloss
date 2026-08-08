@@ -9,7 +9,6 @@ import GlossKit
 struct ReaderScreen: View {
     let fileURL: URL
     var highlightQuery: String?
-    let navHistory: NavigationHistory
 
     @EnvironmentObject private var settings: AppSettings
     @Environment(LinkIndex.self) private var linkIndex
@@ -51,25 +50,30 @@ struct ReaderScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    if let url = navHistory.goBack(from: settings.currentFileURL) {
-                        settings.currentFileURL = url
+                // Safari-Reader-style "Aa": the reading controls live where
+                // the reading happens (Settings proper stays on the sidebar).
+                Menu {
+                    ControlGroup {
+                        Button {
+                            adjustFontSize(-1)
+                        } label: {
+                            Label("Smaller", systemImage: "textformat.size.smaller")
+                        }
+                        Button {
+                            adjustFontSize(+1)
+                        } label: {
+                            Label("Larger", systemImage: "textformat.size.larger")
+                        }
+                    }
+                    Picker("Theme", selection: themeBinding) {
+                        ForEach(Appearance.allCases) { appearance in
+                            Text(appearance.displayName).tag(appearance)
+                        }
                     }
                 } label: {
-                    Image(systemName: "chevron.backward")
+                    Image(systemName: "textformat.size")
                 }
-                .disabled(!navHistory.canGoBack)
-                .accessibilityLabel("Back")
-
-                Button {
-                    if let url = navHistory.goForward(from: settings.currentFileURL) {
-                        settings.currentFileURL = url
-                    }
-                } label: {
-                    Image(systemName: "chevron.forward")
-                }
-                .disabled(!navHistory.canGoForward)
-                .accessibilityLabel("Forward")
+                .accessibilityLabel("Reading appearance")
 
                 Button {
                     guard store.gate(.inspector) else { return }
@@ -175,6 +179,20 @@ struct ReaderScreen: View {
                     name: .glossNavigateWikiLink,
                     object: URL(fileURLWithPath: sourcePath))
             }
+        )
+    }
+
+    /// Same gate call site shape as Settings: works for Pro, fires the
+    /// paywall (and drops the change) for the free tier.
+    private func adjustFontSize(_ delta: Int) {
+        guard store.gate(.fontSizeControl) else { return }
+        settings.fontSize = min(24, max(12, settings.fontSize + delta))
+    }
+
+    private var themeBinding: Binding<Appearance> {
+        Binding(
+            get: { settings.colorSchemeAppearance },
+            set: { settings.colorSchemeAppearance = $0 }
         )
     }
 
