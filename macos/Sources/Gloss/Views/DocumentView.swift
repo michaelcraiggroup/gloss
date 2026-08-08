@@ -190,7 +190,9 @@ struct DocumentView: View {
             // on every index tick.
             guard !unresolvedWikiTargets.isEmpty, !isEditing,
                   let content = fileContent, let url = fileURL else { return }
-            if unresolvedWikiTargets.contains(where: { resolveWikiLink($0, from: url) != nil }) {
+            if unresolvedWikiTargets.contains(where: {
+                DocumentRenderModel.resolveWikiLink($0, from: url, database: linkIndex.databaseRef) != nil
+            }) {
                 renderAsync(content, url: url)
             }
         }
@@ -400,12 +402,13 @@ struct DocumentView: View {
 
         // Pre-resolve wiki-links on the main thread (accesses @MainActor state),
         // then pass the resolved map to the background task.
-        let (wikiLinkMap, unresolved) = buildWikiLinkSnapshot(for: content, from: url)
+        let db = linkIndex.databaseRef
+        let (wikiLinkMap, unresolved) = DocumentRenderModel.buildWikiLinkSnapshot(
+            for: content, from: url, database: db)
         unresolvedWikiTargets = unresolved
-        let embedMap = buildEmbedSnapshot(for: content, from: url)
+        let embedMap = DocumentRenderModel.buildEmbedSnapshot(for: content, from: url, database: db)
         let isDark = colorScheme == .dark
         let fontSize = settings.fontSize
-        let db = linkIndex.databaseRef
 
         renderTask = Task.detached(priority: .userInitiated) {
             guard !Task.isCancelled else { return }
@@ -445,97 +448,7 @@ struct DocumentView: View {
         }
     }
 
-    /// Scans the markdown source for [[wiki-link]] patterns and resolves them to URLs
-    /// up-front on the main thread, producing a Sendable snapshot for background
-    /// rendering — plus the list of targets that could not be resolved.
-    private func buildWikiLinkSnapshot(
-        for content: String,
-        from url: URL
-    ) -> (map: [String: String], unresolved: [String]) {
-        guard content.contains("[[") else { return ([:], []) }
-        var map: [String: String] = [:]
-        var unresolved: Set<String> = []
-        let pattern = try? NSRegularExpression(pattern: #"\[\[([^\]]+)\]\]"#)
-        let range = NSRange(content.startIndex..., in: content)
-        pattern?.enumerateMatches(in: content, options: [], range: range) { match, _, _ in
-            guard let match, let r = Range(match.range(at: 1), in: content) else { return }
-            // Strip type suffix (::type) and display text (|label)
-            let raw = String(content[r])
-            let withoutType = raw.components(separatedBy: "::").first ?? raw
-            let target = (withoutType.components(separatedBy: "|").first ?? withoutType)
-                .trimmingCharacters(in: .whitespaces)
-            let key = target.lowercased()
-            guard map[key] == nil else { return }
-            if let resolved = resolveWikiLink(target, from: url) {
-                map[key] = resolved
-                unresolved.remove(key)
-            } else {
-                unresolved.insert(key)
-            }
-        }
-        return (map, Array(unresolved))
-    }
-
-    /// Pre-resolve `![[embed]]` targets to file URLs on the main thread
-    /// (mirrors `buildWikiLinkSnapshot`). The off-main render reads each file.
-    private func buildEmbedSnapshot(for content: String, from url: URL) -> [String: URL] {
-        guard content.contains("![[") else { return [:] }
-        var map: [String: URL] = [:]
-        let pattern = try? NSRegularExpression(pattern: #"!\[\[([^\]]+)\]\]"#)
-        let range = NSRange(content.startIndex..., in: content)
-        pattern?.enumerateMatches(in: content, options: [], range: range) { match, _, _ in
-            guard let match, let r = Range(match.range(at: 1), in: content) else { return }
-            let inner = String(content[r])
-            let target = (inner.components(separatedBy: "#").first ?? inner)
-                .trimmingCharacters(in: .whitespaces)
-            if map[target.lowercased()] == nil,
-               let resolved = resolveWikiLink(target, from: url),
-               let resolvedURL = URL(string: resolved) {
-                map[target.lowercased()] = resolvedURL
-            }
-        }
-        return map
-    }
-
-    // MARK: - Wiki-Link Resolution
-
-    /// Resolve a wiki-link target to a file URL: same-directory candidates
-    /// first, then the link index. (The old fallback BFS-walked the sidebar
-    /// tree, force-loading every directory in the vault on the main thread —
-    /// and one unresolvable link loaded all of it.)
-    private func resolveWikiLink(_ target: String, from currentFile: URL) -> String? {
-        let directory = currentFile.deletingLastPathComponent()
-        let candidates = wikiLinkCandidates(for: target)
-
-        // Same folder first
-        for candidate in candidates {
-            let url = directory.appendingPathComponent(candidate)
-            if FileManager.default.fileExists(atPath: url.path) {
-                return url.absoluteString
-            }
-        }
-
-        // Then the link index — titles are stored extension-less.
-        var bare = target.trimmingCharacters(in: .whitespaces)
-        if bare.hasSuffix(".md") {
-            bare = String(bare.dropLast(3))
-        } else if bare.hasSuffix(".markdown") {
-            bare = String(bare.dropLast(9))
-        }
-        if let db = linkIndex.databaseRef,
-           let path = ((try? db.pathForWikiTarget(bare)) ?? nil) {
-            return URL(fileURLWithPath: path).absoluteString
-        }
-
-        return nil
-    }
-
-    /// Generate candidate filenames for a wiki-link target.
-    private func wikiLinkCandidates(for target: String) -> [String] {
-        let trimmed = target.trimmingCharacters(in: .whitespaces)
-        if trimmed.hasSuffix(".md") || trimmed.hasSuffix(".markdown") {
-            return [trimmed]
-        }
-        return ["\(trimmed).md", "\(trimmed).markdown", trimmed]
-    }
+    // Wiki-link snapshot building and resolution moved to DocumentRenderModel
+    // (shared and tested — the iOS shell uses its instance form; this view
+    // calls the same statics so the two platforms cannot drift).
 }
