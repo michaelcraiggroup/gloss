@@ -23,15 +23,5 @@ protocol PairingURLHandling: AnyObject {
     func handle(_ url: URL)
 }
 
-/// Interim pairing handler until PR 11: records the last URL so the
-/// `gloss://` route can be exercised end-to-end today
-/// (`xcrun simctl openurl booted "gloss://pair?v=1&d=..."`).
-@Observable
-@MainActor
-final class LoggingPairingHandler: PairingURLHandling {
-    private(set) var lastReceived: URL?
-
-    func handle(_ url: URL) {
-        lastReceived = url
-    }
-}
+// The production conformer is PairingHandler (PairingHandler.swift) — the
+// QR/deep-link state machine that consumes PairingEngine's decisions.
