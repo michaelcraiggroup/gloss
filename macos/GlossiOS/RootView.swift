@@ -31,7 +31,10 @@ struct RootView: View {
             }
         } detail: {
             if let url = settings.currentFileURL {
-                ReaderScreen(fileURL: url, navHistory: navHistory)
+                ReaderScreen(
+                    fileURL: url,
+                    highlightQuery: fileTree.searchScope == .content ? fileTree.searchQuery : nil,
+                    navHistory: navHistory)
             } else {
                 detailPlaceholder
             }

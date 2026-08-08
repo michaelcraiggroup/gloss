@@ -27,8 +27,13 @@ struct ReaderWebView: UIViewRepresentable {
         context.coordinator.webView = webView
         context.coordinator.lastHTML = htmlContent
         context.coordinator.pendingHighlight = highlightQuery
+        context.coordinator.startObserving()
         webView.loadHTMLString(htmlContent, baseURL: baseURL)
         return webView
+    }
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        coordinator.stopObserving()
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
@@ -47,6 +52,29 @@ struct ReaderWebView: UIViewRepresentable {
         var lastHTML: String?
         var pendingHighlight: String?
         var activeHighlight: String?
+        nonisolated(unsafe) private var observers: [any NSObjectProtocol] = []
+
+        /// The inspector's TOC posts `.glossScrollToHeading` (same channel as
+        /// macOS) — smooth-scroll the rendered document to the heading id.
+        func startObserving() {
+            guard observers.isEmpty else { return }
+            observers.append(NotificationCenter.default.addObserver(
+                forName: .glossScrollToHeading, object: nil, queue: .main
+            ) { [weak self] notification in
+                let headingID = notification.object as? String
+                MainActor.assumeIsolated {
+                    guard let headingID else { return }
+                    let escaped = headingID.replacingOccurrences(of: "'", with: "\\'")
+                    let js = "document.getElementById('\(escaped)')?.scrollIntoView({behavior:'smooth',block:'start'})"
+                    self?.webView?.evaluateJavaScript(js, completionHandler: nil)
+                }
+            })
+        }
+
+        func stopObserving() {
+            for observer in observers { NotificationCenter.default.removeObserver(observer) }
+            observers = []
+        }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             MainActor.assumeIsolated {

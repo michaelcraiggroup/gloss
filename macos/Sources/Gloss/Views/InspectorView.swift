@@ -61,7 +61,11 @@ struct InspectorView: View {
                                 propertyRow(key: field.key, value: field.value)
                             }
                         }
-                        addPropertyRow
+                        // Read-only hosts (iOS v1) pass nil callbacks — no
+                        // add affordance they can't honor.
+                        if onPropertyChange != nil {
+                            addPropertyRow
+                        }
                     }
                 }
 
@@ -239,20 +243,23 @@ struct InspectorView: View {
                         .lineLimit(3)
                         .contentShape(Rectangle())
                         .onTapGesture {
+                            guard onPropertyChange != nil else { return }
                             editingValue = value
                             editingKey = key
                         }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button {
-                onPropertyRemove?(key)
-            } label: {
-                Image(systemName: "minus.circle").font(.caption2)
+            if onPropertyRemove != nil {
+                Button {
+                    onPropertyRemove?(key)
+                } label: {
+                    Image(systemName: "minus.circle").font(.caption2)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tertiary)
+                .help("Remove property")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tertiary)
-            .help("Remove property")
         }
     }
 
