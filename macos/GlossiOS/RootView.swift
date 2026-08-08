@@ -14,12 +14,25 @@ struct RootView: View {
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(FavoritesService.self) private var favoritesService
     @State private var paywallFeature: PaidFeature?
+    @State private var navHistory = NavigationHistory()
+    /// On iPhone (compact) the split view shows one column at a time —
+    /// programmatic navigation must also steer the visible column, or a
+    /// sidebar tap changes state with no visible transition.
+    @State private var preferredColumn: NavigationSplitViewColumn = .sidebar
 
     var body: some View {
-        NavigationSplitView {
-            VaultListScreen(catalog: vaultCatalog, pairingHandler: pairingHandler)
+        NavigationSplitView(preferredCompactColumn: $preferredColumn) {
+            if fileTree.hasFolder {
+                SidebarScreen(onSelect: openFile)
+            } else {
+                VaultListScreen(catalog: vaultCatalog, pairingHandler: pairingHandler)
+            }
         } detail: {
-            detailPlaceholder
+            if let url = settings.currentFileURL {
+                ReaderScreen(fileURL: url, navHistory: navHistory)
+            } else {
+                detailPlaceholder
+            }
         }
         .modifier(FolderWatchHandler(
             fileTree: fileTree, linkIndex: linkIndex, favoritesService: favoritesService))
@@ -37,10 +50,24 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .glossNavigateWikiLink)) { note in
             guard store.gate(.wikiLinks) else { return }
             if let url = note.object as? URL {
-                settings.currentFileURL = url
-                settings.lastOpenedFile = url.standardizedFileURL.path
+                openFile(url)
             }
         }
+        .onChange(of: settings.currentFileURL) { _, newValue in
+            if newValue == nil {
+                preferredColumn = .sidebar
+            }
+        }
+    }
+
+    /// The single user-initiated open path (sidebar taps + wiki-link clicks):
+    /// records history exactly once, then navigates. Back/Forward set
+    /// `currentFileURL` directly and bypass recording, matching macOS.
+    private func openFile(_ url: URL) {
+        navHistory.navigate(to: url, from: settings.currentFileURL)
+        settings.currentFileURL = url
+        settings.lastOpenedFile = url.standardizedFileURL.path
+        preferredColumn = .detail
     }
 
     @ViewBuilder
@@ -52,7 +79,7 @@ struct RootView: View {
                     .foregroundStyle(.tertiary)
                 Text(root.lastPathComponent)
                     .font(.title3)
-                Text("Vault open — the reader arrives in the next milestone PR.")
+                Text("Select a note to start reading.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
