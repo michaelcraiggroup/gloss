@@ -5,7 +5,11 @@ import PackageDescription
 let package = Package(
     name: "Gloss",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v14),
+        // GlossKit + the shared Gloss sources also compile for the GlossiOS
+        // Xcode target; this declares the package-side floor. `swift build`
+        // and `swift test` remain macOS — the iOS app is Xcode-only.
+        .iOS(.v17)
     ],
     products: [
         .executable(name: "Gloss", targets: ["Gloss"]),

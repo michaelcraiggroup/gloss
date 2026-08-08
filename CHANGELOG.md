@@ -5,6 +5,24 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.24.0] - 2026-08-08
+
+### Added
+
+- **GlossiOS — the iOS app target exists.** First milestone-C PR of the iOS
+  companion arc ([#78](https://github.com/michaelcraiggroup/gloss/issues/78)):
+  a SwiftUI shell (vault list, settings, paywall) compiling the shared
+  `Sources/Gloss` layer for iOS 17+ under the **same bundle identifier** as
+  the Mac app (Universal Purchase — the existing "Gloss Pro" unlock covers
+  both platforms). Registers the `gloss://` URL scheme for Mac pairing and
+  carries an iCloud-entitlement placeholder for the vault-sync arc. The
+  reader, container vaults, and QR pairing land in the next PRs.
+
+### Changed
+
+- Version aligned to 1.24.0 across all three targets (macOS app, Quick Look
+  extension, iOS app). No macOS behavior change in this release.
+
 ## [macOS 1.23.0] - 2026-08-05
 
 ### Changed
