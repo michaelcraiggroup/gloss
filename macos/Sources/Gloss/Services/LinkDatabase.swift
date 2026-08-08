@@ -7,12 +7,21 @@ import GlossKit
 struct LinkDatabase: Sendable {
     let dbQueue: DatabaseQueue
 
-    /// Open (or create) the index database at `.gloss/index.sqlite` under the given root.
+    /// Open (or create) the index database for the given vault root, at the
+    /// location `VaultPaths` dictates: in-vault `.gloss/` for local vaults,
+    /// Application Support for container vaults (SQLite must never sync).
     init(rootURL: URL) throws {
-        let glossDir = rootURL.appendingPathComponent(".gloss")
-        try FileManager.default.createDirectory(at: glossDir, withIntermediateDirectories: true)
-        let dbPath = glossDir.appendingPathComponent("index.sqlite").path
-        dbQueue = try DatabaseQueue(path: dbPath)
+        try self.init(databaseURL: VaultPaths.indexDatabaseURL(for: rootURL))
+        if UbiquityVaultStore.isUbiquitousPath(rootURL) {
+            VaultPaths.writeMeta(for: rootURL)
+        }
+    }
+
+    /// Open (or create) the index database at an explicit location.
+    init(databaseURL: URL) throws {
+        try FileManager.default.createDirectory(
+            at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        dbQueue = try DatabaseQueue(path: databaseURL.path)
         try migrate()
     }
 

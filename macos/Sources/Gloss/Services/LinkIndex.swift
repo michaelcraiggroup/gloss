@@ -75,6 +75,28 @@ final class LinkIndex {
         return task
     }
 
+    /// Tear down the open database and cancel in-flight index work — called
+    /// when a vault closes, and by the vault migrator to quiesce before
+    /// moving a vault (nothing may hold the SQLite file open mid-move).
+    func close() {
+        buildTask?.cancel()
+        buildTask = nil
+        pipelineTail = nil
+        database = nil
+        rootURL = nil
+        recentSelfUpdates = [:]
+        backlinks = []
+        forwardLinks = []
+        recentlyChanged = []
+        allTags = []
+        allTitles = []
+        currentFileTags = []
+        unlinkedMentions = []
+        linkHealth = .empty
+        isIndexing = false
+        fullRebuildScheduled = false
+    }
+
     // MARK: - Full Build
 
     /// Build the full index for a vault root. Creates `.gloss/index.sqlite`.
@@ -465,11 +487,23 @@ final class LinkIndex {
     /// Links are stored unresolved — follow up with `resolveLinksTouching` or
     /// `resolveAllLinks`.
     @discardableResult
+    /// Evicted or not-yet-downloaded ubiquitous files (Optimize Mac Storage
+    /// on macOS, placeholders on iOS) either fail to read or trigger a
+    /// blocking download — the indexer must skip them. The watcher delivers
+    /// the path again when the bytes land, and it gets indexed then.
+    nonisolated static func isDatalessUbiquitousFile(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(
+                forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]),
+              values.isUbiquitousItem == true else { return false }
+        return values.ubiquitousItemDownloadingStatus != .current
+    }
+
     nonisolated private static func indexFile(
         _ fileURL: URL,
         rootURL: URL,
         database: LinkDatabase
     ) throws -> Int64? {
+        guard !isDatalessUbiquitousFile(fileURL) else { return nil }
         guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { return nil }
 
         let modDate = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date()

@@ -81,6 +81,11 @@ struct GlossApp: App {
                 .onAppear {
                     setAppIcon()
                     ubiquityStore.start()
+                    // Reap index directories for vaults that no longer exist
+                    // (container vaults keep their index in App Support).
+                    Task.detached(priority: .background) {
+                        VaultPaths.sweepStaleIndexDirectories()
+                    }
                     handleCLIArguments()
                     restoreFolder()
                     // Cold-launch file open (Finder double-click on a not-running
@@ -177,6 +182,7 @@ struct GlossApp: App {
                 Divider()
 
                 Button("Close Vault") {
+                    linkIndex.close()
                     SecurityScopedBookmarks.shared.useVault(nil)
                     fileTree.closeFolder()
                     settings.rootFolderPath = ""
