@@ -33,7 +33,7 @@ final class FileTreeModel {
     var activeTagFilter: String?
     var tagFilteredFiles: [(path: String, title: String)]?
 
-    private let folderWatcher = FolderWatcher()
+    private let vaultObserver: any VaultObserving
 
     /// Coalesces watcher callbacks so sustained churn (builds, git, agent
     /// sessions writing into the vault) costs one reconcile + index pass per
@@ -51,6 +51,18 @@ final class FileTreeModel {
     /// resolved, e.g. /private/...) onto tree nodes by relative components.
     private var resolvedRootPath = ""
 
+    /// macOS defaults to the FSEvents FolderWatcher; iOS injects the ubiquity
+    /// observer (NullVaultObserver until it exists, keeping the per-file
+    /// fallback engaged). The optional parameter keeps `FileTreeModel()` call
+    /// sites source-compatible and lets tests inject a spy.
+    init(vaultObserver: (any VaultObserving)? = nil) {
+        #if os(macOS)
+        self.vaultObserver = vaultObserver ?? FolderWatcher()
+        #else
+        self.vaultObserver = vaultObserver ?? NullVaultObserver()
+        #endif
+    }
+
     /// Open a folder and populate the root tree node.
     func openFolder(_ url: URL) {
         // Vault-wide exclusion rules (defaults + .gloss/config.json overrides)
@@ -64,8 +76,8 @@ final class FileTreeModel {
         // change that occurs between arm and the completion of loadChildren is
         // guaranteed to fire an event and trigger a reconcile — closing the
         // kFSEventStreamEventIdSinceNow gap that existed when we enumerated first.
-        isWatching = folderWatcher.start(root: url, rules: ExclusionRules.current) { [weak self] paths in
-            // FolderWatcher delivers on the main queue.
+        isWatching = vaultObserver.start(root: url, rules: ExclusionRules.current) { [weak self] paths in
+            // VaultObserving contract: delivery on the main queue.
             MainActor.assumeIsolated {
                 self?.eventDebouncer.add(paths)
             }
@@ -77,7 +89,7 @@ final class FileTreeModel {
 
     /// Close the current folder.
     func closeFolder() {
-        folderWatcher.stop()
+        vaultObserver.stop()
         eventDebouncer.cancel()
         ExclusionRules.current = .standard
         resolvedRootPath = ""

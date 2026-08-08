@@ -1,4 +1,7 @@
+import Foundation
+#if canImport(AppKit)
 import AppKit
+#endif
 
 /// Supported external editors for "Open in Editor" functionality.
 /// All VS Code forks use URL schemes; system default uses NSWorkspace.
@@ -42,6 +45,9 @@ enum Editor: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    #if os(macOS)
+    // Launching an external editor has no iOS analogue — the type itself stays
+    // shared because AppSettings (shared) stores the user's Editor choice.
     func openFile(at path: String) {
         if let scheme = urlScheme, let url = URL(string: "\(scheme)\(path)") {
             NSWorkspace.shared.open(url)
@@ -60,4 +66,5 @@ enum Editor: String, CaseIterable, Codable, Identifiable {
             configuration: NSWorkspace.OpenConfiguration()
         )
     }
+    #endif
 }

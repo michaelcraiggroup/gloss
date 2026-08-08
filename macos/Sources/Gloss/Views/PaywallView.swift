@@ -93,7 +93,9 @@ struct PaywallView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(32)
+        #if os(macOS)
         .frame(width: 340)
+        #endif
         .task {
             // Re-request the product every time the paywall opens — the
             // launch-time fetch may have failed (offline, store hiccup).

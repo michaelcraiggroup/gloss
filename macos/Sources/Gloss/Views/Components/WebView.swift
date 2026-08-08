@@ -1,34 +1,8 @@
 import SwiftUI
 import WebKit
 
-extension Notification.Name {
-    static let glossFindInPage = Notification.Name("glossFindInPage")
-    static let glossFindNext = Notification.Name("glossFindNext")
-    static let glossFindPrevious = Notification.Name("glossFindPrevious")
-    static let glossFileDrop = Notification.Name("glossFileDrop")
-    static let glossPrint = Notification.Name("glossPrint")
-    static let glossScrollToHeading = Notification.Name("glossScrollToHeading")
-    static let glossDocumentLoaded = Notification.Name("glossDocumentLoaded")
-    static let glossNavigateWikiLink = Notification.Name("glossNavigateWikiLink")
-    static let glossShowPaywall = Notification.Name("glossShowPaywall")
-    static let glossGuideReady = Notification.Name("glossGuideReady")
-    static let glossGuideStepComplete = Notification.Name("glossGuideStepComplete")
-    static let glossGuideStopped = Notification.Name("glossGuideStopped")
-    static let glossGuideDispatchWeb = Notification.Name("glossGuideDispatchWeb")
-    static let glossGuideStopWeb = Notification.Name("glossGuideStopWeb")
-    static let glossIndexUpdated = Notification.Name("glossIndexUpdated")
-    static let glossShowGraph = Notification.Name("glossShowGraph")
-    static let glossSaveFilled = Notification.Name("glossSaveFilled")
-    static let glossTemplateFilled = Notification.Name("glossTemplateFilled")
-    static let glossWebViewDidStartLoad = Notification.Name("glossWebViewDidStartLoad")
-    static let glossWebViewDidFinishLoad = Notification.Name("glossWebViewDidFinishLoad")
-    static let glossOpenPath = Notification.Name("glossOpenPath")
-    /// Posted (object: Double zoom level) when the user changes read-mode page zoom.
-    static let glossZoomChanged = Notification.Name("glossZoomChanged")
-    /// Posted (object: [String] of changed paths) when the folder watcher
-    /// detects on-disk changes anywhere under the open vault root.
-    static let glossVaultFilesChanged = Notification.Name("glossVaultFilesChanged")
-}
+// Notification.Name declarations moved to GlossNotifications.swift — they are
+// the cross-platform wire and must compile without this AppKit file.
 
 /// WKWebView subclass that intercepts markdown file drops.
 @MainActor
