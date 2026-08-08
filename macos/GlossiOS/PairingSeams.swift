@@ -1,13 +1,16 @@
 import Foundation
 import Observation
 
-/// A vault the app can offer to open. In milestone C's interim state these
-/// come from the app-sandbox Documents folder; PR 9 replaces the catalog's
-/// source with the iCloud container discovery query — same descriptor.
+/// A vault the app can offer to open, with the shelf metadata that makes the
+/// list read as a library rather than a file picker. Counts are optional —
+/// rows render immediately and fill in as the catalog's scan completes.
 struct VaultDescriptor: Identifiable, Hashable {
     let id: String
     let name: String
     let rootURL: URL
+    var noteCount: Int?
+    var updatedAt: Date?
+    var isInICloud: Bool = false
 }
 
 /// Seam the vault-sync arc implements against the iCloud container (PR 9).
