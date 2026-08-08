@@ -112,6 +112,10 @@ final class FolderWatcher: @unchecked Sendable {
     fileprivate func handleEvents(_ paths: [String]) {
         let root = rootPath
         let rules = rules
+        // The one .gloss exception: favorites.json syncs with container
+        // vaults, so a change (another device's write, or iCloud delivering)
+        // gets its own reload signal instead of entering the file pipeline.
+        let favoritesChanged = FavoritesService.pathsIncludeFavoritesFile(paths)
         let filtered = paths.filter { path in
             // Only inspect components BELOW the watched root — the root prefix
             // itself may legitimately contain an excluded name (e.g. a vault
@@ -119,9 +123,15 @@ final class FolderWatcher: @unchecked Sendable {
             let relative = path.hasPrefix(root) ? path.dropFirst(root.count) : path[...]
             return !rules.isExcludedRelativePath(relative)
         }
-        guard !filtered.isEmpty, let onChange else { return }
+        guard favoritesChanged || !filtered.isEmpty else { return }
+        let onChange = onChange
         DispatchQueue.main.async {
-            onChange(filtered)
+            if favoritesChanged {
+                NotificationCenter.default.post(name: .glossFavoritesFileChanged, object: nil)
+            }
+            if !filtered.isEmpty, let onChange {
+                onChange(filtered)
+            }
         }
     }
 

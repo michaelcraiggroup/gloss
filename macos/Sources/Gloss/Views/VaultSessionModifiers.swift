@@ -30,6 +30,11 @@ struct FolderWatchHandler: ViewModifier {
                 // (and engages when one disappears on disk).
                 favoritesService.refreshExistence()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .glossFavoritesFileChanged)) { _ in
+                // Another device's favorites arrived (or our own write echoed
+                // back — reload writes nothing, so no ping-pong).
+                favoritesService.reloadFromDisk()
+            }
     }
 }
 

@@ -114,6 +114,11 @@ final class UbiquityVaultObserver: NSObject, VaultObserving, @unchecked Sendable
     }
 
     private func emit(_ paths: [String]) {
+        // Same favorites passthrough as FolderWatcher: the one .gloss path
+        // that gets a signal out (already on the main queue here).
+        if FavoritesService.pathsIncludeFavoritesFile(paths) {
+            NotificationCenter.default.post(name: .glossFavoritesFileChanged, object: nil)
+        }
         guard let onChange else { return }
         let relevant = Self.vaultRelevantPaths(paths, rootPath: rootPath, rules: rules)
         guard !relevant.isEmpty else { return }

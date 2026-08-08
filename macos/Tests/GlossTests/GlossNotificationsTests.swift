@@ -37,10 +37,11 @@ struct GlossNotificationsTests {
             (.glossEditorSaved, "glossEditorSaved"),
             (.glossToggleEditMode, "glossToggleEditMode"),
             (.glossSetUpiPhone, "glossSetUpiPhone"),
+            (.glossFavoritesFileChanged, "glossFavoritesFileChanged"),
         ]
         for (name, raw) in pinned {
             #expect(name.rawValue == raw)
         }
-        #expect(pinned.count == 27)
+        #expect(pinned.count == 28)
     }
 }
