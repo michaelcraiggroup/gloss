@@ -53,6 +53,15 @@ targets:
             LSHandlerRank: None
             LSItemContentTypes:
               - public.folder
+        # ONE-WAY LATCH: these values only take effect with a CFBundleVersion
+        # bump, and un-publishing a public container is unreliable — treat as
+        # permanent. Publishes the container as the "Gloss" folder in
+        # iCloud Drive (Finder + Files). See docs/ICLOUD_SETUP.md.
+        NSUbiquitousContainers:
+          iCloud.group.michaelcraig.gloss:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Gloss
+            NSUbiquitousContainerSupportedFolderLevels: Any
     entitlements:
       path: Gloss.entitlements
       properties:
@@ -61,6 +70,15 @@ targets:
         com.apple.security.files.bookmarks.app-scope: true
         com.apple.security.network.client: true
         com.apple.security.print: true
+        # iCloud Documents (vault sync). These are RESTRICTED entitlements:
+        # Developer ID archives must now embed the "Gloss Developer ID iCloud"
+        # profile — see the Release config below + docs/ICLOUD_SETUP.md.
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.group.michaelcraig.gloss
+        com.apple.developer.icloud-services:
+          - CloudDocuments
+        com.apple.developer.ubiquity-container-identifiers:
+          - iCloud.group.michaelcraig.gloss
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
@@ -70,6 +88,16 @@ targets:
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
         INFOPLIST_KEY_CFBundleDisplayName: Gloss
+      configs:
+        # iCloud is a restricted entitlement: Developer ID archives must embed
+        # a provisioning profile. Debug stays Automatic (base) so ⌘R keeps
+        # working via Xcode-managed profiles. release-dmg.sh no longer passes
+        # signing on the CLI — CLI settings would hit every target, and the
+        # QL appex can't use the app's profile.
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Developer ID Application
+          PROVISIONING_PROFILE_SPECIFIER: Gloss Developer ID iCloud
     dependencies:
       - package: GlossPackage
         product: GlossKit
@@ -114,6 +142,13 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - "@executable_path/../Frameworks"
           - "@executable_path/../../../../Frameworks"
+      configs:
+        # No restricted entitlements here → explicitly profile-free, still
+        # manual Developer ID so the whole archive signs in one pass.
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Developer ID Application
+          PROVISIONING_PROFILE_SPECIFIER: ""
     dependencies:
       - package: GlossPackage
         product: GlossKit

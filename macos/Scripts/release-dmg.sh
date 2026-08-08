@@ -55,7 +55,20 @@ security find-identity -v -p codesigning | grep -q "Developer ID Application" \
 xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 \
   || die "Notarization profile \"$NOTARY_PROFILE\" not found. See prerequisite #2 at the top of this script."
 command -v create-dmg >/dev/null 2>&1 || die "create-dmg not installed — run: brew install create-dmg"
-echo "Developer ID cert + notary profile \"$NOTARY_PROFILE\" present. Building Gloss $VERSION."
+# iCloud is a RESTRICTED entitlement: the Developer ID archive must embed the
+# profile named in project.yml's Release config. Fail before the 5-minute
+# archive, with the fix. (Xcode 16 installs profiles under UserData; older
+# flows used MobileDevice — accept either.)
+PROFILE_NAME="Gloss Developer ID iCloud"
+FOUND_PROFILE=""
+for d in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
+         "$HOME/Library/MobileDevice/Provisioning Profiles"; do
+  if [ -d "$d" ] && grep -rlsa "$PROFILE_NAME" "$d" >/dev/null 2>&1; then
+    FOUND_PROFILE="$d"; break
+  fi
+done
+[ -n "$FOUND_PROFILE" ] || die $'Provisioning profile "Gloss Developer ID iCloud" is not installed.\n       iCloud is a restricted entitlement — Developer ID archives must embed it.\n       Portal: Profiles ▸ + ▸ Distribution ▸ Developer ID ▸ App ID\n       group.michaelcraig.gloss ▸ name it EXACTLY "Gloss Developer ID iCloud"\n       ▸ download ▸ double-click to install. Details: docs/ICLOUD_SETUP.md'
+echo "Developer ID cert + notary profile \"$NOTARY_PROFILE\" + iCloud profile present. Building Gloss $VERSION."
 
 rm -rf "$BUILD"; mkdir -p "$BUILD"
 
@@ -68,19 +81,18 @@ xcodegen generate
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Scripts/Info.plist
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" GlossQLExtension/Info.plist
 
-step "Archiving ($CONFIG) — signed directly with Developer ID (manual)"
-# Manual signing with the Developer ID cert. A Developer ID Mac app needs no
-# development cert and no provisioning profile (Gloss has no profile-requiring
-# entitlements), which sidesteps the automatic-signing conflict and the fact
-# that the only development cert here belongs to a different team. All nested
-# code (Quick Look appex, GRDB / GlossKit frameworks) is signed + hardened +
-# secure-timestamped in the same pass — exactly what notarization requires.
+step "Archiving ($CONFIG) — Developer ID (manual, per-target in project.yml)"
+# Signing is defined per-target in project.yml's Release configs: the app
+# signs Developer ID with the embedded "Gloss Developer ID iCloud" profile
+# (iCloud is a restricted entitlement — Developer ID now REQUIRES an embedded
+# profile), while the Quick Look appex has no restricted entitlements and
+# signs profile-free. Signing must NOT be passed on this command line: CLI
+# build settings apply to every target, and the appex can't use the app's
+# profile. All nested code (appex, GRDB / GlossKit frameworks) is still
+# hardened + secure-timestamped in one pass — exactly what notarization needs.
 xcodebuild -project Gloss.xcodeproj -scheme "$SCHEME" -configuration "$CONFIG" \
   -archivePath "$ARCHIVE" archive \
   DEVELOPMENT_TEAM="$TEAM_ID" \
-  CODE_SIGN_STYLE=Manual \
-  CODE_SIGN_IDENTITY="$DEV_ID_IDENTITY" \
-  PROVISIONING_PROFILE_SPECIFIER="" \
   ENABLE_HARDENED_RUNTIME=YES \
   OTHER_CODE_SIGN_FLAGS="--timestamp"
 
@@ -93,6 +105,16 @@ APP="$EXPORT_DIR/Gloss.app"
 step "Verifying the app is Developer ID signed + hardened"
 codesign --verify --deep --strict --verbose=2 "$APP"
 codesign -dv --verbose=4 "$APP" 2>&1 | grep -E "Authority=Developer ID|flags=.*runtime" || true
+
+step "Verifying iCloud entitlements + embedded profile"
+# A silently-dropped entitlement or missing profile would surface as a
+# Gatekeeper/runtime failure on user machines — catch it before notarization.
+[ -f "$APP/Contents/embedded.provisionprofile" ] \
+  || die "No embedded.provisionprofile in Gloss.app — the iCloud entitlement requires one (project.yml Release signing)."
+codesign -d --entitlements - "$APP" 2>&1 | grep -q "icloud-container-identifiers" \
+  || die "Signed app is missing the iCloud entitlements — check Gloss.entitlements / project.yml."
+security cms -D -i "$APP/Contents/embedded.provisionprofile" 2>/dev/null | grep -q "$PROFILE_NAME" \
+  || echo "Warning: embedded profile is not named \"$PROFILE_NAME\" — continuing, but check which profile matched."
 
 step "Building the DMG"
 rm -f "$DMG"

@@ -48,8 +48,11 @@ final class SecurityScopedBookmarks {
     // MARK: - Capture
 
     /// Record a bookmark for a URL the user just granted access to (Open panel,
-    /// Finder open, drag-in). No-op if the URL isn't currently accessible.
+    /// Finder open, drag-in). No-op if the URL isn't currently accessible —
+    /// or lives in the app's own iCloud container, which the sandbox already
+    /// extends to (bookmarkData(.withSecurityScope) can fail outright there).
     func save(_ url: URL) {
+        guard !UbiquityVaultStore.isUbiquitousPath(url) else { return }
         guard let data = try? url.bookmarkData(options: .withSecurityScope,
                                                includingResourceValuesForKeys: nil,
                                                relativeTo: nil) else { return }
@@ -68,7 +71,10 @@ final class SecurityScopedBookmarks {
         if newKey == currentVaultKey { return }
         if let old = currentVaultKey { stop(old) }
         currentVaultKey = newKey
-        if let url { _ = begin(url) }
+        // Container vaults need no bookmark (the sandbox extends to the app's
+        // own iCloud container once resolved) — but currentVaultKey stays set
+        // so isUnderVault() keeps covering files inside them.
+        if let url, !UbiquityVaultStore.isUbiquitousPath(url) { _ = begin(url) }
     }
 
     // MARK: - File access
