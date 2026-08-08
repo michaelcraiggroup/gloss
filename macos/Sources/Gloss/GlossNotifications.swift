@@ -38,4 +38,8 @@ extension Notification.Name {
     static let glossToggleEditMode = Notification.Name("glossToggleEditMode")
     /// Opens the Set Up iPhone / Move Vault to iCloud sheet (macOS).
     static let glossSetUpiPhone = Notification.Name("glossSetUpiPhone")
+    /// Posted by the vault watchers when `.gloss/favorites.json` changed on
+    /// disk — the one `.gloss` path allowed out of the pipeline, so favorites
+    /// synced from another device reload without echo loops.
+    static let glossFavoritesFileChanged = Notification.Name("glossFavoritesFileChanged")
 }
