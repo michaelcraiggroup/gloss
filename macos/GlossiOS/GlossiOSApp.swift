@@ -8,15 +8,27 @@ import SwiftData
 @main
 struct GlossiOSApp: App {
     @StateObject private var settings = AppSettings()
-    @State private var fileTree = FileTreeModel()
+    @State private var fileTree: FileTreeModel
     @State private var enhancedSearch = EnhancedSearchService()
     @State private var filenameSearch = FilenameSearchService()
     @State private var store = StoreManager()
     @State private var linkIndex = LinkIndex()
     @State private var favoritesService = FavoritesService()
     @State private var vaultOverview = VaultOverviewService()
-    @State private var vaultCatalog = LocalVaultCatalog()
+    @State private var ubiquityStore: UbiquityVaultStore
+    @State private var vaultCatalog: ContainerVaultCatalog
     @State private var pairingHandler = LoggingPairingHandler()
+
+    init() {
+        let ubiquity = UbiquityVaultStore()
+        _ubiquityStore = State(initialValue: ubiquity)
+        _vaultCatalog = State(initialValue: ContainerVaultCatalog(ubiquityStore: ubiquity))
+        // Container vaults get live updates + eager markdown download via the
+        // metadata query; sandbox-local vaults fall back to no observation
+        // (the observer refuses non-container roots), matching macOS's
+        // failed-watcher semantics.
+        _fileTree = State(initialValue: FileTreeModel(vaultObserver: UbiquityVaultObserver()))
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -30,7 +42,11 @@ struct GlossiOSApp: App {
                 .environment(linkIndex)
                 .environment(favoritesService)
                 .environment(vaultOverview)
+                .environment(ubiquityStore)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
+                .task {
+                    ubiquityStore.start()
+                }
                 .onOpenURL { url in
                     pairingHandler.handle(url)
                 }

@@ -15,6 +15,7 @@ struct ReaderScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var model = DocumentRenderModel()
     @State private var loadFailed = false
+    @State private var isDownloading = false
 
     var body: some View {
         ZStack {
@@ -24,6 +25,12 @@ struct ReaderScreen: View {
                     baseURL: fileURL.deletingLastPathComponent()
                 )
                 .ignoresSafeArea(edges: .bottom)
+            } else if isDownloading {
+                ContentUnavailableView {
+                    Label("Downloading from iCloud", systemImage: "icloud.and.arrow.down")
+                } description: {
+                    Text(fileURL.lastPathComponent)
+                }
             } else if loadFailed {
                 ContentUnavailableView(
                     "Could not read file",
@@ -110,8 +117,22 @@ struct ReaderScreen: View {
     }
 
     private func loadAndRender() {
-        loadFailed = !model.load(url: fileURL)
-        renderCurrent()
+        if model.load(url: fileURL) {
+            loadFailed = false
+            isDownloading = false
+            renderCurrent()
+            return
+        }
+        // A container file that hasn't downloaded yet reads as a failure —
+        // kick the download and wait; the metadata observer posts
+        // .glossVaultFilesChanged when it lands, which re-runs this load.
+        if UbiquityVaultStore.isUbiquitousPath(fileURL) {
+            isDownloading = true
+            loadFailed = false
+            try? FileManager.default.startDownloadingUbiquitousItem(at: fileURL)
+        } else {
+            loadFailed = true
+        }
     }
 
     private func renderCurrent() {
