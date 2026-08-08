@@ -46,6 +46,9 @@ struct GlossiOSApp: App {
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .task {
                     ubiquityStore.start()
+                    Task.detached(priority: .background) {
+                        VaultPaths.sweepStaleIndexDirectories()
+                    }
                 }
                 .onOpenURL { url in
                     pairingHandler.handle(url)

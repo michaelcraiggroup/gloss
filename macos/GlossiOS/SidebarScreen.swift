@@ -11,6 +11,7 @@ struct SidebarScreen: View {
     @Environment(FileTreeModel.self) private var fileTree
     @Environment(FavoritesService.self) private var favoritesService
     @Environment(StoreManager.self) private var store
+    @Environment(LinkIndex.self) private var linkIndex
 
     var body: some View {
         List {
@@ -74,6 +75,7 @@ struct SidebarScreen: View {
 
     private func closeVault() {
         settings.currentFileURL = nil
+        linkIndex.close()
         fileTree.closeFolder()
         settings.rootFolderPath = ""
     }
