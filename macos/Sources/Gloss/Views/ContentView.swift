@@ -72,6 +72,7 @@ struct ContentView: View {
                 paywallFeature = feature
             }
         }
+        .modifier(SetUpiPhonePresenter())
         .onReceive(NotificationCenter.default.publisher(for: .glossFileDrop)) { notification in
             if let url = notification.object as? URL {
                 // A dropped file carries a live sandbox grant — capture the

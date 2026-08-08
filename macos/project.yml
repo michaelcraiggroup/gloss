@@ -192,6 +192,7 @@ targets:
           - Views/ContentView.swift
           - Views/DocumentView.swift
           - Views/GraphView.swift
+          - Views/SetUpiPhoneSheet.swift
           - Views/SettingsView.swift
           - Views/SidebarView.swift
           - Views/Components/EditorWebView.swift

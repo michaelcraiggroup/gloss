@@ -174,6 +174,40 @@ enum RecentsStore {
         for row in rows { context.delete(row) }
     }
 
+    // MARK: - Vault migration
+
+    /// Rewrite an entire bucket after the vault itself moved (Move Vault to
+    /// iCloud): rows change bucket key AND path prefix in one pass. Rows that
+    /// collide with an existing (newKey, path) row merge into it — same
+    /// max-lastOpened / OR-isFavorite semantics as everywhere else.
+    static func migrateBucket(oldRoot: URL, newRoot: URL, in context: ModelContext) {
+        let oldKey = vaultKey(forRoot: oldRoot)
+        let newKey = vaultKey(forRoot: newRoot)
+        guard oldKey != newKey else { return }
+        let oldPrefix = canonicalPath(oldRoot)
+        let newPrefix = canonicalPath(newRoot)
+
+        for row in fetchBucket(oldKey, in: context) {
+            let rewritten: String
+            if row.path == oldPrefix {
+                rewritten = newPrefix
+            } else if row.path.hasPrefix(oldPrefix + "/") {
+                rewritten = newPrefix + row.path.dropFirst(oldPrefix.count)
+            } else {
+                rewritten = row.path
+            }
+            let existing = fetchRows(path: rewritten, vaultKey: newKey, in: context)
+            if let primary = existing.first {
+                primary.lastOpened = max(primary.lastOpened, row.lastOpened)
+                primary.isFavorite = primary.isFavorite || row.isFavorite
+                context.delete(row)
+            } else {
+                row.path = rewritten
+                row.vaultPath = newKey
+            }
+        }
+    }
+
     // MARK: - Follow the file
 
     /// Rewrite rows after a rename/move of a file OR folder: exact match plus
