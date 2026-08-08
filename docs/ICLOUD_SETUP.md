@@ -33,15 +33,14 @@ permanent — they are declared in `macos/project.yml` and must never change.
 
 ## Remaining one-time steps
 
-3. ☐ **Developer ID provisioning profile** — Profiles → + → Distribution →
-   **Developer ID** → App ID `group.michaelcraig.gloss` → Developer ID
-   Application cert → name it **exactly** `Gloss Developer ID iCloud` →
-   download → double-click to install. `Scripts/release-dmg.sh` preflights
-   for this profile by name and fails with instructions if missing.
-4. ☐ **Same-team Apple Development cert** (team `JTL9F365FN`) — Xcode →
-   Settings → Accounts → Manage Certificates. Needed for Debug ⌘R once the
-   iCloud entitlement is on the App ID (as of this doc the only Apple
-   Development cert on the machine belongs to a different team).
+3. ✅ **Developer ID provisioning profile** — `Gloss Developer ID iCloud`
+   installed 2026-08-08 (gotcha for posterity: **double-clicking a
+   downloaded `.provisionprofile` does not install it** — copy it by UUID
+   into `~/Library/Developer/Xcode/UserData/Provisioning Profiles/`).
+   `Scripts/release-dmg.sh` preflights for it by name; the full notarized
+   DMG gate passed the same day (evidence on PR #83).
+4. ✅ **Development signing for ⌘R** — Xcode auto-minted the Mac team
+   provisioning profile when the App ID gained the iCloud capability.
 5. ☐ Later, before the first iOS TestFlight: add the **iOS platform to the
    existing App Store Connect record** (same bundle id — Universal Purchase).
    Never create a second app record; that forfeits Universal Purchase

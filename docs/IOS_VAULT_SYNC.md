@@ -1,6 +1,11 @@
 # Gloss for iOS — Companion App & Vault Sync Strategy
 
-> Decision doc for [#68](https://github.com/michaelcraiggroup/gloss/issues/68). Written 2026-07-09. **Status: proposed — awaiting go/no-go on the v1 recommendation below.**
+> Decision doc for [#68](https://github.com/michaelcraiggroup/gloss/issues/68). Written 2026-07-09.
+> **Status: DECIDED + SHIPPED (2026-08-08).** All three §9 decisions approved as recommended
+> (container-first iCloud, Universal Purchase, reader-first v1) and the 12-PR arc landed the same
+> day (issues #76–#79, PRs #80–#91). Remaining before TestFlight: the two-device pass in
+> [IOS_QA_SCRIPT.md](IOS_QA_SCRIPT.md). This doc stays as the strategy record; current
+> implementation details live in the repo CLAUDE.md.
 
 ## TL;DR
 

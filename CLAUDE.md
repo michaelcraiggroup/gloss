@@ -72,7 +72,17 @@ gloss/
 │   ├── GlossQLExtension/   # Quick Look extension
 │   │   ├── PreviewProvider.swift
 │   │   └── Info.plist
-│   └── Tests/GlossTests/   # 373 tests
+│   ├── GlossiOS/           # iOS app shell (Xcode-only target, same bundle id — Universal Purchase)
+│   │   ├── GlossiOSApp.swift       # Entry: shared service graph + UbiquityVaultObserver injection
+│   │   ├── RootView.swift          # NavigationSplitView, paywall/pairing sheets, wiki-nav + history
+│   │   ├── VaultListScreen.swift   # Container vault discovery + Pair with Mac
+│   │   ├── SidebarScreen.swift     # Favorites/recents shelves + lazy tree + search scopes
+│   │   ├── ReaderScreen.swift      # DocumentRenderModel host + inspector sheet
+│   │   ├── ReaderWebView.swift     # UIViewRepresentable twin of WebView (read-only subset)
+│   │   ├── ContainerVaultCatalog.swift # Vault rows from the iCloud container (+DEBUG sandbox)
+│   │   ├── PairingHandler.swift    # QR/deep-link state machine (consumes PairingEngine)
+│   │   └── PairingScanScreen.swift # VisionKit scanner + paste-link fallback + status view
+│   └── Tests/GlossTests/   # 447 tests
 └── gloss-project-plan.md   # Full product plan
 ```
 
@@ -83,7 +93,7 @@ gloss/
 ```bash
 cd macos
 swift build              # Build (SPM)
-swift test               # Run tests (373 tests in 43 suites)
+swift test               # Run tests (447 tests in 55 suites)
 swift run                # Launch the app (SPM)
 
 # Xcode project (for code signing, Quick Look extension, App Store)
@@ -91,7 +101,30 @@ xcodegen generate        # Generate Gloss.xcodeproj from project.yml
 open Gloss.xcodeproj     # Open in Xcode → set team → Cmd+R
 xcodebuild -project Gloss.xcodeproj -scheme Gloss build  # CLI build
 xcodebuild -project Gloss.xcodeproj -scheme Gloss test   # CLI test
+
+# iOS app (GlossiOS target — Xcode-only, no SPM equivalent)
+xcodebuild -project Gloss.xcodeproj -scheme GlossiOS \
+  -destination 'generic/platform=iOS Simulator' build   # CLI build
+open Gloss.xcodeproj     # scheme GlossiOS → ⌘R (uses GlossStore.storekit)
 ```
+
+**iOS sharing model:** GlossiOS compiles `Sources/Gloss` via an **exclude
+list** in project.yml (new shared files are iOS-compiled by default — AppKit
+drift breaks the iOS build gate, not silently). `XCODE_BUILD` must stay in
+the target's compilation conditions or StoreManager's SPM dev bypass ships
+Pro for free. Sim Pro unlock for QA:
+`xcrun simctl spawn <udid> defaults write group.michaelcraig.gloss lastVerifiedUnlockAt -date <ISO>`.
+
+**Vault sync (iCloud container):** vaults live in
+`iCloud.group.michaelcraig.gloss/Documents/` ("iCloud Drive → Gloss").
+Mac watches with FSEvents (works inside the replica); iOS watches with
+`UbiquityVaultObserver` (NSMetadataQuery → same debouncer/reconcile/index
+pipeline). The SQLite index NEVER syncs — container vaults index into
+`App Support/Gloss/VaultIndexes/` (`VaultPaths`). favorites.json syncs with
+two-writer merge (`FavoritesService.mutate`). Pairing: Mac File → Set Up
+iPhone… renders `gloss://pair?v=1&d=base64url(JSON)` (no secrets); iOS scans
+or deep-links into `PairingHandler`. One-time portal state:
+`docs/ICLOUD_SETUP.md`; two-device QA: `docs/IOS_QA_SCRIPT.md`.
 
 **Dual build modes:** SPM (`swift build/test`) for development, xcodegen-generated Xcode project for release (code signing, QL extension embedding, App Store). The `XCODE_BUILD` compilation condition distinguishes them — see `GlossApp.swift:setAppIcon()`.
 

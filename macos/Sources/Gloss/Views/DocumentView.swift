@@ -28,6 +28,10 @@ struct DocumentView: View {
     /// stored recent/favorite with no bookmark, or POSIX perms) — shows the
     /// one-click Grant Access state instead of the dead-end error (#57).
     @State private var readDenied = false
+    /// The file is a not-yet-local ubiquitous item ("Optimize Mac Storage"
+    /// eviction, or a container vault still syncing) — a download was kicked
+    /// and the folder watcher re-runs the load when the bytes land.
+    @State private var downloadingFromCloud = false
 
     var body: some View {
         ZStack {
@@ -49,7 +53,9 @@ struct DocumentView: View {
                             zoom: settings.zoomLevel
                         )
                     } else if !isLoading && loadingForURL == fileURL {
-                        if readDenied {
+                        if downloadingFromCloud {
+                            downloadingState(url: url)
+                        } else if readDenied {
                             permissionState(url: url)
                         } else {
                             errorState(message: "Could not read file:\n\(url.lastPathComponent)")
@@ -235,6 +241,23 @@ struct DocumentView: View {
         }
     }
 
+    /// An evicted or still-syncing iCloud file: not an error — the download
+    /// is on its way, and `.glossVaultFilesChanged` re-runs the load when
+    /// the bytes land (FSEvents fires inside the container replica).
+    private func downloadingState(url: URL) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "icloud.and.arrow.down")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            Text("Downloading from iCloud")
+                .font(.title3)
+            Text(url.lastPathComponent)
+                .font(.callout.monospaced())
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func errorState(message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
@@ -319,11 +342,19 @@ struct DocumentView: View {
         // In-vault files are already covered by the vault's folder bookmark (#55).
         SecurityScopedBookmarks.shared.ensureFileAccess(url)
         readDenied = false
+        downloadingFromCloud = false
         do {
             fileContent = try String(contentsOf: url, encoding: .utf8)
         } catch {
             fileContent = nil
-            readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
+            if LinkIndex.isDatalessUbiquitousFile(url) {
+                // Evicted / not-yet-synced container file: kick the download
+                // and wait — the watcher re-runs this load when it lands.
+                downloadingFromCloud = true
+                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            } else {
+                readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
+            }
         }
         updateFillableFlag(previous: previousContent)
         if let content = fileContent {
@@ -360,12 +391,18 @@ struct DocumentView: View {
     private func reloadContent(url: URL) {
         SecurityScopedBookmarks.shared.ensureFileAccess(url)
         readDenied = false
+        downloadingFromCloud = false
         let previousContent = fileContent
         do {
             fileContent = try String(contentsOf: url, encoding: .utf8)
         } catch {
             fileContent = nil
-            readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
+            if LinkIndex.isDatalessUbiquitousFile(url) {
+                downloadingFromCloud = true
+                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            } else {
+                readDenied = SecurityScopedBookmarks.isPermissionDenied(error)
+            }
         }
         updateFillableFlag(previous: previousContent)
         if let content = fileContent {
