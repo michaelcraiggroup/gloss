@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import GlossKit
 
 /// The iOS reader: owns a DocumentRenderModel instance (the same pipeline the
@@ -13,6 +14,8 @@ struct ReaderScreen: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(LinkIndex.self) private var linkIndex
     @Environment(StoreManager.self) private var store
+    @Environment(FavoritesService.self) private var favoritesService
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @State private var model = DocumentRenderModel()
     @State private var loadFailed = false
@@ -84,6 +87,17 @@ struct ReaderScreen: View {
                     Image(systemName: "textformat.size")
                 }
                 .accessibilityLabel("Reading appearance")
+
+                Button {
+                    guard store.gate(.favorites) else { return }
+                    toggleFavorite()
+                } label: {
+                    Image(systemName: isFavorited ? "star.fill" : "star")
+                        .foregroundStyle(isFavorited
+                            ? AnyShapeStyle(.yellow) : AnyShapeStyle(.tint))
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .accessibilityLabel(isFavorited ? "Remove Favorite" : "Add to Favorites")
 
                 Button {
                     guard store.gate(.inspector) else { return }
@@ -197,6 +211,25 @@ struct ReaderScreen: View {
     private func adjustFontSize(_ delta: Int) {
         guard store.gate(.fontSizeControl) else { return }
         settings.fontSize = min(24, max(12, settings.fontSize + delta))
+    }
+
+    /// Same dual source of truth as the macOS toolbar star: vault files go
+    /// through FavoritesService (.gloss/favorites.json, two-writer merged so
+    /// the toggle syncs to the Mac); a file outside any open vault falls back
+    /// to the SwiftData "" bucket.
+    private var isFavorited: Bool {
+        if favoritesService.handles(fileURL) {
+            return favoritesService.isFavorite(fileURL)
+        }
+        return RecentsStore.legacyIsFavorite(url: fileURL, vaultKey: "", in: modelContext)
+    }
+
+    private func toggleFavorite() {
+        if favoritesService.handles(fileURL) {
+            favoritesService.toggle(fileURL)
+        } else {
+            RecentsStore.legacyToggleFavorite(url: fileURL, vaultKey: "", in: modelContext)
+        }
     }
 
     private var themeBinding: Binding<Appearance> {

@@ -92,6 +92,23 @@ struct RecentsSection<MenuContent: View>: View {
                     .contentShape(Rectangle())
                     .onTapGesture { onSelect(doc.url) }
                     .contextMenu { contextMenu(doc.url) }
+                    // iOS-only: the touch affordance for the star. macOS keeps
+                    // the always-visible star button untouched (no trackpad
+                    // swipe added — shipped behavior stays byte-identical).
+                    #if os(iOS)
+                    .swipeActions(edge: .trailing) {
+                        Button {
+                            onToggleFavorite(doc.url)
+                        } label: {
+                            if favorited {
+                                Label("Unfavorite", systemImage: "star.slash")
+                            } else {
+                                Label("Favorite", systemImage: "star")
+                            }
+                        }
+                        .tint(.glossAccent)
+                    }
+                    #endif
                 }
             }
         } header: {
