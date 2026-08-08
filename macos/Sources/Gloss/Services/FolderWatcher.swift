@@ -129,3 +129,9 @@ final class FolderWatcher: @unchecked Sendable {
         stop()
     }
 }
+
+/// The macOS conformer of the platform-neutral vault-observation seam.
+/// Declared here (not in VaultObserving.swift) so the protocol file stays
+/// free of platform branches — this whole file is excluded from the iOS
+/// target, taking the conformance with it.
+extension FolderWatcher: VaultObserving {}

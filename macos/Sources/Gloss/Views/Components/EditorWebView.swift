@@ -1,11 +1,7 @@
 import SwiftUI
 import WebKit
 
-extension Notification.Name {
-    static let glossEditorDirtyChanged = Notification.Name("glossEditorDirtyChanged")
-    static let glossEditorSaved = Notification.Name("glossEditorSaved")
-    static let glossToggleEditMode = Notification.Name("glossToggleEditMode")
-}
+// Notification.Name declarations moved to GlossNotifications.swift.
 
 /// WKWebView subclass for the CodeMirror 6 markdown editor.
 @MainActor
