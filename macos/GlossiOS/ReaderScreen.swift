@@ -8,21 +8,27 @@ import GlossKit
 /// index catches up.
 struct ReaderScreen: View {
     let fileURL: URL
+    var highlightQuery: String?
     let navHistory: NavigationHistory
 
     @EnvironmentObject private var settings: AppSettings
     @Environment(LinkIndex.self) private var linkIndex
+    @Environment(StoreManager.self) private var store
     @Environment(\.colorScheme) private var colorScheme
     @State private var model = DocumentRenderModel()
     @State private var loadFailed = false
     @State private var isDownloading = false
+    @State private var showingInspector = false
+    @State private var headings: [HeadingInfo] = []
+    @State private var frontmatter: FrontmatterData?
 
     var body: some View {
         ZStack {
             if let html = model.renderedHTML, model.renderURL == fileURL {
                 ReaderWebView(
                     htmlContent: html,
-                    baseURL: fileURL.deletingLastPathComponent()
+                    baseURL: fileURL.deletingLastPathComponent(),
+                    highlightQuery: highlightQuery
                 )
                 .ignoresSafeArea(edges: .bottom)
             } else if isDownloading {
@@ -64,14 +70,46 @@ struct ReaderScreen: View {
                 }
                 .disabled(!navHistory.canGoForward)
                 .accessibilityLabel("Forward")
+
+                Button {
+                    guard store.gate(.inspector) else { return }
+                    showingInspector.toggle()
+                } label: {
+                    Image(systemName: "sidebar.trailing")
+                }
+                .accessibilityLabel("Inspector")
             }
+        }
+        // A detented sheet rather than .inspector — the trailing-column
+        // modifier swallows the navigation bar inside this split-view detail
+        // on iPhone (found by smoke). Read-only in v1 (nil property
+        // callbacks); link taps route through the shared wiki-nav pipeline so
+        // history/gating behave exactly like in-document links.
+        .sheet(isPresented: $showingInspector) {
+            NavigationStack {
+                inspectorContent
+                    .navigationTitle("Inspector")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingInspector = false }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
         }
         .onAppear {
             model.database = { linkIndex.databaseRef }
             loadAndRender()
+            linkIndex.refreshBacklinks(for: fileURL)
         }
         .onChange(of: fileURL) {
             loadAndRender()
+            linkIndex.refreshBacklinks(for: fileURL)
+        }
+        .onChange(of: model.fileContent) { _, content in
+            headings = content.map { MarkdownRenderer.extractHeadings($0) } ?? []
+            frontmatter = content.flatMap { MarkdownRenderer.extractFrontmatter($0) }
         }
         .onChange(of: colorScheme) {
             renderCurrent()
@@ -107,6 +145,37 @@ struct ReaderScreen: View {
         .onDisappear {
             model.cancel()
         }
+    }
+
+    private var inspectorContent: some View {
+        InspectorView(
+            headings: headings,
+            frontmatter: frontmatter,
+            tags: linkIndex.currentFileTags,
+            forwardLinks: linkIndex.forwardLinks,
+            backlinks: linkIndex.backlinks,
+            unlinkedMentions: linkIndex.unlinkedMentions,
+            hasDocument: true,
+            onHeadingTap: { headingID in
+                showingInspector = false
+                NotificationCenter.default.post(
+                    name: .glossScrollToHeading, object: headingID)
+            },
+            onForwardLinkTap: { link in
+                if let path = link.targetPath {
+                    showingInspector = false
+                    NotificationCenter.default.post(
+                        name: .glossNavigateWikiLink,
+                        object: URL(fileURLWithPath: path))
+                }
+            },
+            onBacklinkTap: { sourcePath in
+                showingInspector = false
+                NotificationCenter.default.post(
+                    name: .glossNavigateWikiLink,
+                    object: URL(fileURLWithPath: sourcePath))
+            }
+        )
     }
 
     private var displayTitle: String {
