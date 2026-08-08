@@ -2,21 +2,19 @@
 project: "gloss"
 title: "Gloss — A knowledgebase that opens to read"
 status: "active"
-phase: "Knowledgebase (Path B) — M1: Query layer"
-progress: 62
-stack: "Swift/SwiftUI (macOS app, GlossKit), TypeScript (VS Code extension)"
+phase: "M4 shipped — iOS companion + iCloud vault sync (arc #76–#79); next: device QA → TestFlight"
+progress: 84
+stack: "Swift/SwiftUI (macOS app + GlossiOS, GlossKit), TypeScript (VS Code extension)"
 strategic_direction: "Path B — become a full knowledgebase (queries, transclusion, capture, properties, sync, iOS). Reader-first survives as the differentiator: it opens to read."
 next_steps:
-  - "M1: type:query md+ block over LinkDatabase"
-  - "M1: frontmatter properties table in .gloss/index.sqlite"
-  - "M1: saved searches in sidebar"
-  - "M2: transclusion, unlinked mentions, [[ autocomplete"
+  - "Run docs/IOS_QA_SCRIPT.md twice (fresh + dirty) on real devices — arc exit gate"
+  - "iOS TestFlight: add iOS platform to the EXISTING App Store Connect record (Universal Purchase)"
+  - "App Store submission blockers: issue #74 (B1/B2 URLs, B5 MAS path, B6 IAP, B7 screenshots, B9 signed pass)"
+  - "iOS capture arc (share extension + widgets), then iOS editing"
 open_questions:
-  - "iOS v1 sync = iCloud Drive folder-as-vault (proposed, docs/IOS_VAULT_SYNC.md) — awaiting go/no-go"
-  - "Universal Purchase (one $9.99 unlocks macOS+iOS) — decide before first iOS TestFlight"
-  - "Positioning revisit when M3 capture ships"
-  - "Pricing under KB scope — leaning all one-time, iCloud sync free"
-last_updated: "2026-07-09"
+  - "Positioning revisit — 'the knowledgebase that opens to read' now that sync + iOS are real"
+  - "iOS free-tier carve-out vs App Review 4.2 (all-gated companion) — decide pre-submission"
+last_updated: "2026-08-08"
 ---
 
 # Gloss — Project Plan
@@ -65,9 +63,16 @@ Gloss already owns the *navigation* half of a knowledgebase: typed wiki-links (`
 - [ ] Editable frontmatter properties (write back + re-index)
 
 ### M4 — Durability & reach
-- [ ] iCloud sync (markdown only; exclude `.gloss/` derived cache) — **strategy: [docs/IOS_VAULT_SYNC.md](docs/IOS_VAULT_SYNC.md)** (iCloud Drive folder-as-vault; index rebuilt on device)
+- [x] **iCloud sync SHIPPED (2026-08-08, arc #76–#79, PRs #80–#91)** — container-first
+      (`iCloud.group.michaelcraig.gloss`, "iCloud Drive → Gloss"); Move Vault to iCloud… +
+      crash-healing migrator; per-device index (`VaultPaths` → App Support; SQLite never syncs);
+      two-writer favorites merge; FSEvents on Mac + NSMetadataQuery on iOS feeding one pipeline
+- [x] **iOS companion SHIPPED (reader-first v1)** — GlossiOS target, same bundle id (Universal
+      Purchase); vault discovery + QR pairing (`gloss://pair`, no secrets, Camera or in-app
+      scanner); reader w/ wiki-nav + history, search scopes, inspector sheet, download states.
+      Exit gate: [docs/IOS_QA_SCRIPT.md](docs/IOS_QA_SCRIPT.md) twice on devices → TestFlight
+- [ ] iOS capture (share extension + widgets) → then iOS editing (next arcs)
 - [ ] Version history (local snapshots / git-backed)
-- [ ] iOS companion (read + capture; reuses GlossKit renderer) — reader-first v1; **GlossKit already builds for iOS** (UI-framework-free). Scope map in [docs/IOS_VAULT_SYNC.md](docs/IOS_VAULT_SYNC.md) §6
 
 ### M5 — Parity polish
 - [ ] Split panes / tabs

@@ -9,14 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **GlossiOS — the iOS app target exists.** First milestone-C PR of the iOS
-  companion arc ([#78](https://github.com/michaelcraiggroup/gloss/issues/78)):
-  a SwiftUI shell (vault list, settings, paywall) compiling the shared
-  `Sources/Gloss` layer for iOS 17+ under the **same bundle identifier** as
-  the Mac app (Universal Purchase — the existing "Gloss Pro" unlock covers
-  both platforms). Registers the `gloss://` URL scheme for Mac pairing and
-  carries an iCloud-entitlement placeholder for the vault-sync arc. The
-  reader, container vaults, and QR pairing land in the next PRs.
+- **Gloss for iOS — the companion app** (arc
+  [#76](https://github.com/michaelcraiggroup/gloss/issues/76)–[#79](https://github.com/michaelcraiggroup/gloss/issues/79),
+  PRs #80–#91, one day). Reader-first v1 under the **same bundle identifier**
+  as the Mac app (Universal Purchase — one "Gloss Pro" unlock covers both):
+  vault browsing with favorites/recents shelves, full GlossKit render parity
+  (wiki-links, transclusion, queries, Mermaid, KaTeX, the amber theme),
+  wiki-link navigation with Back/Forward history, filename + full-text
+  search with in-reader highlights, the knowledge inspector (TOC, tags,
+  typed forward/backlinks), and per-file download states.
+- **Vault sync via your own iCloud.** Vaults live in the app's container —
+  "iCloud Drive → Gloss" — a plain folder you own; no server, no
+  subscription. **Move Vault to iCloud…** migrates a local vault with a
+  crash-healing journal; **Set Up iPhone…** shows a QR
+  (`gloss://pair` — carries no secrets; the Apple Account is the boundary)
+  plus live upload status. iPhones pair by Camera scan, in-app scanner, or
+  pasted link — and vaults also appear automatically on any device signed
+  into the same Apple Account. The SQLite index never syncs (per-device,
+  Application Support for container vaults); `favorites.json` syncs with a
+  two-writer merge so neither device clobbers the other; markdown downloads
+  eagerly on the phone and indexes as it lands; evicted or still-syncing
+  files show a "Downloading from iCloud" state on both platforms and
+  self-heal when bytes arrive.
 
 - **macOS iCloud foundation** — the app now carries the iCloud Documents
   entitlements for its container (`iCloud.group.michaelcraig.gloss`,
