@@ -3,6 +3,7 @@ import GlossKit
 
 /// Inspector sidebar showing table of contents, frontmatter, tags, forward links, and backlinks.
 struct InspectorView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let headings: [HeadingInfo]
     let frontmatter: FrontmatterData?
     let tags: [String]
@@ -80,8 +81,8 @@ struct InspectorView: View {
                                         .font(.caption)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
-                                        .background(.teal.opacity(0.15))
-                                        .foregroundStyle(.teal)
+                                        .background(Color.glossSheen(colorScheme).opacity(0.15))
+                                        .foregroundStyle(Color.glossSheen(colorScheme))
                                         .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)

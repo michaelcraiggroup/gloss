@@ -16,7 +16,7 @@ struct FileTreeRow: View {
             Text(displayName)
                 .lineLimit(1)
         } icon: {
-            Text(node.documentType.icon)
+            DocumentTypeIcon(type: node.documentType)
         }
         .help(tooltip)
     }

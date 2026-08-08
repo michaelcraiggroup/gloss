@@ -25,6 +25,7 @@ struct RootView: View {
     /// The document trail — the single source of navigation truth.
     @State private var docPath: [URL] = []
     @State private var didRestoreSession = false
+    @Environment(\.colorScheme) private var colorScheme
     /// On iPhone (compact) the split view shows one column at a time —
     /// programmatic navigation must also steer the visible column, or a
     /// sidebar tap changes state with no visible transition.
@@ -40,6 +41,8 @@ struct RootView: View {
         } detail: {
             NavigationStack(path: $docPath) {
                 detailPlaceholder
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.glossChromeBg(colorScheme).ignoresSafeArea())
                     .navigationDestination(for: URL.self) { url in
                         ReaderScreen(
                             fileURL: url,

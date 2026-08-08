@@ -26,8 +26,13 @@ struct RecentsSection<MenuContent: View>: View {
     private let onToggleFavorite: (URL) -> Void
     private let contextMenu: (URL) -> MenuContent
 
+    /// iOS passes true: an empty shelf renders nothing at all — sections are
+    /// earned by content. macOS keeps its shipped empty rows.
+    private let hideWhenEmpty: Bool
+
     init(
         vaultKey: String,
+        hideWhenEmpty: Bool = false,
         onSelect: @escaping (URL) -> Void,
         onToggleFavorite: @escaping (URL) -> Void,
         @ViewBuilder contextMenu: @escaping (URL) -> MenuContent
@@ -39,12 +44,22 @@ struct RecentsSection<MenuContent: View>: View {
         descriptor.fetchLimit = 10
         _recents = Query(descriptor)
         self.vaultKey = vaultKey
+        self.hideWhenEmpty = hideWhenEmpty
         self.onSelect = onSelect
         self.onToggleFavorite = onToggleFavorite
         self.contextMenu = contextMenu
     }
 
     var body: some View {
+        if hideWhenEmpty && recents.isEmpty {
+            EmptyView()
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         // One Set per body pass instead of an O(favorites) scan
         // per row per render.
         let favoritePaths: Set<String> = favoritesService.rootURL != nil
@@ -62,7 +77,7 @@ struct RecentsSection<MenuContent: View>: View {
                             Text(doc.title)
                                 .lineLimit(1)
                         } icon: {
-                            Text(doc.type.icon)
+                            DocumentTypeIcon(type: doc.type)
                         }
                         Spacer()
                         Button {
