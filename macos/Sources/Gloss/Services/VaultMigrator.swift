@@ -161,6 +161,10 @@ final class VaultMigrator {
         }
 
         Self.clearJournal()
+        // The old identity's Spotlight items would deep-link to paths that no
+        // longer exist — purge the domain; the reopen's index build re-adds
+        // every note under the container root.
+        SpotlightIndexer.purgeVault(root: source)
         phase = .done
         return destination
     }

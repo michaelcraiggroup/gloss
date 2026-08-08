@@ -129,12 +129,17 @@ final class LinkIndex {
                 // vault under a symlinked root (/var → /private/var) wipes and
                 // re-indexes everything on every build.
                 let resolvedPaths = files.map { $0.resolvingSymlinksInPath().path }
-                let removed = try db.removeStaleFiles(existingPaths: Set(resolvedPaths))
+                let resolvedSet = Set(resolvedPaths)
+                // Fetched BEFORE the stale sweep so the vanished paths can be
+                // mirrored out of Spotlight (the DB sweep only reports a count).
+                let storedModTimes = (try? db.allFileModTimes()) ?? [:]
+                SpotlightIndexer.remove(
+                    paths: storedModTimes.keys.filter { !resolvedSet.contains($0) })
+                let removed = try db.removeStaleFiles(existingPaths: resolvedSet)
 
                 // Index each changed file; skip unchanged mtimes. The
                 // autoreleasepool bounds Foundation's bridged-string garbage,
                 // which otherwise accumulates for the whole scan.
-                let storedModTimes = (try? db.allFileModTimes()) ?? [:]
                 var stats = BuildStats(indexed: 0, skipped: 0, removed: removed)
                 for (fileURL, resolvedPath) in zip(files, resolvedPaths) {
                     guard !Task.isCancelled else { return }
@@ -248,6 +253,7 @@ final class LinkIndex {
         enqueue { [weak self] in
             do {
                 try db.deleteFile(path: standardizedPath)
+                SpotlightIndexer.remove(paths: [standardizedPath])
                 // Recompute aggregates too, otherwise the deleted file lingers in
                 // the Recently Changed list and its tags stay in the Tags browser.
                 let recent = (try? db.recentlyChangedFiles()) ?? []
@@ -362,6 +368,8 @@ final class LinkIndex {
         enqueue { [weak self] in
             do {
                 try db.deleteFile(path: oldPath)
+                // The new path re-enters Spotlight via indexFile below.
+                SpotlightIndexer.remove(paths: [oldPath])
                 if let fileId = try Self.indexFile(newURL, rootURL: rootURL, database: db) {
                     try db.resolveLinksTouching(fileId: fileId)
                 }
@@ -511,6 +519,10 @@ final class LinkIndex {
         let standardizedPath = fileURL.resolvingSymlinksInPath().path
 
         let fileId = try database.upsertFile(path: standardizedPath, title: title, modifiedAt: modDate)
+        // Content is in hand exactly here — mirror into Spotlight so system
+        // search stays in lockstep with the link index.
+        SpotlightIndexer.upsert(
+            path: standardizedPath, title: title, content: content, vaultRoot: rootURL)
 
         // Extract and store links
         let extractedLinks = MarkdownRenderer.extractLinks(content)
