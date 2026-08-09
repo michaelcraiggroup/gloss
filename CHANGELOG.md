@@ -30,9 +30,12 @@ pass — none reproducible in the simulator, which has no real iCloud:
   modifier dereferenced the macOS-only walkthrough service, which iOS never
   injects — a fatal on first open. The anchor is now inert when the service
   is absent.
-- **Backing out of the last note reveals the sidebar** instead of stranding
-  the reader on an empty placeholder page (#98 — the structural cleanup of
-  the compact navigation stack stays open).
+- **Known issue (#98, unresolved):** backing out of the last note still
+  lands on an empty placeholder page. Instrumentation added this release
+  proved the document trail empties and both programmatic steers to the
+  sidebar fire — the split view ignores compact-column writes after an
+  interactive pop, so the fix is structural (the first document should be
+  the compact stack's root) and tracked in #98.
 
 ## [1.25.0] - 2026-08-08
 
