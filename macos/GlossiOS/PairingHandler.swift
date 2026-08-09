@@ -124,9 +124,11 @@ final class PairingHandler: PairingURLHandling {
         stopLocating()
         let query = NSMetadataQuery()
         query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
+        // Path-key predicates match nothing on device (see
+        // UbiquityVaultObserver.start) — watch by folder NAME and let
+        // advance()'s FileManager check confirm the actual path.
         query.predicate = NSPredicate(
-            format: "%K BEGINSWITH %@", NSMetadataItemPathKey,
-            vaultURL.resolvingSymlinksInPath().path)
+            format: "%K == %@", NSMetadataItemFSNameKey, vaultURL.lastPathComponent)
         for name in [Notification.Name.NSMetadataQueryDidFinishGathering, .NSMetadataQueryDidUpdate] {
             locateObservers.append(NotificationCenter.default.addObserver(
                 forName: name, object: query, queue: .main

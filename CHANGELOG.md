@@ -5,6 +5,35 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.24.1]
+
+### Fixed
+
+Four device-only defects found (and fixed) during the first two-device QA
+pass — none reproducible in the simulator, which has no real iCloud:
+
+- **iPhone vaults now stay live.** The iOS metadata observer's path-key
+  predicate silently matched nothing on real devices (the path attribute
+  isn't reliably queryable, and iOS reports files under `/private/var` while
+  the app's paths say `/var`) — so synced edits never refreshed the reader
+  and newly downloaded notes never entered the link index, leaving
+  wiki-links, content search, and backlinks empty. The query now uses the
+  canonical name predicate with in-code vault scoping on normalized paths,
+  on both the vault observer and the pairing locate watch.
+- **Wiki-link taps navigate across folders on iPhone.** WKWebView's file
+  sandbox (scoped by `loadHTMLString` to the note's own directory) silently
+  refused to start navigations to file URLs outside it — cross-folder
+  wiki-links were dead on arrival. iOS wiki hrefs now ride a `glosswiki://`
+  scheme that always reaches the navigation delegate and decodes back to the
+  target file.
+- **The iPhone inspector no longer freezes the app.** Its spotlight-anchor
+  modifier dereferenced the macOS-only walkthrough service, which iOS never
+  injects — a fatal on first open. The anchor is now inert when the service
+  is absent.
+- **Backing out of the last note reveals the sidebar** instead of stranding
+  the reader on an empty placeholder page (#98 — the structural cleanup of
+  the compact navigation stack stays open).
+
 ## [1.24.0] - 2026-08-08
 
 ### Added
