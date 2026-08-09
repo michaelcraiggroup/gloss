@@ -1,5 +1,11 @@
 # Changelog
 
+> **2026-08-09 — repo split.** The native macOS/iOS apps (everything under
+> `macos/`, versions 1.0–1.27) moved to the private **vesta** repository
+> and continue as Vesta 1.0. This repo now holds only the free VS Code
+> extension, which keeps the Gloss name. Historical entries below record
+> the shared era.
+
 All notable changes to Gloss will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
