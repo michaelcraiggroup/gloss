@@ -36,7 +36,7 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.27.0"
+        CFBundleShortVersionString: "1.27.1"
         NSHighResolutionCapable: true
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
@@ -83,7 +83,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.27.0"
+        MARKETING_VERSION: "1.27.1"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
@@ -117,7 +117,7 @@ targets:
     info:
       path: GlossQLExtension/Info.plist
       properties:
-        CFBundleShortVersionString: "1.27.0"
+        CFBundleShortVersionString: "1.27.1"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewViewController"
@@ -135,7 +135,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
-        MARKETING_VERSION: "1.27.0"
+        MARKETING_VERSION: "1.27.1"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SKIP_INSTALL: true
@@ -181,6 +181,10 @@ targets:
     type: application
     platform: iOS
     sources:
+      # Privacy manifest must land in the bundle root (no target-level
+      # `resources:` key in xcodegen — same rule as the CLI script, #67).
+      - path: GlossiOS/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: Sources/Gloss
         excludes:
           - GlossApp.swift
@@ -209,7 +213,7 @@ targets:
       path: GlossiOS/Info.plist
       properties:
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.27.0"
+        CFBundleShortVersionString: "1.27.1"
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: "Gloss uses the camera to scan the pairing code shown by Gloss on your Mac."
@@ -240,7 +244,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.27.0"
+        MARKETING_VERSION: "1.27.1"
         CURRENT_PROJECT_VERSION: "12"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
