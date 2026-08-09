@@ -36,7 +36,7 @@ targets:
       properties:
         CFBundleIconFile: AppIcon
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.26.1"
+        CFBundleShortVersionString: "1.26.2"
         NSHighResolutionCapable: true
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
@@ -83,7 +83,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.26.1"
+        MARKETING_VERSION: "1.26.2"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD
@@ -117,7 +117,7 @@ targets:
     info:
       path: GlossQLExtension/Info.plist
       properties:
-        CFBundleShortVersionString: "1.26.1"
+        CFBundleShortVersionString: "1.26.2"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.quicklook.preview
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewViewController"
@@ -135,7 +135,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss.quicklook
         PRODUCT_NAME: GlossQL
-        MARKETING_VERSION: "1.26.1"
+        MARKETING_VERSION: "1.26.2"
         CURRENT_PROJECT_VERSION: "12"
         ENABLE_HARDENED_RUNTIME: "YES"   # required for Developer ID notarization
         SKIP_INSTALL: true
@@ -209,7 +209,7 @@ targets:
       path: GlossiOS/Info.plist
       properties:
         CFBundleDisplayName: Gloss
-        CFBundleShortVersionString: "1.26.1"
+        CFBundleShortVersionString: "1.26.2"
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: "Gloss uses the camera to scan the pairing code shown by Gloss on your Mac."
@@ -240,7 +240,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: group.michaelcraig.gloss
         PRODUCT_NAME: Gloss
-        MARKETING_VERSION: "1.26.1"
+        MARKETING_VERSION: "1.26.2"
         CURRENT_PROJECT_VERSION: "12"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: XCODE_BUILD

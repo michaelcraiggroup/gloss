@@ -17,6 +17,13 @@ struct SidebarView: View {
     @Environment(ContainerVaultCatalog.self) private var vaultCatalog
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("largeVaultNoticeDismissed") private var largeVaultNoticeDismissed = false
+    // Shelf-tier sections collapse to their headers, hidden by default —
+    // the sidebar leads with the vault's own documents. Persisted per
+    // section so a user's arrangement survives relaunch.
+    @AppStorage("sidebarFavoritesExpanded") private var favoritesExpanded = false
+    @AppStorage("sidebarRecentlyChangedExpanded") private var recentlyChangedExpanded = false
+    @AppStorage("sidebarTagsExpanded") private var tagsExpanded = false
+    @AppStorage("sidebarRecentsExpanded") private var recentsExpanded = false
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
     @State private var showingRenameAlert = false
@@ -176,6 +183,7 @@ struct SidebarView: View {
                 // that sit below the vault's own documents.
                 FavoritesSection(
                     showsShelfDivider: fileTree.activeNode != nil,
+                    isExpanded: $favoritesExpanded,
                     onSelect: { selectFile($0) },
                     onToggleFavorite: { toggleFavorite(url: $0) }
                 ) { url in
@@ -184,58 +192,29 @@ struct SidebarView: View {
 
                 if !linkIndex.recentlyChanged.isEmpty {
                     Section {
-                        ForEach(linkIndex.recentlyChanged.prefix(10), id: \.path) { item in
-                            let url = URL(fileURLWithPath: item.path)
-                            let parentFolder = url.deletingLastPathComponent().lastPathComponent
-                            let docType = DocumentType.detect(
-                                filename: url.lastPathComponent, folderName: parentFolder
-                            )
-                            HStack {
-                                Label {
-                                    Text(item.title)
-                                        .lineLimit(1)
-                                } icon: {
-                                    Text(docType.icon)
-                                }
-                                Spacer()
-                                Text(relativeDate(item.modifiedAt))
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectFile(url) }
-                            .contextMenu { favoriteContextMenu(for: url) }
+                        if recentlyChangedExpanded {
+                            recentlyChangedRows
                         }
                     } header: {
-                        Text("Recently Changed").glossShelfHeader()
+                        ShelfToggleHeader(
+                            title: "Recently Changed", isExpanded: $recentlyChangedExpanded)
                     }
                 }
 
                 if !linkIndex.allTags.isEmpty {
                     Section {
-                        ForEach(linkIndex.allTags.prefix(20), id: \.tag) { item in
-                            Button {
-                                fileTree.filterByTag(item.tag, files: linkIndex.files(forTag: item.tag))
-                            } label: {
-                                HStack {
-                                    Label(item.tag, systemImage: "tag")
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Text("\(item.count)")
-                                        .foregroundStyle(.secondary)
-                                        .font(.caption)
-                                }
-                            }
-                            .buttonStyle(.plain)
+                        if tagsExpanded {
+                            tagRows
                         }
                     } header: {
-                        Text("Tags").glossShelfHeader()
+                        ShelfToggleHeader(title: "Tags", isExpanded: $tagsExpanded)
                     }
                     .spotlightTarget(.sidebarTagsSection)
                 }
 
                 RecentsSection(
                     vaultKey: settings.vaultKey,
+                    isExpanded: $recentsExpanded,
                     onSelect: { selectFile($0) },
                     onToggleFavorite: { toggleFavorite(url: $0) }
                 ) { url in
@@ -281,44 +260,12 @@ struct SidebarView: View {
                 filenameSearch.cancel()
             }
         }
+        // The refresh button is gone (the folder watcher reconciles live) and
+        // the vault library moved to ContentView's .navigation placement —
+        // sidebar-section toolbar items VANISH when the sidebar hides, and
+        // the library must survive reading immersion.
         .toolbar {
             ToolbarItemGroup {
-                Button {
-                    fileTree.refreshAfterFileChange()
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .help("Refresh file tree")
-                .disabled(!fileTree.hasFolder)
-
-                // The iPhone's library icon, and its behavior: one place
-                // that lists every vault and opens any of them. The panel
-                // route stays for local folders.
-                Menu {
-                    ForEach(vaultCatalog.vaults) { vault in
-                        Button {
-                            guard store.gate(.folderSidebar) else { return }
-                            NotificationCenter.default.post(
-                                name: .glossOpenPath, object: vault.rootURL)
-                        } label: {
-                            Label(vault.name, systemImage: vault.isInICloud ? "icloud" : "folder")
-                        }
-                    }
-                    if !vaultCatalog.vaults.isEmpty {
-                        Divider()
-                    }
-                    Button("Open Vault…") {
-                        guard store.gate(.folderSidebar) else { return }
-                        openVaultFromSidebar()
-                    }
-                } label: {
-                    Label("Vault Library", systemImage: "books.vertical")
-                }
-                .help("Vault Library (⇧⌘O opens a folder)")
-                .task {
-                    await vaultCatalog.refresh()
-                }
-
                 if GlossFeatures.vaultGraph {
                     Button {
                         NotificationCenter.default.post(name: .glossShowGraph, object: nil)
@@ -492,6 +439,53 @@ struct SidebarView: View {
                 .fill(isActive ? Color.glossAccent.opacity(0.2) : Color.secondary.opacity(0.1))
         )
         .foregroundStyle(isActive ? Color.glossAccent : .secondary)
+    }
+
+    // MARK: - Shelf rows (collapsible-section children)
+
+    @ViewBuilder
+    private var recentlyChangedRows: some View {
+        ForEach(linkIndex.recentlyChanged.prefix(10), id: \.path) { item in
+            let url = URL(fileURLWithPath: item.path)
+            let parentFolder = url.deletingLastPathComponent().lastPathComponent
+            let docType = DocumentType.detect(
+                filename: url.lastPathComponent, folderName: parentFolder
+            )
+            HStack {
+                Label {
+                    Text(item.title)
+                        .lineLimit(1)
+                } icon: {
+                    Text(docType.icon)
+                }
+                Spacer()
+                Text(relativeDate(item.modifiedAt))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { selectFile(url) }
+            .contextMenu { favoriteContextMenu(for: url) }
+        }
+    }
+
+    @ViewBuilder
+    private var tagRows: some View {
+        ForEach(linkIndex.allTags.prefix(20), id: \.tag) { item in
+            Button {
+                fileTree.filterByTag(item.tag, files: linkIndex.files(forTag: item.tag))
+            } label: {
+                HStack {
+                    Label(item.tag, systemImage: "tag")
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(item.count)")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Browse Section

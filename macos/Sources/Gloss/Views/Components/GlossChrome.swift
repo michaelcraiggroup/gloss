@@ -124,6 +124,37 @@ extension View {
     }
 }
 
+/// A shelf header that IS the collapse toggle: title + always-visible
+/// rotating chevron, flipping a persisted binding. Built by hand because
+/// `Section(isExpanded:)` never wires its disclosure to custom header views
+/// in this sidebar (verified against defaults — clicks never reached the
+/// binding). Rows are gated by the caller; the header itself persists, per
+/// the #61 section-lifetime rule.
+struct ShelfToggleHeader: View {
+    let title: String
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(title).glossShelfHeader()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(isExpanded ? "Hide" : "Show") \(title)")
+    }
+}
+
 /// Hairline marking where the vault's documents end and the shelves begin.
 /// Lives inside the first shelf header (rather than in a section of its own) so
 /// no sidebar section can appear or disappear under the cursor — see the
