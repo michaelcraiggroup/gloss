@@ -109,9 +109,12 @@ struct FavoritesSection<MenuContent: View>: View {
     private var headerView: some View {
         VStack(alignment: .leading, spacing: 0) {
             if showsShelfDivider {
-                // The shelf tier needs air below the vault's own documents.
+                // Air on BOTH sides of the hairline: above it (off the
+                // vault's documents) and below it (off the Favorites
+                // header) — the header hugging the line read as cramped.
                 GlossShelfDivider()
                     .padding(.top, 10)
+                    .padding(.bottom, 8)
             }
             if let isExpanded {
                 ShelfToggleHeader(title: "Favorites", isExpanded: isExpanded)
