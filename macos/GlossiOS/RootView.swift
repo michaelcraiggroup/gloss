@@ -26,8 +26,26 @@ struct RootView: View {
     @Environment(UbiquityVaultStore.self) private var ubiquityStore
     @State private var paywallFeature: PaidFeature?
     @State private var showingPairing = false
-    /// The document trail — the single source of navigation truth.
+    /// The document trail — the single source of navigation truth. The
+    /// FIRST element renders as the stack's root; the rest are pushes.
     @State private var docPath: [URL] = []
+
+    /// The stack path holds only the PUSHED documents (everything after
+    /// docPath.first). Interactive pops write the shortened array back and
+    /// the root is re-attached, so the system can never pop "past" the
+    /// first document onto a placeholder page (#98).
+    private var pushedPath: Binding<[URL]> {
+        Binding(
+            get: { Array(docPath.dropFirst()) },
+            set: { newValue in
+                if let root = docPath.first {
+                    docPath = [root] + newValue
+                } else {
+                    docPath = newValue
+                }
+            }
+        )
+    }
     @State private var didRestoreSession = false
     @Environment(\.colorScheme) private var colorScheme
     /// On iPhone (compact) the split view shows one column at a time —
@@ -43,16 +61,34 @@ struct RootView: View {
                 VaultListScreen(catalog: vaultCatalog, onPair: { showingPairing = true })
             }
         } detail: {
-            NavigationStack(path: $docPath) {
-                detailPlaceholder
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.glossChromeBg(colorScheme).ignoresSafeArea())
-                    .navigationDestination(for: URL.self) { url in
+            // #98 structural fix (mirrors the Mac's #104 model): the FIRST
+            // document is the stack's ROOT — the placeholder is never a page
+            // on the way out. Backing out of the last document is therefore
+            // the split view's own detail→sidebar transition, which is
+            // system-reliable; programmatic compact-column writes after an
+            // interactive pop are ignored (console-proven in the 1.25.1 QA).
+            // With no document open the placeholder is the root — a visible
+            // empty pane on iPad regular width, and merely latent on iPhone
+            // where the sidebar column fronts instead.
+            NavigationStack(path: pushedPath) {
+                Group {
+                    if let rootDoc = docPath.first {
                         ReaderScreen(
-                            fileURL: url,
+                            fileURL: rootDoc,
                             highlightQuery: fileTree.searchScope == .content
                                 ? fileTree.searchQuery : nil)
+                    } else {
+                        detailPlaceholder
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.glossChromeBg(colorScheme).ignoresSafeArea())
                     }
+                }
+                .navigationDestination(for: URL.self) { url in
+                    ReaderScreen(
+                        fileURL: url,
+                        highlightQuery: fileTree.searchScope == .content
+                            ? fileTree.searchQuery : nil)
+                }
             }
         }
         .modifier(FolderWatchHandler(
@@ -86,16 +122,10 @@ struct RootView: View {
             settings.currentFileURL = newPath.last
             if let top = newPath.last {
                 settings.lastOpenedFile = top.standardizedFileURL.path
-            } else {
-                // Popping the last document (back chevron / edge swipe on the
-                // top-level note) must reveal the SIDEBAR on iPhone, not the
-                // empty-detail placeholder (#98). Deferred one tick: a
-                // compact-column write DURING the pop transition is swallowed
-                // by NavigationSplitView (device-verified).
-                Task { @MainActor in
-                    preferredColumn = .sidebar
-                }
             }
+            // The trail no longer empties via pops (the root document is not
+            // in the stack path) — only Close Vault empties it, and the
+            // currentFileURL-nil handler below steers to the sidebar then.
         }
         .onChange(of: settings.currentFileURL) { _, newValue in
             // Close Vault nils this out — clear the trail and show the sidebar.

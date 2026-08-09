@@ -5,6 +5,18 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.1]
+
+### Fixed
+
+- **iPhone: backing out of the last note reveals the sidebar** — the
+  structural fix for the blank-placeholder page (#98). The first document is
+  now the navigation stack's root (browser-style, mirroring the Mac's 1.26.0
+  model), so the final back-swipe rides the split view's own
+  detail-to-sidebar transition instead of a programmatic column change iOS
+  ignores. Wiki-pushed notes still walk the trail; the empty-vault
+  placeholder remains only where it belongs — iPad's empty detail pane.
+
 ## [1.26.0]
 
 ### Added
