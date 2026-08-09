@@ -5,6 +5,18 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0]
+
+### Changed
+
+- **The Mac sidebar is now the iPhone's sidebar.** With no vault open it IS
+  the library — wordmark on top, every vault as an amber shelf row. With one
+  open, the vault's identity (amber books icon + name, left-justified) sits
+  at the top of the list and is the doorway back to the library, current
+  vault checkmarked. The vault affordance lives in the sidebar and hides
+  with it — the window toolbar carries system controls only (the library
+  menu introduced in 1.26.2 is gone, as is the old in-list vault card).
+
 ## [1.26.2]
 
 ### Changed

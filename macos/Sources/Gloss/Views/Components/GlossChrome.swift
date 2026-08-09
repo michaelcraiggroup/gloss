@@ -28,22 +28,54 @@ extension View {
 /// `.safeAreaInset`. The leading inset clears the window traffic lights (the frame
 /// uses a hidden title bar).
 struct GlossSidebarHeader: View {
+    /// Vault mode: the open vault's identity replaces the wordmark, and the
+    /// whole header is the doorway back to the library (iOS parity: the
+    /// books button at the top of the sidebar). nil = library mode, which
+    /// keeps the wordmark. The affordance lives IN the sidebar — hidden
+    /// with it — never in the window's toolbar.
+    var vaultName: String?
+    var onShowLibrary: (() -> Void)?
+
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Gloss")
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color.glossChromeInk(colorScheme))
-                Text("BY OFF-LEASH")
-                    .font(.system(size: 9, weight: .semibold))
-                    .tracking(0.8)
-                    .foregroundStyle(Color.glossSheen(colorScheme))
+            if let vaultName {
+                Button {
+                    onShowLibrary?()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "books.vertical")
+                            .foregroundStyle(Color.glossSheen(colorScheme))
+                        Text(vaultName)
+                            .font(.system(size: 15, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color.glossChromeInk(colorScheme))
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Vault Library")
+                .accessibilityLabel("Show Vault Library")
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Gloss")
+                        .font(.system(size: 18, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.glossChromeInk(colorScheme))
+                    Text("BY OFF-LEASH")
+                        .font(.system(size: 9, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(Color.glossSheen(colorScheme))
+                }
             }
             Spacer(minLength: 0)
         }
-        .padding(.leading, 74)
+        // The wordmark keeps its historical clearance; the vault row sits
+        // flush with the sidebar's content edge (left-justified icon).
+        .padding(.leading, vaultName != nil ? 16 : 74)
         .padding(.trailing, 12)
         .padding(.top, 12)
         .padding(.bottom, 10)
@@ -59,55 +91,7 @@ struct GlossSidebarHeader: View {
 
 // MARK: - Sidebar section hierarchy
 
-/// The sidebar's primary header: the open vault (or the folder scoped into it).
-/// Inked, accented, and set on a tinted card so the vault's documents read as
-/// the main event and the quick-access shelves beneath them (Favorites,
-/// Recently Changed, Tags, Recent Documents) read as secondary.
-struct GlossVaultHeader: View {
-    let name: String
-    let path: String
-    let isScoped: Bool
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        HStack(spacing: 7) {
-            Image(systemName: isScoped ? "folder.fill" : "books.vertical.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(Color.glossSheen(colorScheme))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.glossChromeInk(colorScheme))
-                    .lineLimit(1)
-                Text(path)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
-            }
-            Spacer(minLength: 0)
-        }
-        // Sidebar headers inherit an uppercasing text case in some styles; the
-        // vault name is a filename and must render exactly as it is on disk.
-        .textCase(nil)
-        .padding(.vertical, 5)
-        .padding(.leading, 10)
-        .padding(.trailing, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.glossSheen(colorScheme).opacity(colorScheme == .dark ? 0.16 : 0.12))
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Color.glossSheen(colorScheme))
-                .frame(width: 3)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-    }
-}
-
-/// Quiet styling for the sidebar's secondary "shelf" section headers. Applied
-/// to the title text only — controls that share the header row (Recents'
-/// Clear) keep their own styling and their own case.
-private struct GlossShelfHeaderStyle: ViewModifier {
+struct GlossShelfHeaderStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.system(size: 10, weight: .semibold))
