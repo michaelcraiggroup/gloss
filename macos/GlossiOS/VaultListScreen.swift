@@ -117,7 +117,7 @@ struct VaultListScreen: View {
                 .foregroundStyle(Color.glossAccent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(vault.name)
-                if let shelfLine = shelfLine(for: vault) {
+                if let shelfLine = vault.shelfLine {
                     Text(shelfLine)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -137,20 +137,6 @@ struct VaultListScreen: View {
             }
         }
         .contentShape(Rectangle())
-    }
-
-    /// "12 notes · Updated 2 hours ago" — the shelf caption. Nil when the
-    /// scan produced nothing to say.
-    private func shelfLine(for vault: VaultDescriptor) -> String? {
-        var parts: [String] = []
-        if let count = vault.noteCount {
-            parts.append(
-                count >= 999 ? "999+ notes" : count == 1 ? "1 note" : "\(count) notes")
-        }
-        if let updated = vault.updatedAt {
-            parts.append("Updated \(updated.formatted(.relative(presentation: .named)))")
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     @ViewBuilder

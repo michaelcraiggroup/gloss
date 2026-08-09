@@ -14,6 +14,7 @@ struct SidebarView: View {
     @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(FilenameSearchService.self) private var filenameSearch
     @Environment(LinkIndex.self) private var linkIndex
+    @Environment(ContainerVaultCatalog.self) private var vaultCatalog
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("largeVaultNoticeDismissed") private var largeVaultNoticeDismissed = false
     @State private var searchText = ""
@@ -290,13 +291,33 @@ struct SidebarView: View {
                 .help("Refresh file tree")
                 .disabled(!fileTree.hasFolder)
 
-                Button {
-                    guard store.gate(.folderSidebar) else { return }
-                    openVaultFromSidebar()
+                // The iPhone's library icon, and its behavior: one place
+                // that lists every vault and opens any of them. The panel
+                // route stays for local folders.
+                Menu {
+                    ForEach(vaultCatalog.vaults) { vault in
+                        Button {
+                            guard store.gate(.folderSidebar) else { return }
+                            NotificationCenter.default.post(
+                                name: .glossOpenPath, object: vault.rootURL)
+                        } label: {
+                            Label(vault.name, systemImage: vault.isInICloud ? "icloud" : "folder")
+                        }
+                    }
+                    if !vaultCatalog.vaults.isEmpty {
+                        Divider()
+                    }
+                    Button("Open Vault…") {
+                        guard store.gate(.folderSidebar) else { return }
+                        openVaultFromSidebar()
+                    }
                 } label: {
-                    Label("Open Vault", systemImage: "folder.badge.plus")
+                    Label("Vault Library", systemImage: "books.vertical")
                 }
-                .help("Open Vault (⇧⌘O)")
+                .help("Vault Library (⇧⌘O opens a folder)")
+                .task {
+                    await vaultCatalog.refresh()
+                }
 
                 if GlossFeatures.vaultGraph {
                     Button {
@@ -487,6 +508,53 @@ struct SidebarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.tint)
+            }
+        }
+
+        if fileTree.activeNode == nil {
+            // iPhone-parity library: with no vault open, the sidebar IS the
+            // vault list (amber shelf rows, container vaults) — not a dead
+            // pane with the affordance hidden in a menu.
+            Section("Vaults") {
+                ForEach(vaultCatalog.vaults) { vault in
+                    Button {
+                        guard store.gate(.folderSidebar) else { return }
+                        NotificationCenter.default.post(
+                            name: .glossOpenPath, object: vault.rootURL)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "books.vertical")
+                                .foregroundStyle(Color.glossAccent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(vault.name)
+                                if let line = vault.shelfLine {
+                                    Text(line)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                            if vault.isInICloud {
+                                Image(systemName: "icloud")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button {
+                    guard store.gate(.folderSidebar) else { return }
+                    openVaultFromSidebar()
+                } label: {
+                    Label("Open Vault…", systemImage: "folder.badge.plus")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .task {
+                await vaultCatalog.refresh()
             }
         }
 
