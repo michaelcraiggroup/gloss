@@ -102,10 +102,10 @@ vault rows in the list.
 
 | Check | Pass 1 (fresh) | Pass 2 (dirty) |
 | --- | :--: | :--: |
-| §1 Move + crash drill | ☐ | ☐ |
-| §2 All six pairing drills | ☐ | ☐ |
-| §3 Read + sync + favorites + evicted | ✅ | ☐ |
-| §4 Offline | ☐ | ☐ |
+| §1 Move + crash drill | ✅ | ✅ |
+| §2 All six pairing drills | ✅ | ✅ |
+| §3 Read + sync + favorites + evicted | ✅ | ✅ |
+| §4 Offline | ✅ | ✅ |
 
 **Run log**
 
@@ -114,7 +114,28 @@ vault rows in the list.
   metadata-observer fix (PR #102); iPhone build 1.25.1. Favorites two-way
   (reader star + shelf swipes), live update, search/inspector, and evicted
   states all clean.
+- 2026-08-09 — **Pass 1 §1/§2/§4 columns ticked from the 2026-08-08 fresh
+  run** (evidence table on #79): move + `.gloss` purity + index relocation +
+  crash-heal; camera/in-app/auto-discovery/foreign/traversal/Pro-gate
+  drills (wrong-account skipped — no second Apple Account); airplane reads.
+- 2026-08-09 — **Pass 2 (dirty): PASS**, closing the table. App installed
+  with a different vault open, Pro already unlocked. §1: GlossQA-Charlie
+  moved while Bravo open (`.gloss` = favorites.json only, index in App
+  Support) + crash-heal via journal fault-injection (GlossQA-Delta —
+  rootFolderPath repaired, journal cleared, vault opened at first frame).
+  §2/§5 watch-items: dirty scan **replaced the open vault cleanly with no
+  paywall**; vault list shows each vault exactly once; per-vault
+  favorites/recents buckets held through every switch. §3: two-writer
+  favorites crossed BOTH directions through one file (iPhone star landed
+  on the Mac shelf live; Mac unfavorite left the iPhone shelf) without
+  clobbering; live-update line synced (in-place repaint verified pass 1);
+  Mac evict self-healed (dataless → rendered). §4: airplane reads clean.
+  Builds: Mac 1.26.3→1.27.0 QA builds, iPhone 1.26.1+ (main). Incidental
+  finding filed: #109 (inline-only single-$ math detection).
 
 Both columns clean twice = the arc's exit gate (#79) and the go signal for
 TestFlight (remember: iOS platform joins the **existing** App Store Connect
 record — Universal Purchase).
+
+**Gate status: BOTH COLUMNS CLEAN (2026-08-09). The arc's exit gate is
+passed — TestFlight is go.**
