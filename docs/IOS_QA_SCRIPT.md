@@ -109,7 +109,7 @@ vault rows in the list.
 
 **Run log**
 
-- 2026-08-08 — **Pass 1 §3: PASS** on both devices. Rerun after the pass-1
+- 2026-08-09 — **Pass 1 §3: PASS** on both devices. Rerun after the pass-1
   findings closed: favorites toggle (#100 → PR #101, 1.25.0) and the
   metadata-observer fix (PR #102); iPhone build 1.25.1. Favorites two-way
   (reader star + shelf swipes), live update, search/inspector, and evicted
