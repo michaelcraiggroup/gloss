@@ -171,4 +171,28 @@ struct DocumentRenderModelTests {
         #expect(model.renderURL == nil)
         #expect(!model.isRendering)
     }
+
+    // MARK: - Wiki href scheme (iOS file-sandbox workaround)
+
+    @Test func wikiHrefRoundtripsHostilePaths() {
+        // The device case: spaces, tildes, and query-breaking characters.
+        let path = "/var/mobile/Library/Mobile Documents/iCloud~group~michaelcraig~gloss/Documents/Vault/Notes & Ideas/Q?.md"
+        let href = DocumentRenderModel.wikiHref(
+            forFileURLString: URL(fileURLWithPath: path).absoluteString)
+        #expect(href.hasPrefix("glosswiki://open?path="))
+        #expect(!href.contains(" "))
+        let back = DocumentRenderModel.fileURL(fromWikiHref: URL(string: href)!)
+        #expect(back?.path == path)
+    }
+
+    @Test func wikiHrefDecodeRejectsForeignAndRelative() {
+        #expect(DocumentRenderModel.fileURL(
+            fromWikiHref: URL(string: "https://example.com/?path=/x.md")!) == nil)
+        #expect(DocumentRenderModel.fileURL(
+            fromWikiHref: URL(string: "glosswiki://open?path=relative/x.md")!) == nil)
+        #expect(DocumentRenderModel.fileURL(
+            fromWikiHref: URL(string: "glosswiki://open")!) == nil)
+        // Non-file input passes through encode untouched (defensive no-op).
+        #expect(DocumentRenderModel.wikiHref(forFileURLString: "not a url") == "not a url")
+    }
 }

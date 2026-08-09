@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import os
 
 /// UIViewRepresentable twin of the macOS read-mode WebView, carrying over the
 /// portable behaviors only: HTML load with dedupe, the link-interception
@@ -48,6 +49,8 @@ struct ReaderWebView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, @unchecked Sendable {
+        static let wikiNavLog = Logger(
+            subsystem: "group.michaelcraig.gloss", category: "wikinav")
         weak var webView: WKWebView?
         var lastHTML: String?
         var pendingHighlight: String?
@@ -98,9 +101,13 @@ struct ReaderWebView: UIViewRepresentable {
         ) {
             guard navigationAction.navigationType == .linkActivated,
                   let url = navigationAction.request.url else {
+                Self.wikiNavLog.info(
+                    "decidePolicy pass-through type=\(navigationAction.navigationType.rawValue) url=\(navigationAction.request.url?.absoluteString ?? "nil", privacy: .public)")
                 decisionHandler(.allow)
                 return
             }
+            Self.wikiNavLog.info(
+                "decidePolicy linkActivated url=\(url.absoluteString, privacy: .public)")
 
             if url.fragment != nil && (url.scheme == nil || url.scheme == "about") {
                 let escaped = url.fragment!.replacingOccurrences(of: "'", with: "\\'")
@@ -112,7 +119,19 @@ struct ReaderWebView: UIViewRepresentable {
                 return
             }
 
+            if let wikiFileURL = DocumentRenderModel.fileURL(fromWikiHref: url) {
+                Self.wikiNavLog.info(
+                    "decidePolicy wiki post \(wikiFileURL.lastPathComponent, privacy: .public)")
+                MainActor.assumeIsolated {
+                    NotificationCenter.default.post(
+                        name: .glossNavigateWikiLink, object: wikiFileURL)
+                }
+                decisionHandler(.cancel)
+                return
+            }
+
             if url.isFileURL, ["md", "markdown"].contains(url.pathExtension.lowercased()) {
+                Self.wikiNavLog.info("decidePolicy wiki post \(url.lastPathComponent, privacy: .public)")
                 MainActor.assumeIsolated {
                     NotificationCenter.default.post(name: .glossNavigateWikiLink, object: url)
                 }

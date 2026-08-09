@@ -69,14 +69,26 @@ final class DocumentRenderModel {
         unresolvedWikiTargets = unresolved
         let embedMap = Self.buildEmbedSnapshot(for: content, from: url, database: db)
 
+        // iOS taps on file:// hrefs outside the note's own directory never
+        // reach the navigation delegate — loadHTMLString's read sandbox is
+        // scoped to baseURL, and WebKit refuses to START the navigation
+        // ("Ignoring request to load this main resource because it is
+        // outside the sandbox"). Custom-scheme hrefs always reach
+        // decidePolicy, where ReaderWebView decodes them back to file URLs.
+        #if os(iOS)
+        let hrefMap = wikiLinkMap.mapValues(Self.wikiHref(forFileURLString:))
+        #else
+        let hrefMap = wikiLinkMap
+        #endif
+
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard !Task.isCancelled else { return }
             let rendered = MarkdownRenderer.render(
                 content,
                 isDark: isDark,
                 fontSize: fontSize,
-                resolveWikiLink: wikiLinkMap.isEmpty ? nil : { target in
-                    wikiLinkMap[target.lowercased()]
+                resolveWikiLink: hrefMap.isEmpty ? nil : { target in
+                    hrefMap[target.lowercased()]
                 },
                 resolveQuery: db.map { database in
                     { query in (try? database.runQuery(query)) ?? [] }
@@ -162,6 +174,35 @@ final class DocumentRenderModel {
     /// up-front (on the caller's thread — main, for @MainActor database
     /// owners), producing a Sendable snapshot for background rendering — plus
     /// the list of targets that could not be resolved.
+    // MARK: - Wiki href scheme (iOS)
+
+    /// Wrap a resolved `file://` wiki href in the `glosswiki://` scheme so
+    /// the tap survives WKWebView's file sandbox (see the note in `render`).
+    /// The path travels as a strictly-encoded query value — `&`, `?`, `=`,
+    /// and `+` are encoded so hostile filenames can't break query parsing.
+    nonisolated static func wikiHref(forFileURLString fileURLString: String) -> String {
+        guard let url = URL(string: fileURLString), url.isFileURL else {
+            return fileURLString
+        }
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "&?=+")
+        let encoded = url.path.addingPercentEncoding(withAllowedCharacters: allowed) ?? url.path
+        return "glosswiki://open?path=\(encoded)"
+    }
+
+    /// Decode a `glosswiki://` navigation back to the file URL it names.
+    /// Returns nil for any other scheme, a missing path, or a non-absolute
+    /// path (the href round-trips through untrusted HTML — never resolve a
+    /// relative path against anything).
+    nonisolated static func fileURL(fromWikiHref href: URL) -> URL? {
+        guard href.scheme == "glosswiki",
+              let components = URLComponents(url: href, resolvingAgainstBaseURL: false),
+              let path = components.queryItems?.first(where: { $0.name == "path" })?.value,
+              path.hasPrefix("/")
+        else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+
     nonisolated static func buildWikiLinkSnapshot(
         for content: String,
         from url: URL,

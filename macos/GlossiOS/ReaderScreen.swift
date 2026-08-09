@@ -100,7 +100,10 @@ struct ReaderScreen: View {
                 .accessibilityLabel(isFavorited ? "Remove Favorite" : "Add to Favorites")
 
                 Button {
-                    guard store.gate(.inspector) else { return }
+                    let allowed = store.gate(.inspector)
+                    ReaderWebView.Coordinator.wikiNavLog.info(
+                        "inspector tap allowed=\(allowed) wasShowing=\(showingInspector)")
+                    guard allowed else { return }
                     showingInspector.toggle()
                 } label: {
                     Image(systemName: "sidebar.trailing")
@@ -125,6 +128,9 @@ struct ReaderScreen: View {
                     }
             }
             .presentationDetents([.medium, .large])
+            .onAppear {
+                ReaderWebView.Coordinator.wikiNavLog.info("inspector sheet appeared")
+            }
         }
         .onAppear {
             model.database = { linkIndex.databaseRef }

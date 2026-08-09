@@ -47,8 +47,12 @@ final class UbiquityVaultObserver: NSObject, VaultObserving, @unchecked Sendable
 
         let query = NSMetadataQuery()
         query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
-        query.predicate = NSPredicate(
-            format: "%K BEGINSWITH %@", NSMetadataItemPathKey, resolvedRoot.path + "/")
+        // Path-key predicates silently match NOTHING on device (the path
+        // attribute isn't reliably queryable, and bird reports items under
+        // /private/var while our root says /var). The only trustworthy
+        // predicate is the always-true FSName form; vault scoping happens
+        // in code, on canonicalized paths (vaultRelevantPaths).
+        query.predicate = NSPredicate(format: "%K LIKE '*'", NSMetadataItemFSNameKey)
 
         observers.append(NotificationCenter.default.addObserver(
             forName: .NSMetadataQueryDidFinishGathering, object: query, queue: .main
@@ -114,21 +118,28 @@ final class UbiquityVaultObserver: NSObject, VaultObserving, @unchecked Sendable
     }
 
     private func emit(_ paths: [String]) {
+        let inVault = paths.filter { $0.hasPrefix(rootPrefix) }
         // Same favorites passthrough as FolderWatcher: the one .gloss path
-        // that gets a signal out (already on the main queue here).
-        if FavoritesService.pathsIncludeFavoritesFile(paths) {
+        // that gets a signal out (already on the main queue here). Scoped
+        // to THIS vault — the broad query sees sibling vaults' files too.
+        if FavoritesService.pathsIncludeFavoritesFile(inVault) {
             NotificationCenter.default.post(name: .glossFavoritesFileChanged, object: nil)
         }
         guard let onChange else { return }
-        let relevant = Self.vaultRelevantPaths(paths, rootPath: rootPath, rules: rules)
+        let relevant = Self.vaultRelevantPaths(inVault, rootPath: rootPath, rules: rules)
         guard !relevant.isEmpty else { return }
         onChange(relevant)
+    }
+
+    private var rootPrefix: String {
+        rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
     }
 
     private func kickDownloadIfWanted(_ item: NSMetadataItem, path: String) {
         let status = item.value(
             forAttribute: NSMetadataUbiquitousItemDownloadingStatusKey) as? String
-        guard Self.wantsEagerDownload(path: path, downloadStatus: status),
+        guard path.hasPrefix(rootPrefix),
+              Self.wantsEagerDownload(path: path, downloadStatus: status),
               !downloadRequested.contains(path) else { return }
         downloadRequested.insert(path)
         try? FileManager.default.startDownloadingUbiquitousItem(
@@ -136,22 +147,39 @@ final class UbiquityVaultObserver: NSObject, VaultObserving, @unchecked Sendable
     }
 
     private static func path(of item: NSMetadataItem) -> String? {
-        item.value(forAttribute: NSMetadataItemPathKey) as? String
+        guard let raw = item.value(forAttribute: NSMetadataItemPathKey) as? String else {
+            return nil
+        }
+        return canonicalItemPath(raw)
+    }
+
+    /// Metadata items surface under `/private/var/...` on device while every
+    /// path the app derives from the container URL says `/var/...`.
+    /// `resolvingSymlinksInPath` strips the `/private` prefix (documented
+    /// behavior when the result exists), converging both spellings — so
+    /// prefix checks, the debouncer, reconcile, and `paths.contains(target)`
+    /// reload guards all compare in one path space.
+    nonisolated static func canonicalItemPath(_ raw: String) -> String {
+        URL(fileURLWithPath: raw).resolvingSymlinksInPath().path
     }
 
     // MARK: - Pure policy helpers (unit-tested)
 
-    /// Exclusion filtering with FolderWatcher-identical semantics: only
-    /// components BELOW the watched root are inspected, so a vault whose own
-    /// path contains an excluded name still works.
+    /// Vault scoping + exclusion filtering. The query is deliberately broad
+    /// (see the predicate note in `start`), so paths outside the watched
+    /// root — sibling vaults in the same container — are DROPPED here.
+    /// Below the root, exclusion semantics match FolderWatcher: only
+    /// components BELOW the root are inspected, so a vault whose own path
+    /// contains an excluded name still works.
     nonisolated static func vaultRelevantPaths(
         _ paths: [String],
         rootPath: String,
         rules: ExclusionRules
     ) -> [String] {
-        paths.filter { path in
-            let relative = path.hasPrefix(rootPath) ? path.dropFirst(rootPath.count) : path[...]
-            return !rules.isExcludedRelativePath(relative)
+        let prefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        return paths.filter { path in
+            guard path.hasPrefix(prefix) else { return false }
+            return !rules.isExcludedRelativePath(path.dropFirst(rootPath.count))
         }
     }
 

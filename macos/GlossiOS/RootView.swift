@@ -1,5 +1,8 @@
 import SwiftUI
 import CoreSpotlight
+import os
+
+private let wikiNavLog = Logger(subsystem: "group.michaelcraig.gloss", category: "wikinav")
 
 /// Root navigation shell: NavigationSplitView collapses to a stack on
 /// iPhone and stays a real split on iPad. Documents are REAL navigation
@@ -66,17 +69,32 @@ struct RootView: View {
                 .environment(store)
         }
         .onReceive(NotificationCenter.default.publisher(for: .glossNavigateWikiLink)) { note in
-            guard store.gate(.wikiLinks) else { return }
+            wikiNavLog.info(
+                "wiki notification object=\(String(describing: note.object), privacy: .public)")
+            guard store.gate(.wikiLinks) else {
+                wikiNavLog.info("wiki nav blocked by gate")
+                return
+            }
             if let url = note.object as? URL {
                 openFile(url, push: true)
             }
         }
         .onChange(of: docPath) { _, newPath in
+            wikiNavLog.info("docPath changed count=\(newPath.count)")
             // The stack top is "the current document" — recents recording,
             // backlink refresh, and macOS-parity state all key off it.
             settings.currentFileURL = newPath.last
             if let top = newPath.last {
                 settings.lastOpenedFile = top.standardizedFileURL.path
+            } else {
+                // Popping the last document (back chevron / edge swipe on the
+                // top-level note) must reveal the SIDEBAR on iPhone, not the
+                // empty-detail placeholder (#98). Deferred one tick: a
+                // compact-column write DURING the pop transition is swallowed
+                // by NavigationSplitView (device-verified).
+                Task { @MainActor in
+                    preferredColumn = .sidebar
+                }
             }
         }
         .onChange(of: settings.currentFileURL) { _, newValue in
@@ -147,6 +165,8 @@ struct RootView: View {
     /// the tapped note (Notes-style — selection, not accumulation);
     /// wiki-link taps PUSH so swipe-back returns to the source note.
     private func openFile(_ url: URL, push: Bool = false) {
+        wikiNavLog.info(
+            "openFile push=\(push) file=\(url.lastPathComponent, privacy: .public) trail=\(docPath.count)")
         if push {
             guard docPath.last != url else { return }
             docPath.append(url)
@@ -207,6 +227,14 @@ struct RootView: View {
                 Text("Select a note to start reading.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            // Belt-and-braces for #98: on iPhone this placeholder should
+            // never be the visible page — whatever path lands here, hand
+            // focus back to the sidebar. Inert on iPad regular width
+            // (preferredCompactColumn only applies when compact).
+            .onAppear {
+                wikiNavLog.info("detail placeholder appeared — steering to sidebar")
+                preferredColumn = .sidebar
             }
         } else {
             VStack(spacing: 12) {
