@@ -49,8 +49,17 @@ struct GlossApp: App {
     @State private var graphService = GraphService()
     @State private var guideService = GlossGuideService()
     @State private var templateFill = TemplateFillService()
-    @State private var ubiquityStore = UbiquityVaultStore()
+    @State private var ubiquityStore: UbiquityVaultStore
+    @State private var vaultCatalog: ContainerVaultCatalog
     @StateObject private var quickCapture = QuickCaptureController()
+
+    init() {
+        // The catalog consumes the store, so both are built here — the only
+        // stored properties without inline defaults.
+        let store = UbiquityVaultStore()
+        _ubiquityStore = State(initialValue: store)
+        _vaultCatalog = State(initialValue: ContainerVaultCatalog(ubiquityStore: store))
+    }
     @FocusedValue(\.toggleFavorite) var toggleFavorite
     @FocusedValue(\.toggleInspector) var toggleInspector
     @FocusedValue(\.goBack) var goBack
@@ -78,6 +87,7 @@ struct GlossApp: App {
                 .environment(guideService)
                 .environment(templateFill)
                 .environment(ubiquityStore)
+                .environment(vaultCatalog)
                 .preferredColorScheme(settings.colorSchemeAppearance.colorScheme)
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {

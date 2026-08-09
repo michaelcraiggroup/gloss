@@ -54,13 +54,13 @@ struct ContentView: View {
             withAnimation { inspectorIsShown.toggle() }
         })
         .focusedSceneValue(\.goBack, FocusedAction(id: "goBack") {
-            if let url = navHistory.goBack(from: settings.currentFileURL) {
-                settings.currentFileURL = url
+            if let destination = navHistory.goBack(from: settings.currentFileURL) {
+                settings.currentFileURL = destination.url
             }
         })
         .focusedSceneValue(\.goForward, FocusedAction(id: "goForward") {
-            if let url = navHistory.goForward(from: settings.currentFileURL) {
-                settings.currentFileURL = url
+            if let destination = navHistory.goForward(from: settings.currentFileURL) {
+                settings.currentFileURL = destination.url
             }
         })
         .sheet(item: $paywallFeature) { feature in
@@ -91,8 +91,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: settings.currentFileURL) { oldValue, newValue in
+            // Both branches feed the recorder: traversals clear its latch,
+            // and the overview enters the back stack as the departed place.
+            navHistory.record(old: oldValue, new: newValue)
             if let newValue {
-                navHistory.navigate(to: newValue, from: oldValue)
                 linkIndex.refreshBacklinks(for: newValue)
                 // Selecting a file exits graph mode so the user sees the doc.
                 if isShowingGraph {
@@ -133,9 +135,13 @@ struct ContentView: View {
             hasFolder: fileTree.hasFolder,
             isShowingGraph: $isShowingGraph
         ))
-        .onChange(of: settings.isZenMode) {
-            columnVisibility = settings.isZenMode ? .detailOnly : .automatic
-        }
+        .modifier(ReadingSessionHandler(
+            hasDocument: settings.currentFileURL != nil,
+            isZenMode: settings.isZenMode,
+            vaultRootPath: fileTree.rootNode?.url.path,
+            columnVisibility: $columnVisibility,
+            navHistory: navHistory
+        ))
         .alert("New File", isPresented: $showingNewFileAlert) {
             TextField("Filename", text: $newFileName)
             Button("Create") { createNewFile() }
@@ -249,8 +255,8 @@ struct ContentView: View {
         if !settings.isZenMode {
             ToolbarItemGroup(placement: .navigation) {
                 Button {
-                    if let url = navHistory.goBack(from: settings.currentFileURL) {
-                        settings.currentFileURL = url
+                    if let destination = navHistory.goBack(from: settings.currentFileURL) {
+                        settings.currentFileURL = destination.url
                     }
                 } label: {
                     Label("Back", systemImage: "chevron.left")
@@ -259,8 +265,8 @@ struct ContentView: View {
                 .help("Back (⌘[)")
 
                 Button {
-                    if let url = navHistory.goForward(from: settings.currentFileURL) {
-                        settings.currentFileURL = url
+                    if let destination = navHistory.goForward(from: settings.currentFileURL) {
+                        settings.currentFileURL = destination.url
                     }
                 } label: {
                     Label("Forward", systemImage: "chevron.right")

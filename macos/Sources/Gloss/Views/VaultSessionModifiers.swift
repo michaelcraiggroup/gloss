@@ -100,3 +100,37 @@ struct VaultLifecycleHandler: ViewModifier {
             }
     }
 }
+
+/// macOS reading immersion + navigation session (iPhone-parity, 2026-08-09):
+/// entering a document hides the sidebar; returning to the overview brings it
+/// back. Keyed on the has-document BOOLEAN so document→document navigation
+/// never refires — a sidebar the user reopened mid-read is respected. Zen
+/// mode owns the column exclusively while active; exiting zen restores the
+/// document-appropriate state instead of blanket `.automatic`. Vault identity
+/// changes reset back/forward history (cross-vault entries would navigate
+/// into a closed vault).
+struct ReadingSessionHandler: ViewModifier {
+    let hasDocument: Bool
+    let isZenMode: Bool
+    let vaultRootPath: String?
+    @Binding var columnVisibility: NavigationSplitViewVisibility
+    let navHistory: NavigationHistory
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: hasDocument) { _, hasDoc in
+                guard !isZenMode else { return }
+                withAnimation {
+                    columnVisibility = hasDoc ? .detailOnly : .all
+                }
+            }
+            .onChange(of: isZenMode) {
+                columnVisibility = isZenMode
+                    ? .detailOnly
+                    : (hasDocument ? .detailOnly : .all)
+            }
+            .onChange(of: vaultRootPath) {
+                navHistory.reset()
+            }
+    }
+}

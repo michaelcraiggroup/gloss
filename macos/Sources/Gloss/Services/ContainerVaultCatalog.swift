@@ -21,7 +21,10 @@ final class ContainerVaultCatalog: VaultCatalogProviding {
         if let documents = ubiquityStore.documentsURL {
             found += Self.vaultDescriptors(inDirectory: documents)
         }
-        #if DEBUG
+        // iOS-simulator development only: unsigned sim builds have no
+        // container, so sandbox Documents folders stand in. On macOS the
+        // sandbox Documents dir is app-private noise — never list it.
+        #if DEBUG && os(iOS)
         if let sandbox = FileManager.default.urls(
             for: .documentDirectory, in: .userDomainMask).first {
             found += Self.vaultDescriptors(inDirectory: sandbox)

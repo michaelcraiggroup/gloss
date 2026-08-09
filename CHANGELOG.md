@@ -5,6 +5,31 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0]
+
+### Added
+
+- **The Mac learns the iPhone's moves.** Close every vault and the sidebar
+  becomes a vault library — the same amber shelf rows as the iPhone (note
+  counts, updated times, iCloud badges), one click to open. The toolbar's
+  folder button is now the library (`books.vertical`) menu: every vault,
+  plus Open Vault… for local folders.
+- **Reading is immersive.** Opening a document hides the sidebar; coming
+  back to the vault overview brings it back. Document-to-document
+  navigation never touches it, and a sidebar you reopen mid-read stays put.
+  Zen mode keeps owning the column while active.
+
+### Fixed
+
+- **Back can finally reach the top.** The vault overview is now a real place
+  in navigation history — backing out of the first document lands there
+  (sidebar restored) instead of dead-ending. Under the hood, every Back was
+  being re-recorded as a new navigation (the history guard cleared before
+  SwiftUI's observer ran), so the back stack refilled itself and Forward
+  died — the classic "cycles forever" feel. The traversal latch now clears
+  only when the recorder observes it, and vault switches reset history
+  (stale entries could navigate into a closed vault).
+
 ## [1.25.1]
 
 ### Fixed
