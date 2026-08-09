@@ -24,6 +24,8 @@ struct SidebarView: View {
     @AppStorage("sidebarRecentlyChangedExpanded") private var recentlyChangedExpanded = false
     @AppStorage("sidebarTagsExpanded") private var tagsExpanded = false
     @AppStorage("sidebarRecentsExpanded") private var recentsExpanded = false
+    /// Library mode invoked from the header while a vault is open.
+    @State private var showingLibrary = false
     @State private var searchText = ""
     @State private var searchScope: SearchScope = .filename
     @State private var showingRenameAlert = false
@@ -31,11 +33,20 @@ struct SidebarView: View {
     @State private var renameFileName = ""
     @State private var contextMenuTargetURL: URL?
 
+    /// iOS-parity sidebar modes: with no vault open the sidebar IS the
+    /// library; with one open, the header's vault row is the doorway back.
+    private var isLibraryMode: Bool {
+        !fileTree.hasFolder || showingLibrary
+    }
+
     var body: some View {
         List(selection: Binding(
             get: { fileTree.selectedFileURL },
             set: { selectFile($0) }
         )) {
+            if isLibraryMode {
+                librarySection
+            } else {
             // One-time hint when the vault looks like a development workspace.
             if linkIndex.largeVaultDetected && !largeVaultNoticeDismissed {
                 Section {
@@ -221,11 +232,21 @@ struct SidebarView: View {
                     favoriteContextMenu(for: url)
                 }
             }
+            }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(Color.glossChromeSidebar(colorScheme))
-        .safeAreaInset(edge: .top, spacing: 0) { GlossSidebarHeader() }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            GlossSidebarHeader(
+                vaultName: isLibraryMode ? nil : fileTree.rootNode?.name,
+                onShowLibrary: { withAnimation { showingLibrary = true } }
+            )
+        }
+        .onChange(of: fileTree.rootNode?.url) {
+            // A vault opened (or closed) by any route ends library mode.
+            showingLibrary = false
+        }
         .searchable(text: $searchText, prompt: "Search files")
         .searchScopes($searchScope) {
             ForEach(SearchScope.allCases, id: \.self) { scope in
@@ -441,6 +462,64 @@ struct SidebarView: View {
         .foregroundStyle(isActive ? Color.glossAccent : .secondary)
     }
 
+    // MARK: - Library (whole-sidebar vault list, iOS parity)
+
+    @ViewBuilder
+    private var librarySection: some View {
+        Section("Vaults") {
+            ForEach(vaultCatalog.vaults) { vault in
+                let isCurrent = fileTree.rootNode?.url.standardizedFileURL.path
+                    == vault.rootURL.standardizedFileURL.path
+                Button {
+                    if isCurrent {
+                        withAnimation { showingLibrary = false }
+                        return
+                    }
+                    guard store.gate(.folderSidebar) else { return }
+                    NotificationCenter.default.post(
+                        name: .glossOpenPath, object: vault.rootURL)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "books.vertical")
+                            .foregroundStyle(Color.glossAccent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(vault.name)
+                            if let line = vault.shelfLine {
+                                Text(line)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        if vault.isInICloud {
+                            Image(systemName: "icloud")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        if isCurrent {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
+                                .accessibilityLabel("Open")
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            Button {
+                guard store.gate(.folderSidebar) else { return }
+                openVaultFromSidebar()
+            } label: {
+                Label("Open Vault…", systemImage: "folder.badge.plus")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .task {
+            await vaultCatalog.refresh()
+        }
+    }
+
     // MARK: - Shelf rows (collapsible-section children)
 
     @ViewBuilder
@@ -505,52 +584,8 @@ struct SidebarView: View {
             }
         }
 
-        if fileTree.activeNode == nil {
-            // iPhone-parity library: with no vault open, the sidebar IS the
-            // vault list (amber shelf rows, container vaults) — not a dead
-            // pane with the affordance hidden in a menu.
-            Section("Vaults") {
-                ForEach(vaultCatalog.vaults) { vault in
-                    Button {
-                        guard store.gate(.folderSidebar) else { return }
-                        NotificationCenter.default.post(
-                            name: .glossOpenPath, object: vault.rootURL)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "books.vertical")
-                                .foregroundStyle(Color.glossAccent)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(vault.name)
-                                if let line = vault.shelfLine {
-                                    Text(line)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                            if vault.isInICloud {
-                                Image(systemName: "icloud")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                Button {
-                    guard store.gate(.folderSidebar) else { return }
-                    openVaultFromSidebar()
-                } label: {
-                    Label("Open Vault…", systemImage: "folder.badge.plus")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .task {
-                await vaultCatalog.refresh()
-            }
-        }
+        // (Library rows moved to `librarySection` — the whole-sidebar
+        // library mode, reachable from the header's vault row.)
 
         if let active = fileTree.activeNode {
             Section {
@@ -558,12 +593,9 @@ struct SidebarView: View {
                     fileTreeItem(node)
                 }
             } header: {
+                // Vault identity moved to the sidebar's top header (the
+                // library doorway) — this header keeps only sort controls.
                 VStack(alignment: .leading, spacing: 6) {
-                    GlossVaultHeader(
-                        name: active.name,
-                        path: active.url.path,
-                        isScoped: fileTree.isScoped
-                    )
                     HStack(spacing: 8) {
                         ForEach(SortOrder.allCases, id: \.self) { order in
                             Button {

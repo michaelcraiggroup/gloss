@@ -8,7 +8,6 @@ import GlossKit
 struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(FileTreeModel.self) private var fileTree
-    @Environment(ContainerVaultCatalog.self) private var vaultCatalog
     @Environment(EnhancedSearchService.self) private var enhancedSearch
     @Environment(StoreManager.self) private var store
     @Environment(LinkIndex.self) private var linkIndex
@@ -254,35 +253,9 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         if !settings.isZenMode {
+            // System items only — the vault library lives at the TOP OF THE
+            // SIDEBAR (iOS parity) and hides with it. Design call 2026-08-09.
             ToolbarItemGroup(placement: .navigation) {
-                // The vault library lives in the WINDOW's navigation area —
-                // not the sidebar's toolbar section — so it survives reading
-                // immersion (sidebar-section items vanish with the sidebar).
-                Menu {
-                    ForEach(vaultCatalog.vaults) { vault in
-                        Button {
-                            guard store.gate(.folderSidebar) else { return }
-                            NotificationCenter.default.post(
-                                name: .glossOpenPath, object: vault.rootURL)
-                        } label: {
-                            Label(vault.name, systemImage: vault.isInICloud ? "icloud" : "folder")
-                        }
-                    }
-                    if !vaultCatalog.vaults.isEmpty {
-                        Divider()
-                    }
-                    Button("Open Vault…") {
-                        guard store.gate(.folderSidebar) else { return }
-                        openVaultPanel()
-                    }
-                } label: {
-                    Label("Vault Library", systemImage: "books.vertical")
-                }
-                .help("Vault Library (⇧⌘O opens a folder)")
-                .task {
-                    await vaultCatalog.refresh()
-                }
-
                 Button {
                     if let destination = navHistory.goBack(from: settings.currentFileURL) {
                         settings.currentFileURL = destination.url
@@ -346,19 +319,6 @@ struct ContentView: View {
                 .disabled(settings.currentFileURL == nil)
                 .spotlightTarget(.toolbarInspectorToggle)
             }
-        }
-    }
-
-    // Same panel shape as the sidebar's Open Vault row — duplicated (not
-    // shared) because each lives in a different view's action context.
-    private func openVaultPanel() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.title = "Open Vault"
-        if panel.runModal() == .OK, let url = panel.url {
-            NotificationCenter.default.post(name: .glossOpenPath, object: url)
         }
     }
 
