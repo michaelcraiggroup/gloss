@@ -5,6 +5,20 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.2]
+
+### Changed
+
+- **The Mac sidebar's shelves fold away.** Favorites, Recently Changed,
+  Tags, and Recent Documents collapse to their headers — collapsed by
+  default, so the sidebar leads with the vault's own documents. Each header
+  is the toggle (always-visible rotating chevron), each section remembers
+  its state, and the shelf tier gained breathing room below the tree.
+- **Toolbar honesty.** The refresh button is gone (the folder watcher keeps
+  the tree live on its own), and the vault library moved into the window's
+  navigation area next to the sidebar toggle — both stay visible even while
+  reading with the sidebar hidden.
+
 ## [1.26.1]
 
 ### Fixed

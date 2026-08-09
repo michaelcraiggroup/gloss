@@ -35,15 +35,24 @@ struct FavoritesSection<MenuContent: View>: View {
     /// earned by content (Notes-style). macOS keeps its shipped empty rows.
     private let hideWhenEmpty: Bool
 
+    /// macOS passes a persisted binding: the shelf collapses to its header
+    /// (children hidden by default — the sidebar leads with the vault's own
+    /// documents). nil (iOS) keeps the always-expanded shelf. Collapsing
+    /// hides LEAF rows only — the header row persists, which is the #61
+    /// tracking-area rule this section already lives by.
+    private let isExpanded: Binding<Bool>?
+
     init(
         showsShelfDivider: Bool = false,
         hideWhenEmpty: Bool = false,
+        isExpanded: Binding<Bool>? = nil,
         onSelect: @escaping (URL) -> Void,
         onToggleFavorite: @escaping (URL) -> Void,
         @ViewBuilder contextMenu: @escaping (URL) -> MenuContent
     ) {
         self.showsShelfDivider = showsShelfDivider
         self.hideWhenEmpty = hideWhenEmpty
+        self.isExpanded = isExpanded
         self.onSelect = onSelect
         self.onToggleFavorite = onToggleFavorite
         self.contextMenu = contextMenu
@@ -65,31 +74,48 @@ struct FavoritesSection<MenuContent: View>: View {
 
     private var content: some View {
         Section {
-            if favoritesService.rootURL != nil {
-                if favoritesService.favorites.isEmpty {
-                    emptyRow
-                } else {
-                    ForEach(favoritesService.favorites) { item in
-                        row(
-                            title: item.title,
-                            type: item.documentType,
-                            url: item.url,
-                            missing: !item.fileExists
-                        )
-                    }
-                }
-            } else if legacyFavorites.isEmpty {
-                emptyRow
-            } else {
-                ForEach(legacyFavorites) { doc in
-                    row(title: doc.title, type: doc.type, url: doc.url, missing: false)
-                }
+            if isExpanded?.wrappedValue ?? true {
+                rows
             }
         } header: {
-            VStack(alignment: .leading, spacing: 0) {
-                if showsShelfDivider {
-                    GlossShelfDivider()
+            headerView
+        }
+    }
+
+    @ViewBuilder
+    private var rows: some View {
+        if favoritesService.rootURL != nil {
+            if favoritesService.favorites.isEmpty {
+                emptyRow
+            } else {
+                ForEach(favoritesService.favorites) { item in
+                    row(
+                        title: item.title,
+                        type: item.documentType,
+                        url: item.url,
+                        missing: !item.fileExists
+                    )
                 }
+            }
+        } else if legacyFavorites.isEmpty {
+            emptyRow
+        } else {
+            ForEach(legacyFavorites) { doc in
+                row(title: doc.title, type: doc.type, url: doc.url, missing: false)
+            }
+        }
+    }
+
+    private var headerView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if showsShelfDivider {
+                // The shelf tier needs air below the vault's own documents.
+                GlossShelfDivider()
+                    .padding(.top, 10)
+            }
+            if let isExpanded {
+                ShelfToggleHeader(title: "Favorites", isExpanded: isExpanded)
+            } else {
                 Text("Favorites").glossShelfHeader()
             }
         }

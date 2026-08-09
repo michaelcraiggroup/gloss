@@ -30,9 +30,15 @@ struct RecentsSection<MenuContent: View>: View {
     /// earned by content. macOS keeps its shipped empty rows.
     private let hideWhenEmpty: Bool
 
+    /// macOS passes a persisted binding: the shelf collapses to its header
+    /// (children hidden by default). nil (iOS) keeps the always-expanded
+    /// shelf. Leaf rows only — the header persists (#61 tracking-area rule).
+    private let isExpanded: Binding<Bool>?
+
     init(
         vaultKey: String,
         hideWhenEmpty: Bool = false,
+        isExpanded: Binding<Bool>? = nil,
         onSelect: @escaping (URL) -> Void,
         onToggleFavorite: @escaping (URL) -> Void,
         @ViewBuilder contextMenu: @escaping (URL) -> MenuContent
@@ -45,6 +51,7 @@ struct RecentsSection<MenuContent: View>: View {
         _recents = Query(descriptor)
         self.vaultKey = vaultKey
         self.hideWhenEmpty = hideWhenEmpty
+        self.isExpanded = isExpanded
         self.onSelect = onSelect
         self.onToggleFavorite = onToggleFavorite
         self.contextMenu = contextMenu
@@ -58,14 +65,24 @@ struct RecentsSection<MenuContent: View>: View {
         }
     }
 
-    @ViewBuilder
     private var content: some View {
+        Section {
+            if isExpanded?.wrappedValue ?? true {
+                rows
+            }
+        } header: {
+            headerView
+        }
+    }
+
+    @ViewBuilder
+    private var rows: some View {
         // One Set per body pass instead of an O(favorites) scan
         // per row per render.
         let favoritePaths: Set<String> = favoritesService.rootURL != nil
             ? Set(favoritesService.favorites.map { RecentsStore.canonicalPath($0.url) })
             : Set(legacyFavorites.map(\.path))
-        Section {
+        Group {
             if recents.isEmpty {
                 Text("No recent documents")
                     .foregroundStyle(.secondary)
@@ -111,19 +128,27 @@ struct RecentsSection<MenuContent: View>: View {
                     #endif
                 }
             }
-        } header: {
-            HStack {
+        }
+    }
+
+    private var headerView: some View {
+        HStack {
+            if let isExpanded {
+                ShelfToggleHeader(title: "Recent Documents", isExpanded: isExpanded)
+            } else {
                 Text("Recent Documents").glossShelfHeader()
                 Spacer()
-                if !recents.isEmpty {
-                    Button("Clear") {
-                        RecentsStore.clearRecents(vaultKey: vaultKey, in: modelContext)
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .help("Remove all recent documents for this vault")
+            }
+            // Clear only offers itself on an open shelf — and stays a
+            // separate button, never nested inside the toggle.
+            if !recents.isEmpty && (isExpanded?.wrappedValue ?? true) {
+                Button("Clear") {
+                    RecentsStore.clearRecents(vaultKey: vaultKey, in: modelContext)
                 }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("Remove all recent documents for this vault")
             }
         }
     }
