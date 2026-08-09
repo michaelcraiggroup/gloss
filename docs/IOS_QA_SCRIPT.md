@@ -104,8 +104,16 @@ vault rows in the list.
 | --- | :--: | :--: |
 | §1 Move + crash drill | ☐ | ☐ |
 | §2 All six pairing drills | ☐ | ☐ |
-| §3 Read + sync + favorites + evicted | ☐ | ☐ |
+| §3 Read + sync + favorites + evicted | ✅ | ☐ |
 | §4 Offline | ☐ | ☐ |
+
+**Run log**
+
+- 2026-08-09 — **Pass 1 §3: PASS** on both devices. Rerun after the pass-1
+  findings closed: favorites toggle (#100 → PR #101, 1.25.0) and the
+  metadata-observer fix (PR #102); iPhone build 1.25.1. Favorites two-way
+  (reader star + shelf swipes), live update, search/inspector, and evicted
+  states all clean.
 
 Both columns clean twice = the arc's exit gate (#79) and the go signal for
 TestFlight (remember: iOS platform joins the **existing** App Store Connect
