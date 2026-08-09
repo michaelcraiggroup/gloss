@@ -5,7 +5,7 @@ All notable changes to Gloss will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.24.1]
+## [1.25.1]
 
 ### Fixed
 
@@ -33,6 +33,15 @@ pass — none reproducible in the simulator, which has no real iCloud:
 - **Backing out of the last note reveals the sidebar** instead of stranding
   the reader on an empty placeholder page (#98 — the structural cleanup of
   the compact navigation stack stays open).
+
+## [1.25.0] - 2026-08-08
+
+### Added
+
+- **iPhone favorites toggle.** The reader toolbar gains the star (⌘D with a
+  hardware keyboard), and the sidebar shelves gain swipe actions and
+  long-press menus — favorites now flow both directions between Mac and
+  iPhone through the same two-writer merge. (#97)
 
 ## [1.24.0] - 2026-08-08
 

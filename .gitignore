@@ -49,3 +49,4 @@ temp/
 macos/node_modules/
 macos/package.json
 macos/package-lock.json
+macos/.build-qa/

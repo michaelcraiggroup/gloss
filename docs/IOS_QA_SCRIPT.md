@@ -69,10 +69,15 @@ Use a disposable copy of a real vault (favorites set, wiki-links present).
       bounces to Filenames + paywall.
 - [ ] **Live update Mac → iPhone**: edit a note on the Mac → the iPhone
       reader refreshes within seconds (no relaunch).
-- [ ] **Favorites Mac → iPhone**: favorite a note on the Mac → it appears
-      on the iPhone's shelf. (v1 ships no iOS toggle affordance, so the
-      reverse drill waits for the iOS favorite toggle; the two-writer merge
-      itself is SPM-tested. Restore the two-way drill when the toggle lands.)
+- [ ] **Favorites both ways**: favorite a note on the Mac → it appears on
+      the iPhone's shelf. On the iPhone, open that note and tap the reader
+      toolbar **star** (filled = favorited; ⌘D on an iPad keyboard) →
+      it leaves the Mac's sidebar. (Two-writer merge: neither device's
+      change clobbers the other.)
+- [ ] **iPhone shelf affordances**: swipe a Favorites row → **Unfavorite**
+      removes it; swipe a Recents row → **Favorite**/**Unfavorite** toggles
+      its star; long-press either row → the same menu. After each toggle the
+      reader star, both shelves, and the Mac sidebar all agree.
 - [ ] **Evicted-file states**: on the iPhone, open a note that hasn't
       downloaded → "Downloading from iCloud" → renders when it lands. On the
       Mac, evict a file (Remove Download in Finder) and open it → same
